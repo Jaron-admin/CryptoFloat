@@ -1,0 +1,622 @@
+{
+  "@@locale": "zh",
+  "editCancel": "取消",
+  "editSave": "保存",
+  "editAdd": "添加",
+  "editDelete": "删除",
+  "editAddToDisplay": "加入显示",
+  "editRemove": "移除",
+  "editSourceNameRequired": "请为这个数据源起个名字。",
+  "editSourceUrlInvalid": "请输入 HTTPS 数据接口地址，密钥请放在请求头中。",
+  "editSourceIntervalInvalid": "刷新间隔应在 15 到 3600 秒之间。",
+  "editSourceDuplicateHeader": "请求头名称重复，请保留一项。",
+  "editSourceFieldsRequired": "请至少选择一个显示字段。",
+  "editSetField": "设置显示字段",
+  "editField": "编辑显示字段",
+  "editFieldName": "显示名称",
+  "editFieldNameHint": "例如：账户余额、室外温度",
+  "editFieldUnit": "单位（可选）",
+  "editFieldUnitHint": "例如：USD、°C、人",
+  "editFieldPath": "返回数据中的位置",
+  "editFieldPathHint": "例如：data.balance 或 items[0].price",
+  "editSourceAdd": "添加自定义 API",
+  "editSourceEdit": "编辑自定义 API",
+  "editSourceEnabled": "启用这个数据源",
+  "editConnectSource": "连接数据源",
+  "editSourceName": "数据源名称",
+  "editSourceNameHint": "例如：我的账户、天气",
+  "editSourceUrl": "HTTPS 接口地址",
+  "editSourceInterval": "刷新间隔（秒）",
+  "editSourceIntervalHelp": "15–3600 秒，请遵循接口的调用频率限制。",
+  "editSourceHeaders": "请求头 / API 密钥（需要时填写）",
+  "editSourceHeadersOptional": "免密钥接口可以跳过",
+  "editHeaderName": "请求头名称",
+  "editHeaderSecret": "密钥内容",
+  "editHeaderValue": "请求头值",
+  "editHeaderRetain": "已保存，留空保留原值",
+  "editHeaderTokenHint": "例如：Bearer your-token",
+  "editHeaderSecure": "作为密钥，由系统保护存储",
+  "editHeaderAdd": "添加请求头",
+  "editReadFields": "读取返回字段",
+  "editDisplayFields": "显示字段",
+  "editReadFieldsHelp": "读取成功后，点击某个返回值，为它起显示名称并填写单位。",
+  "editSelectedFields": "已选择的显示字段",
+  "editRemoveField": "移除字段",
+  "editAdvancedField": "高级：手动指定字段位置",
+  "editAddFieldPath": "添加字段位置",
+  "editFieldSymbol": "代码",
+  "editFieldLabel": "名称",
+  "editFieldPrice": "价格",
+  "editFieldCurrency": "货币单位",
+  "editFieldChange": "涨跌幅",
+  "editFieldProvider": "数据源",
+  "editFieldUpdatedAt": "更新时间",
+  "editSourceMissing": "未找到的数据源",
+  "editDisplayText": "显示文字",
+  "editWantedText": "想显示的文字",
+  "editWantedTextHint": "例如：今天的价格：  或  我的余额 ",
+  "editComposeRow": "组合显示行",
+  "editCloseEditor": "关闭编辑器",
+  "editComposeRowHelp": "文字与字段从左到右显示，可加入空格和标点。",
+  "editAddText": "添加文字",
+  "editAddDataField": "添加数据字段",
+  "editEmptyRow": "尚未添加文字或字段",
+  "editDisplayPreview": "最终显示预览",
+  "editSaveRow": "保存这一行",
+  "editMoveLeft": "左移",
+  "editMoveRight": "右移",
+  "editEmptyText": "空文字",
+  "editAutomatic": "自动",
+  "editSelectField": "选择显示字段",
+  "editSelectSourceFirst": "请先在“关注内容”中选择行情，或添加自定义 API。",
+  "editFieldSource": "来自哪个内容？",
+  "editFieldSelection": "显示什么？",
+  "editNumberFormat": "数字格式",
+  "editDecimalsTwo": "2 位小数",
+  "editDecimalsFour": "4 位小数",
+  "editDecimalsSigned": "正负号 + 2 位小数",
+  "editRawValue": "保留接口原值",
+  "editThemeMode": "主题模式",
+  "editSystem": "跟随系统",
+  "editLight": "浅色",
+  "editDark": "深色",
+  "editLightPreview": "浅色预览",
+  "editDarkPreview": "深色预览",
+  "editMyThemes": "我的主题",
+  "editSaveThemeAs": "将当前配色另存为主题",
+  "editThemesHelp": "保存喜欢的配色，随时切换使用。",
+  "editCustomBackground": "自定义背景",
+  "editDarkPalette": "深色配色",
+  "editLightPalette": "浅色配色",
+  "editDarkBackground": "深色背景",
+  "editLightBackground": "浅色背景",
+  "editChooseColor": "选择颜色",
+  "editDeleteTheme": "删除主题",
+  "editThemeNameRequired": "请输入主题名称",
+  "editThemeNew": "保存新主题",
+  "editThemeEdit": "编辑主题",
+  "editThemeName": "主题名称",
+  "editThemeNameHint": "为这套配色命名",
+  "editThemePalette": "编辑配色",
+  "editColorRole": "颜色用途",
+  "editHue": "色相",
+  "editBrightness": "亮度",
+  "editSaveTheme": "保存主题",
+  "editApplyColor": "应用颜色",
+  "editRoleBackground": "窗口背景",
+  "editRoleSurface": "卡片背景",
+  "editRoleForeground": "主要文字",
+  "editRoleSecondary": "次要文字",
+  "editRoleBorder": "边框与分隔线",
+  "editRoleAccent": "强调色",
+  "editRolePositive": "上涨颜色",
+  "editRoleNegative": "下跌颜色",
+  "editTemplateWeather": "城市天气",
+  "editTemplateRates": "参考汇率",
+  "editTemplateGithub": "GitHub 仓库",
+  "editTemplateMarket": "简洁行情条",
+  "editTemplateReminder": "文字提醒",
+  "editTemplateWeatherHelp": "气温、体感温度和湿度；15 分钟刷新。由 Open-Meteo 提供，适合个人使用。",
+  "editTemplateRatesHelp": "美元兑人民币、欧元、USDT 的参考汇率；5 分钟刷新。",
+  "editTemplateGithubHelp": "公开仓库的 Stars 和未解决议题与 PR 数量；10 分钟刷新。",
+  "editTemplateMarketHelp": "把关注列表的前 3 个行情组合成一行，跟随单位设置。",
+  "editTemplateReminderHelp": "直接显示一段文字，不需要网络。也可以用显示行编辑器继续加入数据字段。",
+  "editTemplateDefaultReminder": "提醒：起来走走，喝杯水",
+  "editTemplateAdd": "添加实用模板",
+  "editTemplateClose": "关闭模板",
+  "editCity": "城市",
+  "editRepoOwner": "仓库拥有者",
+  "editRepoOwnerHint": "例如 flutter",
+  "editRepoName": "仓库名称",
+  "editRepoNameHint": "例如 CryptoFloat",
+  "editHeaderMissingSecret": "请填写 {name} 的密钥。",
+  "@editHeaderMissingSecret": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editHeaderCount": "{count} 个请求头",
+  "@editHeaderCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "editRowFormat": "格式：{format}",
+  "@editRowFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeEditNamed": "编辑 {name}",
+  "@editThemeEditNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeCopyNamed": "复制 {name}",
+  "@editThemeCopyNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeDeleteNamed": "删除 {name}",
+  "@editThemeDeleteNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeCopyName": "{name} 副本",
+  "@editThemeCopyName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeDeleteConfirm": "删除“{name}”？正在使用的配色将切换为 Fluent 蓝。",
+  "@editThemeDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeBackgroundTitle": "{mode}自定义背景",
+  "@editThemeBackgroundTitle": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeFluent": "Fluent 蓝",
+  "editThemeNord": "Nord 北欧",
+  "editThemeSolarized": "Solarized 护眼",
+  "editCityBeijing": "北京",
+  "editCityShanghai": "上海",
+  "editCityGuangzhou": "广州",
+  "editCityShenzhen": "深圳",
+  "editCityHangzhou": "杭州",
+  "editCityChengdu": "成都",
+  "editCityWuhan": "武汉",
+  "editCityXian": "西安",
+  "editTemplateCityInvalid": "请选择列表中的城市。添加后可在数据源中调整地址。",
+  "editTemplateTemperature": "气温",
+  "editTemplateFeelsLike": "体感",
+  "editTemplateHumidity": "湿度",
+  "editTemplateUsdRates": "美元参考汇率",
+  "editTemplateUsdCny": "美元兑人民币",
+  "editTemplateUsdEur": "美元兑欧元",
+  "editTemplateUsdUsdt": "美元兑 USDT",
+  "editTemplateRepoInvalid": "请填写公开仓库的拥有者和仓库名，例如 flutter / flutter。",
+  "editTemplateOpenIssues": "未解决议题与 PR",
+  "editTemplateOpen": "未解决",
+  "editTemplateMarketEmpty": "请先选择至少一个币种或股票。",
+  "editTemplateTextEmpty": "请填写要显示的文字。",
+  "editTemplateWeatherName": "{city}天气",
+  "@editTemplateWeatherName": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "editMyTheme": "我的主题",
+  "editMenuHide": "隐藏到托盘",
+  "editMenuShow": "显示悬浮窗",
+  "editMenuRefresh": "立即刷新",
+  "editMenuTopmost": "窗口置顶",
+  "editMenuSettings": "设置",
+  "editMenuExit": "退出",
+  "errorStartupDefaultLayout": "设置文件无法读取，已使用默认布局。原文件仍保留。",
+  "errorStartupFont": "已保存的字体无法加载，请在外观设置中重新选择字体。",
+  "errorStartupWindow": "窗口设置未能应用，可继续使用并在设置中重试。",
+  "errorInvalidValue": "数值无效，保留原值和单位。",
+  "errorInvalidMultiplier": "自定义倍率无效，保留原值和单位。",
+  "errorConversionOverflow": "换算结果超出范围。",
+  "errorExchangeRateUnavailable": "汇率未获取、已过期或无效，保留原值和单位。",
+  "errorSaving": "设置正在保存，请稍候。",
+  "errorSavedTopmost": "设置已保存；窗口置顶未能应用，重新打开可重试。",
+  "errorSavedOpacity": "设置已保存；窗口透明度未能应用，重新打开可重试。",
+  "errorTrayUnavailable": "暂时无法创建托盘图标，窗口保持显示。请稍后重试。",
+  "errorIconTooLarge": "图标图片不能超过 1 MB。",
+  "errorChooseSmallImage": "请选择不超过 1 MB 的图片。",
+  "errorImageDimensions": "图标图片尺寸过大，请选择较小的图片。",
+  "errorImageUnreadable": "图片无法读取。",
+  "errorImageUnsupported": "图片无法读取，请选择 PNG、JPEG、GIF、WebP、BMP 或 ICO 图片。",
+  "errorConnectionClosed": "数据连接已关闭。",
+  "errorNetworkTimeout": "网络连接超时，请稍后重试。",
+  "errorNetworkSettings": "无法建立网络连接，请检查网络设置。",
+  "errorHttpsRequired": "数据连接需要完整的 HTTPS 地址，且不能包含账号密码或片段。",
+  "errorCatalogUrl": "币种目录地址不受支持。",
+  "errorRequestTimeout": "请求超时，请稍后重试。",
+  "errorSourceConnection": "暂时无法连接数据源，请检查网络连接。",
+  "errorCertificate": "HTTPS 证书验证失败。",
+  "errorConnectionFailed": "数据连接失败，请检查地址或网络设置。",
+  "errorInvalidJson": "响应不是有效的 UTF-8 JSON。",
+  "errorRedirect": "数据源发生跳转。请填写最终的 HTTPS 地址。",
+  "errorRateLimited": "数据源限制请求频率，请稍后重试或增大刷新间隔。",
+  "errorJsonEmptyField": "JSON 路径含有空字段名。",
+  "errorJsonSeparator": "JSON 字段之间需要点或方括号。",
+  "errorJsonClosingBracket": "JSON 路径缺少右方括号。",
+  "errorJsonQuote": "JSON 路径缺少引号。",
+  "errorJsonEscape": "JSON 路径中的引号或转义无效。",
+  "errorJsonArrayIndex": "数组索引需要非负整数。",
+  "errorJsonPath": "JSON 路径无效。",
+  "errorJsonIndexMissing": "JSON 数组索引不存在。",
+  "errorJsonFieldMissing": "JSON 字段路径不存在。",
+  "errorSourceUrl": "地址需要完整的 HTTPS URL，且不能含账号密码或片段。",
+  "errorKeyInUrl": "密钥不能写在地址中。请使用受保护的请求头。",
+  "errorTooManyHeaders": "请求头数量超过 64 个上限。",
+  "errorProtectedHeader": "认证请求头需要使用密钥存储引用。",
+  "errorEmptyKeyReference": "密钥存储引用不能为空。",
+  "errorTooManyFields": "字段数量超过 500 个上限。",
+  "errorDuplicateField": "字段 ID 不能为空或重复。",
+  "errorInvalidHeader": "请求头名称或内容无效。",
+  "errorManagedHeader": "此请求头由安全网络连接管理。",
+  "errorInvalidRateResponse": "汇率响应无效，保留原值和单位。",
+  "errorInvalidRateBase": "汇率基准无效，保留原值和单位。",
+  "errorProxyRead": "无法读取系统代理，请检查 Windows 网络设置。",
+  "errorProxyUnavailable": "当前程序未提供系统代理功能，请使用完整的新版本程序。",
+  "errorNetworkType": "暂不支持当前网络连接类型，请检查系统网络设置。",
+  "errorInvalidSystemNetwork": "系统网络设置无效，请检查后重试。",
+  "errorApplySystemNetwork": "无法应用系统网络设置，请检查后重试。",
+  "errorWaitingForData": "设置已更新，等待新行情。",
+  "errorSourceDisabled": "此数据源已停用。",
+  "errorScalarField": "所选字段需要单个数字、文本或布尔值。",
+  "errorFieldUnavailable": "所选字段暂无有效数据。",
+  "errorNoResponseFields": "响应中没有可选择的字段。",
+  "errorMissingProtectedHeader": "此数据源缺少受保护的请求头。请在设置中重新填写密钥。",
+  "errorKeyReadTimeout": "读取受保护的请求头超时，请重试。",
+  "errorRequestFailed": "无法完成数据请求。请检查数据源、密钥和网络设置。",
+  "errorProxyPort": "代理端口需要在 1 到 65535 之间。",
+  "errorProxyInvalidSettings": "系统代理返回了无效的连接设置。",
+  "errorProxyTooManyAddresses": "系统代理返回的候选地址过多。",
+  "errorProxyUnsupportedType": "暂不支持当前网络连接类型，请使用 HTTP 或混合代理端口。",
+  "errorProxyUnsupportedFormat": "系统代理格式暂不支持，请使用 HTTP 代理或混合代理端口。",
+  "errorProxyHost": "代理地址无效，请填写主机名或 IP 地址。",
+  "errorProxyIpv6": "代理 IPv6 地址无效。",
+  "errorProxyAddress": "代理地址无效，请只填写主机名或 IP，不要填写协议、路径或账号密码。",
+  "errorConfigRestored": "设置文件无法读取，已恢复上次备份。原文件保留。",
+  "errorConfigDefaults": "设置文件无法读取，已使用默认设置。原文件保留。",
+  "errorConfigTooLarge": "设置文件过大。",
+  "errorConfigObject": "设置文件需要 JSON 对象。",
+  "errorConfigNewerVersion": "设置文件版本比本应用更新。",
+  "errorConfigSizeLimit": "设置内容超过 2 MB。",
+  "errorLegacyConfigSize": "旧版设置文件超过 2 MB。",
+  "errorLegacyConfigObject": "旧版设置文件需要 JSON 对象。",
+  "errorLegacyConfigInvalid": "旧版设置文件不是有效的 JSON 设置对象。",
+  "errorCatalogCacheSave": "目录已更新，但本地缓存无法保存。",
+  "errorCatalogUpdate": "币种目录暂时无法更新，请稍后重试。",
+  "errorCatalogCacheSize": "币种目录缓存超过大小上限。",
+  "errorCatalogEmpty": "交易所未返回有效的币种目录。",
+  "errorCatalogFormat": "币种目录格式或数量不受支持。",
+  "errorCatalogInvalid": "币种目录格式不正确。",
+  "errorCatalogProvider": "币种目录来源不受支持。",
+  "errorCatalogNoPairs": "交易所暂未返回可用的现货交易对，已保留现有目录。",
+  "errorCatalogSymbol": "币种目录包含无效的交易对代码。",
+  "errorCatalogName": "币种目录包含无效的名称或代码。",
+  "errorAssetProvider": "此资产的数据源尚不支持。",
+  "errorOkxQuote": "OKX 未返回有效行情，请检查交易对或地区可用性。",
+  "errorKucoinQuote": "KuCoin 未返回有效行情，请检查交易对。",
+  "errorYahooQuote": "Yahoo Finance 未返回有效行情，请检查股票代码或稍后重试。",
+  "errorYahooNotice": "Yahoo Finance 非官方接口；行情可能延迟。",
+  "errorQuoteStructure": "行情响应结构无效。",
+  "errorQuoteMissing": "数据源未返回此资产的行情。",
+  "errorPriceMissing": "数据源没有有效的最新价格。",
+  "errorUnknown": "未能完成操作，请检查设置后重试。",
+  "errorHttpStatus": "数据源返回 HTTP {status}。",
+  "errorResponseLimit": "数据源响应超过 {size} MB 上限。",
+  "appMoutai": "贵州茅台",
+  "appPingAn": "平安银行",
+  "appCatl": "宁德时代",
+  "panelUnpin": "取消窗口置顶",
+  "panelPin": "窗口始终置顶",
+  "panelSettings": "设置…",
+  "panelNoSources": "未设置数据源",
+  "panelLive": "实时",
+  "panelWaiting": "等待首次更新",
+  "panelLastUpdate": "上次更新于 {time}",
+  "@panelLastUpdate": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelPending": "上次更新于 {time} · {count}项待更新",
+  "@panelPending": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "panelAutoRefresh": " · 自动刷新 {interval}",
+  "@panelAutoRefresh": {
+    "placeholders": {
+      "interval": {
+        "type": "String"
+      }
+    }
+  },
+  "panelMinutes": "{count}分",
+  "@panelMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "panelSeconds": "{count}秒",
+  "@panelSeconds": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "panelRatesPending": " · 汇率未更新",
+  "panelSourceInterval": "每{seconds}秒",
+  "@panelSourceInterval": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "panelLastFetch": "上次获取 {time}",
+  "@panelLastFetch": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelRatesInterval": "换算汇率每5分钟刷新",
+  "panelLiveNote": "实时表示按期获取成功；上游行情可能延迟。",
+  "panelQuoteTime": "行情时间 {time}",
+  "@panelQuoteTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelOriginal": "原价 {value} {currency}",
+  "@panelOriginal": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "panelUpdated": "更新于 {time}",
+  "@panelUpdated": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelChoose": "选择你想关注的内容",
+  "panelAdd": "添加行情或 API",
+  "panelRemoved": "已移除的内容",
+  "panelNoData": "暂无数据，请检查关注内容或数据源",
+  "panelStale": "过期数据 {time}",
+  "@panelStale": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelConnectionError": "连接异常",
+  "panelNeverUpdated": "未更新",
+  "settingUnsavedChanges": "有未保存的更改",
+  "settingSaveBeforeExit": "退出前保存更改，或放弃这次更改。",
+  "settingSaveBeforeReturn": "保存后应用到悬浮窗，或放弃这次更改。",
+  "settingKeepEditing": "继续编辑",
+  "settingDiscardChanges": "放弃更改",
+  "settingSaveAndQuit": "保存并退出",
+  "settingSaveAndReturn": "保存并返回",
+  "settingActionFailed": "未能完成操作",
+  "settingReturnToPanel": "返回悬浮窗",
+  "settingTitle": "CryptoFloat 设置",
+  "settingSaving": "保存中…",
+  "settingUnsaved": "未保存",
+  "settingSaved": "已保存",
+  "settingSearch": "搜索设置",
+  "settingClearSearch": "清除搜索",
+  "settingUnitsTitle": "单位与换算",
+  "settingUnitsDescription": "选择行情货币和单位标签；自定义倍率可用于其他数值。",
+  "settingNoSearchResults": "没有匹配的设置，试试“字体”“单位”或“置顶”。",
+  "settingStorage": "导入与数据位置",
+  "settingImportLegacy": "导入旧版设置副本",
+  "settingWatchlist": "关注行情",
+  "settingWatchlistDescription": "管理关注列表，搜索更多币种、股票与 ETF。",
+  "settingAddAsset": "添加行情",
+  "settingSearchAsset": "搜索名称、代码或数据源",
+  "settingAll": "全部",
+  "settingCrypto": "加密货币",
+  "settingStocks": "股票 / ETF",
+  "settingProvider": "数据源",
+  "settingAllProviders": "全部来源",
+  "settingYahoo": "Yahoo 财经",
+  "settingAddSymbol": "添加代码",
+  "settingUpdatingCatalog": "正在更新目录",
+  "settingRefreshCatalog": "刷新目录",
+  "settingSymbolNotFound": "没有找到这个代码，可以用“添加代码”手动加入。",
+  "settingPreviousPage": "上一页",
+  "settingNextPage": "下一页",
+  "settingAddFromCatalog": "从下方目录添加行情。",
+  "settingDragToReorder": "拖动排序",
+  "settingCatalogFailed": "目录更新失败，请稍后重试。",
+  "settingImportDescription": "将行情选择和可兼容的布局读入当前草稿；点击保存后应用。",
+  "settingLegacyPath": "旧版配置文件位置",
+  "settingLegacyPathHint": "选择旧版 crypto_config.json 的完整路径",
+  "settingCancel": "取消",
+  "settingRead": "读取",
+  "settingCustomContent": "自定义内容",
+  "settingCustomDescription": "连接数据接口，选择需要显示的字段。",
+  "settingAddApi": "添加自定义 API",
+  "settingThreeSteps": "添加只需三步",
+  "settingApiSecurity": "支持免密钥接口和请求头密钥。密钥保存在系统保护的存储中。",
+  "settingEdit": "编辑",
+  "settingRemove": "移除",
+  "settingEnabled": "已启用",
+  "settingDisabled": "已停用",
+  "settingLayout": "显示布局",
+  "settingLayoutDescription": "组合行情字段与文字，创建自己的显示布局。",
+  "settingDefaultRows": "显示默认行情",
+  "settingDefaultRowsDescription": "显示已关注代码的名称、价格、单位和涨跌幅；关闭后保留自由显示行。",
+  "settingAddRow": "添加自由显示行",
+  "settingAddTemplate": "添加实用模板",
+  "settingDefaultRowsKept": "默认行情已开启，添加自由显示行后仍会保留。",
+  "settingMoveUp": "上移",
+  "settingMoveDown": "下移",
+  "settingDelete": "删除",
+  "settingAppearance": "外观",
+  "settingAppearanceDescription": "主题、悬浮窗透明度、字体与标题。",
+  "settingOpacity": "悬浮窗透明度",
+  "settingTextFont": "文字字体",
+  "settingChooseFont": "选择系统字体",
+  "settingNumberFont": "数字字体",
+  "settingFontSize": "字号",
+  "settingRowSpacing": "行间距",
+  "settingFontPreview": "中文预览：比特币 · 价格与涨跌",
+  "settingWindow": "窗口与托盘",
+  "settingWindowDescription": "置顶、移动和系统托盘。",
+  "settingAlwaysOnTop": "保持在其他窗口上方",
+  "settingHidePanel": "隐藏悬浮窗",
+  "settingHideDescription": "双击悬浮窗空白处或标题，隐藏到系统托盘。",
+  "settingRestorePanel": "从托盘恢复",
+  "settingRestoreDescription": "单击托盘图标恢复悬浮窗，并置于其他窗口上方。",
+  "settingIconChart": "行情图",
+  "settingIconBitcoin": "比特币",
+  "settingIconStar": "星标",
+  "settingIconBolt": "闪电",
+  "settingIconHeart": "爱心",
+  "settingTitlePreview": "标题预览",
+  "settingIconPreview": "图标预览",
+  "settingShowTitle": "显示标题名称",
+  "settingTitleName": "标题名称",
+  "settingShowIcon": "显示标题图标",
+  "settingIconStyle": "图标样式",
+  "settingCustomEmoji": "自定义表情",
+  "settingEmojiInput": "输入表情或字符",
+  "settingEmojiHint": "例如 🌙",
+  "settingImageUnavailable": "图片无法显示，请重新选择",
+  "settingChooseImage": "选择图片图标",
+  "settingClearImage": "清除图片图标",
+  "settingImageDescription": "选择不超过 1 MB 的图片；图片图标会优先显示。",
+  "settingImages": "图片",
+  "settingImageImportFailed": "图片未能导入，请重新选择。",
+  "settingUnitLabels": "单位标签",
+  "settingUnitLabelsDescription": "选择完整名称、简写或自己的标签",
+  "settingFull": "完整",
+  "settingCompact": "简写",
+  "settingCustom": "自定义",
+  "settingDisplayCurrency": "行情显示货币",
+  "settingCurrencyDescription": "行情价格按可用汇率换算",
+  "settingOriginalCurrency": "保留原币",
+  "settingConversionDescription": "行情货币按可用汇率换算；汇率不可用时保留原币并显示提示。自定义倍率用于其他单位。",
+  "settingDeleteUnitLabel": "删除单位标签",
+  "settingAddUnitLabel": "添加单位标签",
+  "settingDeleteUnitRule": "删除倍率规则",
+  "settingAddUnitRule": "添加倍率规则",
+  "settingCustomUnitLabel": "自定义单位标签",
+  "settingSourceUnit": "原单位",
+  "settingUsdtHint": "例如 USDT",
+  "settingDisplayLabel": "显示标签",
+  "settingUHint": "例如 U",
+  "settingUnitLabelRequired": "请填写原单位和显示标签。",
+  "settingSaveLabel": "保存标签",
+  "settingCustomConversion": "自定义倍率换算",
+  "settingOunceHint": "例如 oz",
+  "settingTargetUnit": "目标单位",
+  "settingGramHint": "例如 g",
+  "settingMultiplier": "倍率",
+  "settingMultiplierHint": "例如 28.3495",
+  "settingUnitRuleRequired": "请填写两个单位和大于 0 的有效倍率。",
+  "settingSaveRule": "保存规则",
+  "settingFontLoadFailed": "字体无法加载，请重新选择其他字体。",
+  "settingInvalidSymbol": "请输入正确的行情代码。",
+  "settingAddSymbolDialog": "添加行情代码",
+  "settingYahooMarkets": "Yahoo · 美股 / A 股",
+  "settingSymbol": "行情代码",
+  "settingYahooHint": "AAPL、600519.SS 或 600519",
+  "settingOptionalName": "显示名称（可选）",
+  "settingAdd": "添加",
+  "settingSearchFonts": "搜索字体",
+  "settingNoFonts": "未找到匹配的字体",
+  "settingFontUnavailable": "字体无法加载，请选择其他字体",
+  "settingFontSample": "价格 83,342.30 · AaBb 123",
+  "settingApiSteps": "1. 粘贴数据接口地址\n2. 点击“读取返回字段”\n3. 勾选字段，为它起名并填写单位",
+  "settingSaveFailed": "保存失败：{error}",
+  "settingSearchCount": "{count} 项结果",
+  "settingSettingsFile": "设置文件：{path}",
+  "settingCatalogCounts": "已选 {selected} 项 · 目录 {total} 项 · 匹配 {matched} 项",
+  "settingCatalogUnavailable": "{providers} 目录暂未更新，仍可选择已有项目。",
+  "settingPageCount": "第 {page} / {total} 页 · 每页 {size} 项",
+  "settingWatchlistCount": "已关注 · {count}",
+  "settingDragAsset": "拖动 {name} 排序",
+  "settingMoveAssetUp": "上移 {name}",
+  "settingMoveAssetDown": "下移 {name}",
+  "settingUnfollowAsset": "取消关注 {name}",
+  "settingImportFailed": "导入失败：{error}",
+  "settingSourceSummary": "{status} · 每 {seconds} 秒刷新 · {count} 个显示字段",
+  "settingRowNumber": "第 {number} 行",
+  "settingMultiplierSummary": "数值 × {multiplier}",
+  "settingLanguage": "语言",
+  "settingLanguageSystem": "跟随系统",
+  "settingCatalogAssets": "选择行情",
+  "settingCatalogOrder": "行情显示顺序",
+  "settingCatalogApi": "自定义 API",
+  "settingCatalogRows": "自由显示行与模板",
+  "settingCatalogFonts": "文字与数字字体",
+  "settingCatalogSpacing": "字号与行间距",
+  "settingCatalogThemes": "浅色与深色主题",
+  "settingCatalogHeader": "窗口标题与图标",
+  "settingCatalogUnits": "单位与显示货币",
+  "settingCatalogWindow": "窗口置顶",
+  "settingCatalogTray": "隐藏与托盘恢复"
+}

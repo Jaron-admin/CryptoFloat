@@ -4,8 +4,17 @@ import 'package:fluent_ui/fluent_ui.dart';
 
 import '../../app/theme_presets.dart';
 import '../../domain/models.dart';
+import '../../l10n/l10n.dart';
 import 'settings_catalog.dart';
 import 'theme_editor.dart';
+
+String _builtinThemeName(ThemePreset preset, AppLocalizations l10n) =>
+    switch (preset.id) {
+      'fluent' => l10n.editThemeFluent,
+      'nord' => l10n.editThemeNord,
+      'solarized' => l10n.editThemeSolarized,
+      _ => preset.name,
+    };
 
 class SettingsThemePicker extends StatelessWidget {
   const SettingsThemePicker({
@@ -24,24 +33,27 @@ class SettingsThemePicker extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingRow(
-          title: '主题模式',
+          title: context.l10n.editThemeMode,
           control: ComboBox<String>(
             value: config.themeMode,
             isExpanded: true,
-            items: const [
-              ComboBoxItem(value: 'system', child: Text('跟随系统')),
-              ComboBoxItem(value: 'light', child: Text('浅色')),
-              ComboBoxItem(value: 'dark', child: Text('深色')),
+            items: [
+              ComboBoxItem(
+                value: 'system',
+                child: Text(context.l10n.editSystem),
+              ),
+              ComboBoxItem(value: 'light', child: Text(context.l10n.editLight)),
+              ComboBoxItem(value: 'dark', child: Text(context.l10n.editDark)),
             ],
             onChanged: (value) {
               if (value != null) onChanged(config.copyWith(themeMode: value));
             },
           ),
         ),
-        _selection(Brightness.light),
+        _selection(context, Brightness.light),
         if (config.lightTheme == 'custom')
           _backgroundEditor(context, Brightness.light),
-        _selection(Brightness.dark),
+        _selection(context, Brightness.dark),
         if (config.darkTheme == 'custom')
           _backgroundEditor(context, Brightness.dark),
         const SizedBox(height: 8),
@@ -49,11 +61,11 @@ class SettingsThemePicker extends StatelessWidget {
           builder: (context, constraints) {
             final light = ThemePalettePreview(
               palette: resolveAppPalette(config, brightness: Brightness.light),
-              label: '浅色预览',
+              label: context.l10n.editLightPreview,
             );
             final dark = ThemePalettePreview(
               palette: resolveAppPalette(config, brightness: Brightness.dark),
-              label: '深色预览',
+              label: context.l10n.editDarkPreview,
             );
             if (constraints.maxWidth < 400) {
               return Column(children: [light, const SizedBox(height: 8), dark]);
@@ -73,17 +85,17 @@ class SettingsThemePicker extends StatelessWidget {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text('我的主题', style: type.bodyStrong),
+            Text(context.l10n.editMyThemes, style: type.bodyStrong),
             Button(
               onPressed: () => _create(context),
-              child: const Text('将当前配色另存为主题'),
+              child: Text(context.l10n.editSaveThemeAs),
             ),
           ],
         ),
         if (config.customThemes.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text('保存喜欢的配色，随时切换使用。', style: type.caption),
+            child: Text(context.l10n.editThemesHelp, style: type.caption),
           ),
         for (final theme in config.customThemes) ...[
           const SizedBox(height: 8),
@@ -93,19 +105,22 @@ class SettingsThemePicker extends StatelessWidget {
     );
   }
 
-  Widget _selection(Brightness brightness) {
+  Widget _selection(BuildContext context, Brightness brightness) {
     final dark = brightness == Brightness.dark;
     final selected = dark ? config.darkTheme : config.lightTheme;
     final choices = <(String, String)>[
-      for (final preset in themePresets) (preset.id, preset.name),
-      ('custom', '自定义背景'),
+      for (final preset in themePresets)
+        (preset.id, _builtinThemeName(preset, context.l10n)),
+      ('custom', context.l10n.editCustomBackground),
       for (final preset in config.customThemes) (preset.id, preset.name),
     ];
     final value = choices.any((choice) => choice.$1 == selected)
         ? selected
         : 'fluent';
     return SettingRow(
-      title: dark ? '深色配色' : '浅色配色',
+      title: dark
+          ? context.l10n.editDarkPalette
+          : context.l10n.editLightPalette,
       control: ComboBox<String>(
         value: value,
         isExpanded: true,
@@ -138,7 +153,9 @@ class SettingsThemePicker extends StatelessWidget {
       dark ? config.backgroundColor : config.lightBackgroundColor,
     ).withValues(alpha: 1);
     return SettingRow(
-      title: dark ? '深色背景' : '浅色背景',
+      title: dark
+          ? context.l10n.editDarkBackground
+          : context.l10n.editLightBackground,
       control: Button(
         onPressed: () => _editBackground(context, brightness),
         child: Row(
@@ -158,7 +175,7 @@ class SettingsThemePicker extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Text('选择颜色'),
+            Text(context.l10n.editChooseColor),
           ],
         ),
       ),
@@ -175,7 +192,7 @@ class SettingsThemePicker extends StatelessWidget {
       builder: (_) => ThemeEditorDialog(
         theme: UserThemePreset(
           id: 'custom',
-          name: '自定义背景',
+          name: context.l10n.editCustomBackground,
           light: resolveAppPalette(
             custom,
             brightness: Brightness.light,
@@ -221,21 +238,21 @@ class SettingsThemePicker extends StatelessWidget {
         child: Text(theme.name, maxLines: 1, overflow: TextOverflow.ellipsis),
       ),
       Tooltip(
-        message: '编辑 ${theme.name}',
+        message: context.l10n.editThemeEditNamed(theme.name),
         child: IconButton(
           icon: const Icon(FluentIcons.edit, size: 14),
           onPressed: () => _edit(context, theme),
         ),
       ),
       Tooltip(
-        message: '复制 ${theme.name}',
+        message: context.l10n.editThemeCopyNamed(theme.name),
         child: IconButton(
           icon: const Icon(FluentIcons.copy, size: 14),
           onPressed: () => _create(context, source: theme),
         ),
       ),
       Tooltip(
-        message: '删除 ${theme.name}',
+        message: context.l10n.editThemeDeleteNamed(theme.name),
         child: IconButton(
           icon: const Icon(FluentIcons.delete, size: 14),
           onPressed: () => _delete(context, theme),
@@ -250,7 +267,9 @@ class SettingsThemePicker extends StatelessWidget {
         '-${Random.secure().nextInt(0x7fffffff).toRadixString(36)}';
     final initial = UserThemePreset(
       id: id,
-      name: source == null ? '我的主题' : '${source.name} 副本',
+      name: source == null
+          ? context.l10n.editMyTheme
+          : context.l10n.editThemeCopyName(source.name),
       light:
           source?.light ??
           resolveAppPalette(config, brightness: Brightness.light).toData(),
@@ -292,16 +311,16 @@ class SettingsThemePicker extends StatelessWidget {
     final remove = await showDialog<bool>(
       context: context,
       builder: (context) => ContentDialog(
-        title: const Text('删除主题'),
-        content: Text('删除“${theme.name}”？正在使用的配色将切换为 Fluent 蓝。'),
+        title: Text(context.l10n.editDeleteTheme),
+        content: Text(context.l10n.editThemeDeleteConfirm(theme.name)),
         actions: [
           Button(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+            child: Text(context.l10n.editCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除'),
+            child: Text(context.l10n.editDelete),
           ),
         ],
       ),

@@ -1,0 +1,293 @@
+{
+  "settingUnsavedChanges": "Unsaved changes",
+  "settingSaveBeforeExit": "Save your changes before quitting, or discard them.",
+  "settingSaveBeforeReturn": "Save to apply your changes to the panel, or discard them.",
+  "settingKeepEditing": "Keep editing",
+  "settingDiscardChanges": "Discard changes",
+  "settingSaveAndQuit": "Save and quit",
+  "settingSaveAndReturn": "Save and return",
+  "settingActionFailed": "Unable to complete the action",
+  "settingReturnToPanel": "Return to panel",
+  "settingTitle": "CryptoFloat Settings",
+  "settingSaving": "Saving…",
+  "settingUnsaved": "Unsaved",
+  "settingSaved": "Saved",
+  "settingSearch": "Search settings",
+  "settingClearSearch": "Clear search",
+  "settingUnitsTitle": "Units & conversion",
+  "settingUnitsDescription": "Choose the quote currency and unit labels. Use custom multipliers for other values.",
+  "settingNoSearchResults": "No matching settings. Try “font”, “units”, or “always on top”.",
+  "settingStorage": "Import & data location",
+  "settingImportLegacy": "Import legacy settings",
+  "settingWatchlist": "Watchlist",
+  "settingWatchlistDescription": "Manage your watchlist and search for currencies, stocks, and ETFs.",
+  "settingAddAsset": "Add instruments",
+  "settingSearchAsset": "Search name, symbol, or provider",
+  "settingAll": "All",
+  "settingCrypto": "Cryptocurrencies",
+  "settingStocks": "Stocks / ETFs",
+  "settingProvider": "Provider",
+  "settingAllProviders": "All providers",
+  "settingYahoo": "Yahoo Finance",
+  "settingAddSymbol": "Add symbol",
+  "settingUpdatingCatalog": "Updating catalog",
+  "settingRefreshCatalog": "Refresh catalog",
+  "settingSymbolNotFound": "Symbol not found. Use “Add symbol” to add it manually.",
+  "settingPreviousPage": "Previous page",
+  "settingNextPage": "Next page",
+  "settingAddFromCatalog": "Add instruments from the catalog below.",
+  "settingDragToReorder": "Drag to reorder",
+  "settingCatalogFailed": "The catalog could not be updated. Try again later.",
+  "settingImportDescription": "Load the watchlist and compatible layout into this draft. Save to apply.",
+  "settingLegacyPath": "Legacy configuration path",
+  "settingLegacyPathHint": "Enter the full path to the legacy crypto_config.json file",
+  "settingCancel": "Cancel",
+  "settingRead": "Load",
+  "settingCustomContent": "Custom content",
+  "settingCustomDescription": "Connect to an API and choose the fields to display.",
+  "settingAddApi": "Add custom API",
+  "settingThreeSteps": "Add an API in three steps",
+  "settingApiSecurity": "Supports public APIs and keys in request headers. Keys are stored in system-protected storage.",
+  "settingEdit": "Edit",
+  "settingRemove": "Remove",
+  "settingEnabled": "Enabled",
+  "settingDisabled": "Disabled",
+  "settingLayout": "Display layout",
+  "settingLayoutDescription": "Combine quote fields and text to create your own layout.",
+  "settingDefaultRows": "Show default quotes",
+  "settingDefaultRowsDescription": "Show names, prices, units, and changes for your watchlist. Custom rows remain when this is off.",
+  "settingAddRow": "Add custom row",
+  "settingAddTemplate": "Add template",
+  "settingDefaultRowsKept": "Default quotes will remain visible alongside custom rows.",
+  "settingMoveUp": "Move up",
+  "settingMoveDown": "Move down",
+  "settingDelete": "Delete",
+  "settingAppearance": "Appearance",
+  "settingAppearanceDescription": "Language, themes, panel transparency, fonts, and title.",
+  "settingOpacity": "Panel transparency",
+  "settingTextFont": "Text font",
+  "settingChooseFont": "Choose system font",
+  "settingNumberFont": "Number font",
+  "settingFontSize": "Font size",
+  "settingRowSpacing": "Row spacing",
+  "settingFontPreview": "Preview: Bitcoin · Price & change",
+  "settingWindow": "Window & tray",
+  "settingWindowDescription": "Always on top, movement, and system tray.",
+  "settingAlwaysOnTop": "Keep above other windows",
+  "settingHidePanel": "Hide panel",
+  "settingHideDescription": "Double-click the panel background or title to hide it to the system tray.",
+  "settingRestorePanel": "Restore from tray",
+  "settingRestoreDescription": "Click the tray icon to restore the panel above other windows.",
+  "settingIconChart": "Chart",
+  "settingIconBitcoin": "Bitcoin",
+  "settingIconStar": "Star",
+  "settingIconBolt": "Lightning",
+  "settingIconHeart": "Heart",
+  "settingTitlePreview": "Title preview",
+  "settingIconPreview": "Icon preview",
+  "settingShowTitle": "Show title",
+  "settingTitleName": "Title text",
+  "settingShowIcon": "Show title icon",
+  "settingIconStyle": "Icon style",
+  "settingCustomEmoji": "Custom emoji",
+  "settingEmojiInput": "Enter an emoji or character",
+  "settingEmojiHint": "For example, 🌙",
+  "settingImageUnavailable": "This image cannot be displayed. Choose another image.",
+  "settingChooseImage": "Choose icon image",
+  "settingClearImage": "Clear icon image",
+  "settingImageDescription": "Choose an image up to 1 MB. It will take priority over the selected icon.",
+  "settingImages": "Images",
+  "settingImageImportFailed": "The image could not be imported. Choose another image.",
+  "settingUnitLabels": "Unit labels",
+  "settingUnitLabelsDescription": "Choose full names, short labels, or your own labels",
+  "settingFull": "Full",
+  "settingCompact": "Short",
+  "settingCustom": "Custom",
+  "settingDisplayCurrency": "Quote display currency",
+  "settingCurrencyDescription": "Convert prices using available exchange rates",
+  "settingOriginalCurrency": "Original currency",
+  "settingConversionDescription": "Prices use available exchange rates. If a rate is unavailable, the original currency is kept with a notice. Use custom multipliers for other units.",
+  "settingDeleteUnitLabel": "Delete unit label",
+  "settingAddUnitLabel": "Add unit label",
+  "settingDeleteUnitRule": "Delete multiplier rule",
+  "settingAddUnitRule": "Add multiplier rule",
+  "settingCustomUnitLabel": "Custom unit label",
+  "settingSourceUnit": "Source unit",
+  "settingUsdtHint": "For example, USDT",
+  "settingDisplayLabel": "Display label",
+  "settingUHint": "For example, U",
+  "settingUnitLabelRequired": "Enter a source unit and a display label.",
+  "settingSaveLabel": "Save label",
+  "settingCustomConversion": "Custom conversion",
+  "settingOunceHint": "For example, oz",
+  "settingTargetUnit": "Target unit",
+  "settingGramHint": "For example, g",
+  "settingMultiplier": "Multiplier",
+  "settingMultiplierHint": "For example, 28.3495",
+  "settingUnitRuleRequired": "Enter both units and a valid multiplier greater than 0.",
+  "settingSaveRule": "Save rule",
+  "settingFontLoadFailed": "This font could not be loaded. Choose another font.",
+  "settingInvalidSymbol": "Enter a valid symbol.",
+  "settingAddSymbolDialog": "Add instrument symbol",
+  "settingYahooMarkets": "Yahoo · US / Chinese stocks",
+  "settingSymbol": "Symbol",
+  "settingYahooHint": "AAPL, 600519.SS, or 600519",
+  "settingOptionalName": "Display name (optional)",
+  "settingAdd": "Add",
+  "settingSearchFonts": "Search fonts",
+  "settingNoFonts": "No matching fonts",
+  "settingFontUnavailable": "This font could not be loaded. Choose another font.",
+  "settingFontSample": "Price 83,342.30 · AaBb 123",
+  "settingApiSteps": "1. Paste the API URL\n2. Select “Read response fields”\n3. Choose fields, name them, and set their units",
+  "settingSaveFailed": "Save failed: {error}",
+  "@settingSaveFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "settingSearchCount": "{count} results",
+  "@settingSearchCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingSettingsFile": "Settings file: {path}",
+  "@settingSettingsFile": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "settingCatalogCounts": "{selected} selected · {total} in catalog · {matched} matches",
+  "@settingCatalogCounts": {
+    "placeholders": {
+      "selected": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "matched": {
+        "type": "int"
+      }
+    }
+  },
+  "settingCatalogUnavailable": "The {providers} catalog has not updated. Existing instruments are still available.",
+  "@settingCatalogUnavailable": {
+    "placeholders": {
+      "providers": {
+        "type": "String"
+      }
+    }
+  },
+  "settingPageCount": "Page {page} of {total} · {size} per page",
+  "@settingPageCount": {
+    "placeholders": {
+      "page": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      },
+      "size": {
+        "type": "int"
+      }
+    }
+  },
+  "settingWatchlistCount": "Watchlist · {count}",
+  "@settingWatchlistCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingDragAsset": "Drag {name} to reorder",
+  "@settingDragAsset": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingMoveAssetUp": "Move {name} up",
+  "@settingMoveAssetUp": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingMoveAssetDown": "Move {name} down",
+  "@settingMoveAssetDown": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingUnfollowAsset": "Remove {name} from watchlist",
+  "@settingUnfollowAsset": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "settingImportFailed": "Import failed: {error}",
+  "@settingImportFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "settingSourceSummary": "{status} · Refresh every {seconds}s · {count} display fields",
+  "@settingSourceSummary": {
+    "placeholders": {
+      "status": {
+        "type": "String"
+      },
+      "seconds": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingRowNumber": "Row {number}",
+  "@settingRowNumber": {
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
+  "settingMultiplierSummary": "Value × {multiplier}",
+  "@settingMultiplierSummary": {
+    "placeholders": {
+      "multiplier": {
+        "type": "double"
+      }
+    }
+  },
+  "settingLanguage": "Language",
+  "settingLanguageSystem": "Follow system",
+  "settingCatalogAssets": "Choose instruments",
+  "settingCatalogOrder": "Watchlist order",
+  "settingCatalogApi": "Custom APIs",
+  "settingCatalogRows": "Custom rows & templates",
+  "settingCatalogFonts": "Text & number fonts",
+  "settingCatalogSpacing": "Font size & row spacing",
+  "settingCatalogThemes": "Light & dark themes",
+  "settingCatalogHeader": "Title & icon",
+  "settingCatalogUnits": "Units & display currency",
+  "settingCatalogWindow": "Always on top",
+  "settingCatalogTray": "Hide & restore from tray"
+}

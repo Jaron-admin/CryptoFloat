@@ -9,6 +9,7 @@ import 'fluent_controls.dart';
 
 import '../../app/app_controller.dart';
 import '../../domain/models.dart';
+import '../../l10n/l10n.dart';
 import '../../platform/system_fonts.dart';
 import '../../platform/header_image_store.dart';
 import '../panel/display_row_view.dart';
@@ -108,7 +109,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _preview(AppConfig value) {
-    setState(() => _draft = value);
+    setState(() {
+      if (_draft.language != value.language) _error = null;
+      _draft = value;
+    });
     widget.controller.previewAppearance(value);
   }
 
@@ -126,20 +130,28 @@ class _SettingsPageState extends State<SettingsPage> {
         final action = await f.showDialog<String>(
           context: context,
           builder: (context) => FAlertDialog(
-            title: const Text('有未保存的更改'),
-            content: Text(exitApp ? '退出前保存更改，或放弃这次更改。' : '保存后应用到悬浮窗，或放弃这次更改。'),
+            title: Text(context.l10n.settingUnsavedChanges),
+            content: Text(
+              exitApp
+                  ? context.l10n.settingSaveBeforeExit
+                  : context.l10n.settingSaveBeforeReturn,
+            ),
             actions: [
               FTextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('继续编辑'),
+                child: Text(context.l10n.settingKeepEditing),
               ),
               FTextButton(
                 onPressed: () => Navigator.pop(context, 'discard'),
-                child: const Text('放弃更改'),
+                child: Text(context.l10n.settingDiscardChanges),
               ),
               FFilledButton(
                 onPressed: () => Navigator.pop(context, 'save'),
-                child: Text(exitApp ? '保存并退出' : '保存并返回'),
+                child: Text(
+                  exitApp
+                      ? context.l10n.settingSaveAndQuit
+                      : context.l10n.settingSaveAndReturn,
+                ),
               ),
             ],
           ),
@@ -200,7 +212,13 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       return true;
     } catch (error) {
-      if (mounted) setState(() => _error = '保存失败：$error');
+      if (mounted) {
+        setState(
+          () => _error = context.l10n.settingSaveFailed(
+            localizeAppError(context, error),
+          ),
+        );
+      }
       return false;
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -225,7 +243,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
                   child: f.InfoBar(
-                    title: const Text('未能完成操作'),
+                    title: Text(context.l10n.settingActionFailed),
                     content: Text(_error!),
                     severity: f.InfoBarSeverity.error,
                   ),
@@ -245,11 +263,11 @@ class _SettingsPageState extends State<SettingsPage> {
                           onPressed: _saving || _pickingImage || _closing
                               ? null
                               : _close,
-                          tooltip: '返回悬浮窗',
+                          tooltip: context.l10n.settingReturnToPanel,
                           icon: const Icon(f.FluentIcons.back, size: 16),
                         ),
-                        title: const Text(
-                          'CryptoFloat 设置',
+                        title: Text(
+                          context.l10n.settingTitle,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -267,7 +285,11 @@ class _SettingsPageState extends State<SettingsPage> {
                                 _saving || _pickingImage || _closing || !_dirty
                                 ? null
                                 : _save,
-                            child: Text(_saving ? '保存中…' : '保存并返回'),
+                            child: Text(
+                              _saving
+                                  ? context.l10n.settingSaving
+                                  : context.l10n.settingSaveAndReturn,
+                            ),
                           ),
                         ),
                       ),
@@ -287,7 +309,9 @@ class _SettingsPageState extends State<SettingsPage> {
                           for (var i = 0; i < settingsCategories.length; i++)
                             f.PaneItem(
                               icon: Icon(settingsCategories[i].icon, size: 18),
-                              title: Text(settingsCategories[i].title),
+                              title: Text(
+                                settingsCategories[i].title(context.l10n),
+                              ),
                               body: i == _section
                                   ? body
                                   : const SizedBox.shrink(),
@@ -324,7 +348,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        _dirty ? '未保存' : '已保存',
+                        _dirty
+                            ? context.l10n.settingUnsaved
+                            : context.l10n.settingSaved,
                         style: f.FluentTheme.of(context).typography.caption,
                       ),
                     ),
@@ -341,7 +367,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _searchField() => FTextField(
     controller: _settingsSearch,
     decoration: InputDecoration(
-      hintText: '搜索设置',
+      hintText: context.l10n.settingSearch,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       prefixIcon: const Icon(Icons.search_rounded, size: 19),
@@ -349,7 +375,7 @@ class _SettingsPageState extends State<SettingsPage> {
       suffixIcon: _settingsQuery.isEmpty
           ? null
           : FIconButton(
-              tooltip: '清除搜索',
+              tooltip: context.l10n.settingClearSearch,
               icon: const Icon(Icons.close_rounded, size: 17),
               onPressed: () {
                 _settingsSearch.clear();
@@ -366,7 +392,10 @@ class _SettingsPageState extends State<SettingsPage> {
     2 => _rows(),
     3 => _appearance(),
     4 => _page([
-      _intro('单位与换算', '选择行情货币和单位标签；自定义倍率可用于其他数值。'),
+      _intro(
+        context.l10n.settingUnitsTitle,
+        context.l10n.settingUnitsDescription,
+      ),
       _anchor('units', _unitOptions()),
     ]),
     _ => _window(),
@@ -397,11 +426,14 @@ class _SettingsPageState extends State<SettingsPage> {
         .where((entry) => entry.matches(_settingsQuery))
         .toList();
     return _page([
-      _intro('搜索设置', '${matches.length} 项结果'),
+      _intro(
+        context.l10n.settingSearch,
+        context.l10n.settingSearchCount(matches.length),
+      ),
       if (matches.isEmpty)
-        const Padding(
+        Padding(
           padding: EdgeInsets.symmetric(vertical: 24),
-          child: Text('没有匹配的设置，试试“字体”“单位”或“置顶”。'),
+          child: Text(context.l10n.settingNoSearchResults),
         ),
       for (final entry in matches)
         _card(
@@ -409,8 +441,10 @@ class _SettingsPageState extends State<SettingsPage> {
             dense: true,
             contentPadding: EdgeInsets.zero,
             leading: Icon(settingsCategories[entry.section].icon, size: 20),
-            title: Text(entry.title),
-            subtitle: Text(settingsCategories[entry.section].title),
+            title: Text(entry.title(context.l10n)),
+            subtitle: Text(
+              settingsCategories[entry.section].title(context.l10n),
+            ),
             trailing: const Icon(Icons.chevron_right_rounded, size: 20),
             onTap: () => _selectSection(entry.section, anchor: entry.anchor),
           ),
@@ -466,20 +500,20 @@ class _SettingsPageState extends State<SettingsPage> {
     onExpansionChanged: (value) => _storageExpanded = value,
     tilePadding: EdgeInsets.zero,
     childrenPadding: const EdgeInsets.only(bottom: 8),
-    title: const Text('导入与数据位置', style: TextStyle(fontSize: 12)),
+    title: Text(context.l10n.settingStorage, style: TextStyle(fontSize: 12)),
     children: [
       Align(
         alignment: Alignment.centerLeft,
         child: FTextButton.icon(
           onPressed: _saving ? null : _importLegacy,
           icon: const Icon(Icons.file_download_outlined, size: 17),
-          label: const Text('导入旧版设置副本'),
+          label: Text(context.l10n.settingImportLegacy),
         ),
       ),
       Align(
         alignment: Alignment.centerLeft,
         child: SelectableText(
-          '设置文件：${widget.controller.store.configPath}',
+          context.l10n.settingSettingsFile(widget.controller.store.configPath),
           style: const TextStyle(fontSize: 11),
         ),
       ),
@@ -550,7 +584,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           : asset.kind == MarketKind.equity)) &&
                   (_provider == 'all' || asset.provider == _provider) &&
                   terms.every(
-                    '${asset.name} ${asset.symbol} ${asset.symbol.replaceAll('-', ' ')} ${asset.provider} ${asset.currency}'
+                    '${asset.name} ${localizedAssetName(asset, context.l10n)} ${asset.symbol} ${asset.symbol.replaceAll('-', ' ')} ${asset.provider} ${asset.currency}'
                         .toLowerCase()
                         .contains,
                   ),
@@ -568,21 +602,24 @@ class _SettingsPageState extends State<SettingsPage> {
     final currentPage = _assetPage.clamp(0, pageCount - 1);
     final page = filtered.skip(currentPage * pageSize).take(pageSize);
     return _page([
-      _intro('关注行情', '管理关注列表，搜索更多币种、股票与 ETF。'),
+      _intro(
+        context.l10n.settingWatchlist,
+        context.l10n.settingWatchlistDescription,
+      ),
       _anchor('asset-order', _watchlistOrder()),
       const SizedBox(height: 18),
       _anchor(
         'assets',
-        const Text(
-          '添加行情',
+        Text(
+          context.l10n.settingAddAsset,
           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       const SizedBox(height: 10),
       FTextField(
         controller: _assetSearch,
-        decoration: const InputDecoration(
-          labelText: '搜索名称、代码或数据源',
+        decoration: InputDecoration(
+          labelText: context.l10n.settingSearchAsset,
           prefixIcon: Icon(Icons.search),
         ),
         onChanged: (value) => setState(() {
@@ -596,10 +633,10 @@ class _SettingsPageState extends State<SettingsPage> {
         runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          for (final entry in const {
-            'all': '全部',
-            'crypto': '加密货币',
-            'equity': '股票 / ETF',
+          for (final entry in {
+            'all': context.l10n.settingAll,
+            'crypto': context.l10n.settingCrypto,
+            'equity': context.l10n.settingStocks,
           }.entries)
             FChoiceChip(
               label: Text(entry.value),
@@ -611,18 +648,26 @@ class _SettingsPageState extends State<SettingsPage> {
               }),
             ),
           SizedBox(
-            width: 142,
+            width: 164,
             child: FDropdown<String>(
               key: ValueKey(_provider),
               initialValue: _provider,
               isExpanded: true,
-              decoration: const InputDecoration(labelText: '数据源'),
-              items: const [
-                FDropdownItem(value: 'all', child: Text('全部来源')),
+              decoration: InputDecoration(
+                labelText: context.l10n.settingProvider,
+              ),
+              items: [
+                FDropdownItem(
+                  value: 'all',
+                  child: Text(context.l10n.settingAllProviders),
+                ),
                 FDropdownItem(value: 'OKX', child: Text('OKX')),
                 FDropdownItem(value: 'BINANCE', child: Text('Binance')),
                 FDropdownItem(value: 'KUCOIN', child: Text('KuCoin')),
-                FDropdownItem(value: 'YAHOO', child: Text('Yahoo 财经')),
+                FDropdownItem(
+                  value: 'YAHOO',
+                  child: Text(context.l10n.settingYahoo),
+                ),
               ],
               onChanged: (value) {
                 if (value == null) return;
@@ -639,7 +684,7 @@ class _SettingsPageState extends State<SettingsPage> {
           FButton.icon(
             onPressed: _addAsset,
             icon: const Icon(Icons.add),
-            label: const Text('添加代码'),
+            label: Text(context.l10n.settingAddSymbol),
           ),
         ],
       ),
@@ -650,7 +695,11 @@ class _SettingsPageState extends State<SettingsPage> {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           Text(
-            '已选 ${_draft.selectedAssetIds.length} 项 · 目录 ${catalog.length} 项 · 匹配 ${filtered.length} 项',
+            context.l10n.settingCatalogCounts(
+              _draft.selectedAssetIds.length,
+              catalog.length,
+              filtered.length,
+            ),
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 12,
@@ -667,7 +716,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: f.ProgressRing(strokeWidth: 2),
                   )
                 : const Icon(Icons.refresh, size: 16),
-            label: Text(directory.loading ? '正在更新目录' : '刷新目录'),
+            label: Text(
+              directory.loading
+                  ? context.l10n.settingUpdatingCatalog
+                  : context.l10n.settingRefreshCatalog,
+            ),
           ),
         ],
       ),
@@ -675,7 +728,9 @@ class _SettingsPageState extends State<SettingsPage> {
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(
-            '${directory.errors.keys.join('、')} 目录暂未更新，仍可选择已有项目。',
+            context.l10n.settingCatalogUnavailable(
+              directory.errors.keys.join(', '),
+            ),
             style: TextStyle(
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               fontSize: 12,
@@ -691,7 +746,7 @@ class _SettingsPageState extends State<SettingsPage> {
               visualDensity: const VisualDensity(vertical: -1),
               value: _draft.selectedAssetIds.contains(asset.id),
               title: Text(
-                asset.name,
+                localizedAssetName(asset, context.l10n),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -705,9 +760,9 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
       if (filtered.isEmpty)
-        const Padding(
+        Padding(
           padding: EdgeInsets.all(24),
-          child: Text('没有找到这个代码，可以用“添加代码”手动加入。'),
+          child: Text(context.l10n.settingSymbolNotFound),
         ),
       if (pageCount > 1)
         Padding(
@@ -716,18 +771,25 @@ class _SettingsPageState extends State<SettingsPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               FIconButton(
-                tooltip: '上一页',
+                tooltip: context.l10n.settingPreviousPage,
                 onPressed: currentPage == 0
                     ? null
                     : () => _changeAssetPage(currentPage - 1),
                 icon: const Icon(Icons.chevron_left),
               ),
-              Text(
-                '第 ${currentPage + 1} / $pageCount 页 · 每页 $pageSize 项',
-                style: const TextStyle(fontSize: 12),
+              Flexible(
+                child: Text(
+                  context.l10n.settingPageCount(
+                    currentPage + 1,
+                    pageCount,
+                    pageSize,
+                  ),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
               FIconButton(
-                tooltip: '下一页',
+                tooltip: context.l10n.settingNextPage,
                 onPressed: currentPage == pageCount - 1
                     ? null
                     : () => _changeAssetPage(currentPage + 1),
@@ -748,14 +810,14 @@ class _SettingsPageState extends State<SettingsPage> {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              '已关注 · ${assets.length}',
+              context.l10n.settingWatchlistCount(assets.length),
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
           if (assets.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text('从下方目录添加行情。'),
+              child: Text(context.l10n.settingAddFromCatalog),
             )
           else
             SizedBox(
@@ -800,9 +862,11 @@ class _SettingsPageState extends State<SettingsPage> {
                               child: MouseRegion(
                                 cursor: SystemMouseCursors.grab,
                                 child: f.Tooltip(
-                                  message: '拖动排序',
+                                  message: context.l10n.settingDragToReorder,
                                   child: Semantics(
-                                    label: '拖动 ${asset.name} 排序',
+                                    label: context.l10n.settingDragAsset(
+                                      localizedAssetName(asset, context.l10n),
+                                    ),
                                     child: const Padding(
                                       padding: EdgeInsets.all(8),
                                       child: Icon(
@@ -820,7 +884,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    asset.name,
+                                    localizedAssetName(asset, context.l10n),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -836,21 +900,27 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                             ),
                             FIconButton(
-                              tooltip: '上移 ${asset.name}',
+                              tooltip: context.l10n.settingMoveAssetUp(
+                                localizedAssetName(asset, context.l10n),
+                              ),
                               icon: const Icon(f.FluentIcons.up, size: 14),
                               onPressed: i == 0
                                   ? null
                                   : () => _moveAsset(i, -1),
                             ),
                             FIconButton(
-                              tooltip: '下移 ${asset.name}',
+                              tooltip: context.l10n.settingMoveAssetDown(
+                                localizedAssetName(asset, context.l10n),
+                              ),
                               icon: const Icon(f.FluentIcons.down, size: 14),
                               onPressed: i == assets.length - 1
                                   ? null
                                   : () => _moveAsset(i, 1),
                             ),
                             FIconButton(
-                              tooltip: '取消关注 ${asset.name}',
+                              tooltip: context.l10n.settingUnfollowAsset(
+                                localizedAssetName(asset, context.l10n),
+                              ),
                               icon: const Icon(f.FluentIcons.cancel, size: 12),
                               onPressed: () => _toggleAsset(asset, false),
                             ),
@@ -889,7 +959,7 @@ class _SettingsPageState extends State<SettingsPage> {
       widget.controller.catalog.refresh(force: force).catchError((
         Object error,
       ) {
-        if (mounted) setState(() => _error = '目录更新失败，请稍后重试。');
+        if (mounted) setState(() => _error = context.l10n.settingCatalogFailed);
       }),
     );
   }
@@ -948,19 +1018,19 @@ class _SettingsPageState extends State<SettingsPage> {
     final path = await f.showDialog<String>(
       context: context,
       builder: (context) => FAlertDialog(
-        title: const Text('导入旧版设置副本'),
+        title: Text(context.l10n.settingImportLegacy),
         content: SizedBox(
           width: 500,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('将行情选择和可兼容的布局读入当前草稿；点击保存后应用。'),
+              Text(context.l10n.settingImportDescription),
               const SizedBox(height: 16),
               FTextField(
                 controller: input,
-                decoration: const InputDecoration(
-                  labelText: '旧版配置文件位置',
-                  hintText: '选择旧版 crypto_config.json 的完整路径',
+                decoration: InputDecoration(
+                  labelText: context.l10n.settingLegacyPath,
+                  hintText: context.l10n.settingLegacyPathHint,
                 ),
               ),
             ],
@@ -969,11 +1039,11 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           FTextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(context.l10n.settingCancel),
           ),
           FFilledButton(
             onPressed: () => Navigator.pop(context, input.text.trim()),
-            child: const Text('读取'),
+            child: Text(context.l10n.settingRead),
           ),
         ],
       ),
@@ -984,16 +1054,28 @@ class _SettingsPageState extends State<SettingsPage> {
       final imported = await widget.controller.store.importLegacy(path);
       if (mounted) _preview(imported);
     } catch (error) {
-      if (mounted) setState(() => _error = '导入失败：$error');
+      if (mounted) {
+        setState(
+          () => _error = context.l10n.settingImportFailed(
+            localizeAppError(context, error),
+          ),
+        );
+      }
     }
   }
 
   Widget _sources() => _page([
-    _anchor('sources', _intro('自定义内容', '连接数据接口，选择需要显示的字段。')),
+    _anchor(
+      'sources',
+      _intro(
+        context.l10n.settingCustomContent,
+        context.l10n.settingCustomDescription,
+      ),
+    ),
     FFilledButton.icon(
       onPressed: () => _editSource(null),
       icon: const Icon(Icons.add),
-      label: const Text('添加自定义 API'),
+      label: Text(context.l10n.settingAddApi),
     ),
     const SizedBox(height: 20),
     if (_draft.customSources.isEmpty)
@@ -1001,18 +1083,15 @@ class _SettingsPageState extends State<SettingsPage> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '添加只需三步',
+            Text(
+              context.l10n.settingThreeSteps,
               style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 12),
-            const Text(
-              '1. 粘贴数据接口地址\n2. 点击“读取返回字段”\n3. 勾选字段，为它起名并填写单位',
-              style: TextStyle(height: 1.8),
-            ),
+            Text(context.l10n.settingApiSteps, style: TextStyle(height: 1.8)),
             const SizedBox(height: 12),
             Text(
-              '支持免密钥接口和请求头密钥。密钥保存在系统保护的存储中。',
+              context.l10n.settingApiSecurity,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
@@ -1038,7 +1117,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 FIconButton(
                   onPressed: () => _editSource(source),
-                  tooltip: '编辑',
+                  tooltip: context.l10n.settingEdit,
                   icon: const Icon(Icons.edit_outlined),
                 ),
                 FIconButton(
@@ -1049,7 +1128,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           .toList(),
                     ),
                   ),
-                  tooltip: '移除',
+                  tooltip: context.l10n.settingRemove,
                   icon: const Icon(Icons.delete_outline),
                 ),
               ],
@@ -1077,7 +1156,13 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              '${source.enabled ? '已启用' : '已停用'} · 每 ${source.refreshSeconds} 秒刷新 · ${source.fields.length} 个显示字段',
+              context.l10n.settingSourceSummary(
+                source.enabled
+                    ? context.l10n.settingEnabled
+                    : context.l10n.settingDisabled,
+                source.refreshSeconds,
+                source.fields.length,
+              ),
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 12,
@@ -1108,15 +1193,15 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _rows() => _page([
-    _intro('显示布局', '组合行情字段与文字，创建自己的显示布局。'),
+    _intro(context.l10n.settingLayout, context.l10n.settingLayoutDescription),
     _anchor(
       'default-rows',
       _card(
         FSwitchListTile(
           contentPadding: EdgeInsets.zero,
           dense: true,
-          title: const Text('显示默认行情'),
-          subtitle: const Text('显示已关注代码的名称、价格、单位和涨跌幅；关闭后保留自由显示行。'),
+          title: Text(context.l10n.settingDefaultRows),
+          subtitle: Text(context.l10n.settingDefaultRowsDescription),
           value: _draft.showDefaultRows,
           onChanged: (value) =>
               setState(() => _draft = _draft.copyWith(showDefaultRows: value)),
@@ -1132,12 +1217,12 @@ class _SettingsPageState extends State<SettingsPage> {
           FFilledButton.icon(
             onPressed: () => _editRow(null),
             icon: const Icon(Icons.add),
-            label: const Text('添加自由显示行'),
+            label: Text(context.l10n.settingAddRow),
           ),
           FButton.icon(
             onPressed: _addTemplate,
             icon: const Icon(Icons.auto_awesome_outlined),
-            label: const Text('添加实用模板'),
+            label: Text(context.l10n.settingAddTemplate),
           ),
         ],
       ),
@@ -1152,7 +1237,7 @@ class _SettingsPageState extends State<SettingsPage> {
               color: Theme.of(context).colorScheme.primary,
             ),
             const SizedBox(width: 12),
-            const Expanded(child: Text('默认行情已开启，添加自由显示行后仍会保留。')),
+            Expanded(child: Text(context.l10n.settingDefaultRowsKept)),
           ],
         ),
       ),
@@ -1165,7 +1250,7 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 Expanded(
                   child: Text(
-                    '第 ${i + 1} 行',
+                    context.l10n.settingRowNumber(i + 1),
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -1173,24 +1258,24 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 ),
                 FIconButton(
-                  tooltip: '上移',
+                  tooltip: context.l10n.settingMoveUp,
                   onPressed: i == 0 ? null : () => _moveRow(i, -1),
                   icon: const Icon(Icons.arrow_upward, size: 18),
                 ),
                 FIconButton(
-                  tooltip: '下移',
+                  tooltip: context.l10n.settingMoveDown,
                   onPressed: i == _draft.displayRows.length - 1
                       ? null
                       : () => _moveRow(i, 1),
                   icon: const Icon(Icons.arrow_downward, size: 18),
                 ),
                 FIconButton(
-                  tooltip: '编辑',
+                  tooltip: context.l10n.settingEdit,
                   onPressed: () => _editRow(_draft.displayRows[i]),
                   icon: const Icon(Icons.edit_outlined),
                 ),
                 FIconButton(
-                  tooltip: '删除',
+                  tooltip: context.l10n.settingDelete,
                   onPressed: () => setState(
                     () => _draft = _draft.copyWith(
                       displayRows: _draft.displayRows
@@ -1214,7 +1299,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     label: Text(
                       segment.isField
-                          ? fieldLabel(segment, _draft)
+                          ? fieldLabel(segment, _draft, context.l10n)
                           : segment.text,
                     ),
                   ),
@@ -1275,12 +1360,37 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _appearance() => _page([
-    _intro('外观', '主题、悬浮窗透明度、字体与标题。'),
+    _intro(
+      context.l10n.settingAppearance,
+      context.l10n.settingAppearanceDescription,
+    ),
+    _anchor(
+      'language',
+      _card(
+        SettingRow(
+          title: context.l10n.settingLanguage,
+          control: FDropdown<String>(
+            initialValue: _draft.language,
+            items: [
+              FDropdownItem(
+                value: 'system',
+                child: Text(context.l10n.settingLanguageSystem),
+              ),
+              const FDropdownItem(value: 'zh', child: Text('简体中文')),
+              const FDropdownItem(value: 'en', child: Text('English')),
+            ],
+            onChanged: (value) {
+              if (value != null) _preview(_draft.copyWith(language: value));
+            },
+          ),
+        ),
+      ),
+    ),
     _anchor(
       'opacity',
       _card(
         _slider(
-          '悬浮窗透明度',
+          context.l10n.settingOpacity,
           1 - _draft.opacity,
           0,
           0.6,
@@ -1300,22 +1410,22 @@ class _SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SettingRow(
-              title: '文字字体',
+              title: context.l10n.settingTextFont,
               description: _draft.fontFamily,
-              controlWidth: 116,
+              controlWidth: 164,
               control: FButton(
                 onPressed: () => _pickFont(false),
-                child: const Text('选择系统字体'),
+                child: Text(context.l10n.settingChooseFont),
               ),
             ),
             const Divider(height: 1),
             SettingRow(
-              title: '数字字体',
+              title: context.l10n.settingNumberFont,
               description: _draft.numberFontFamily,
-              controlWidth: 116,
+              controlWidth: 164,
               control: FButton(
                 onPressed: () => _pickFont(true),
-                child: const Text('选择系统字体'),
+                child: Text(context.l10n.settingChooseFont),
               ),
             ),
             const Divider(height: 1),
@@ -1325,7 +1435,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   const SizedBox(height: 12),
                   _slider(
-                    '字号',
+                    context.l10n.settingFontSize,
                     _draft.fontSize,
                     10,
                     32,
@@ -1333,7 +1443,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     (value) => _preview(_draft.copyWith(fontSize: value)),
                   ),
                   _slider(
-                    '行间距',
+                    context.l10n.settingRowSpacing,
                     _draft.rowSpacing,
                     0,
                     24,
@@ -1354,7 +1464,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '中文预览：比特币 · 价格与涨跌',
+                    context.l10n.settingFontPreview,
                     style: TextStyle(
                       fontFamily: SystemFonts.family(_draft.fontFamily),
                       fontSize: _draft.fontSize,
@@ -1389,14 +1499,14 @@ class _SettingsPageState extends State<SettingsPage> {
   ]);
 
   Widget _window() => _page([
-    _intro('窗口与托盘', '置顶、移动和系统托盘。'),
+    _intro(context.l10n.settingWindow, context.l10n.settingWindowDescription),
     _anchor(
       'window',
       _card(
         Column(
           children: [
             SettingRow(
-              title: '保持在其他窗口上方',
+              title: context.l10n.settingAlwaysOnTop,
               controlWidth: 52,
               control: FSwitch(
                 value: _draft.alwaysOnTop,
@@ -1412,19 +1522,19 @@ class _SettingsPageState extends State<SettingsPage> {
     _anchor(
       'tray',
       _card(
-        const Column(
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SettingRow(
-              title: '隐藏悬浮窗',
-              description: '双击悬浮窗空白处或标题，隐藏到系统托盘。',
+              title: context.l10n.settingHidePanel,
+              description: context.l10n.settingHideDescription,
               controlWidth: 28,
               control: Icon(Icons.touch_app_outlined, size: 20),
             ),
             Divider(height: 1),
             SettingRow(
-              title: '从托盘恢复',
-              description: '单击托盘图标恢复悬浮窗，并置于其他窗口上方。',
+              title: context.l10n.settingRestorePanel,
+              description: context.l10n.settingRestoreDescription,
               controlWidth: 28,
               control: Icon(Icons.open_in_new_rounded, size: 20),
             ),
@@ -1433,12 +1543,12 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     ),
   ]);
-  static const _headerIcons = {
-    'chart': '行情图',
-    'bitcoin': '比特币',
-    'star': '星标',
-    'bolt': '闪电',
-    'heart': '爱心',
+  Map<String, String> get _headerIcons => {
+    'chart': context.l10n.settingIconChart,
+    'bitcoin': context.l10n.settingIconBitcoin,
+    'star': context.l10n.settingIconStar,
+    'bolt': context.l10n.settingIconBolt,
+    'heart': context.l10n.settingIconHeart,
   };
 
   IconData? _headerIconData(String id) => switch (id) {
@@ -1480,14 +1590,16 @@ class _SettingsPageState extends State<SettingsPage> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  _draft.headerName.isEmpty ? '标题预览' : _draft.headerName,
+                  _draft.headerName.isEmpty
+                      ? context.l10n.settingTitlePreview
+                      : _draft.headerName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               Text(
-                '图标预览',
+                context.l10n.settingIconPreview,
                 style: TextStyle(
                   fontSize: 12,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1498,7 +1610,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         const Divider(height: 1),
         SettingRow(
-          title: '显示标题名称',
+          title: context.l10n.settingShowTitle,
           controlWidth: 52,
           control: FSwitch(
             value: _draft.showHeaderName,
@@ -1507,7 +1619,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
         SettingRow(
-          title: '标题名称',
+          title: context.l10n.settingTitleName,
           controlWidth: 220,
           control: FTextFormField(
             key: const ValueKey('header-name'),
@@ -1519,7 +1631,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         const Divider(height: 1),
         SettingRow(
-          title: '显示标题图标',
+          title: context.l10n.settingShowIcon,
           controlWidth: 52,
           control: FSwitch(
             value: _draft.showHeaderIcon,
@@ -1528,7 +1640,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ),
         SettingRow(
-          title: '图标样式',
+          title: context.l10n.settingIconStyle,
           controlWidth: 220,
           control: FDropdown<String>(
             key: ValueKey('header-icon-${_draft.headerIcon}'),
@@ -1549,13 +1661,13 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                 ),
-              const FDropdownItem(
+              FDropdownItem(
                 value: 'emoji',
                 child: Row(
                   children: [
                     Icon(Icons.emoji_emotions_outlined, size: 19),
                     SizedBox(width: 9),
-                    Text('自定义表情'),
+                    Text(context.l10n.settingCustomEmoji),
                   ],
                 ),
               ),
@@ -1576,9 +1688,9 @@ class _SettingsPageState extends State<SettingsPage> {
           FTextFormField(
             key: const ValueKey('header-emoji'),
             initialValue: _draft.headerIcon,
-            decoration: const InputDecoration(
-              labelText: '输入表情或字符',
-              hintText: '例如 🌙',
+            decoration: InputDecoration(
+              labelText: context.l10n.settingEmojiInput,
+              hintText: context.l10n.settingEmojiHint,
             ),
             onChanged: (value) =>
                 _preview(_draft.copyWith(headerIcon: value.trim())),
@@ -1596,8 +1708,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 width: 28,
                 height: 28,
                 fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const Tooltip(
-                  message: '图片无法显示，请重新选择',
+                errorBuilder: (_, _, _) => Tooltip(
+                  message: context.l10n.settingImageUnavailable,
                   child: Icon(Icons.broken_image_outlined),
                 ),
               ),
@@ -1610,18 +1722,18 @@ class _SettingsPageState extends State<SettingsPage> {
                       child: f.ProgressRing(strokeWidth: 2),
                     )
                   : const Icon(Icons.image_outlined),
-              label: const Text('选择图片图标'),
+              label: Text(context.l10n.settingChooseImage),
             ),
             if (_draft.headerImagePath.isNotEmpty)
               FTextButton(
                 onPressed: () => _preview(_draft.copyWith(headerImagePath: '')),
-                child: const Text('清除图片图标'),
+                child: Text(context.l10n.settingClearImage),
               ),
           ],
         ),
         const SizedBox(height: 6),
         Text(
-          '选择不超过 1 MB 的图片；图片图标会优先显示。',
+          context.l10n.settingImageDescription,
           style: TextStyle(
             fontSize: 12,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1635,9 +1747,9 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _pickingImage = true);
     try {
       final file = await openFile(
-        acceptedTypeGroups: const [
+        acceptedTypeGroups: [
           XTypeGroup(
-            label: '图片',
+            label: context.l10n.settingImages,
             extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico'],
           ),
         ],
@@ -1649,8 +1761,8 @@ class _SettingsPageState extends State<SettingsPage> {
     } catch (error) {
       if (!mounted) return;
       final message = error is FormatException
-          ? error.message
-          : '图片未能导入，请重新选择。';
+          ? localizeAppError(context, error)
+          : context.l10n.settingImageImportFailed;
       setState(() => _error = message);
     } finally {
       if (mounted) setState(() => _pickingImage = false);
@@ -1662,17 +1774,26 @@ class _SettingsPageState extends State<SettingsPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingRow(
-          title: '单位标签',
-          description: '选择完整名称、简写或自己的标签',
+          title: context.l10n.settingUnitLabels,
+          description: context.l10n.settingUnitLabelsDescription,
           control: FDropdown<String>(
             key: const ValueKey('unit-label-mode'),
             initialValue: _draft.unitLabelMode,
             isExpanded: true,
             decoration: const InputDecoration(isDense: true),
-            items: const [
-              FDropdownItem(value: 'full', child: Text('完整')),
-              FDropdownItem(value: 'compact', child: Text('简写')),
-              FDropdownItem(value: 'custom', child: Text('自定义')),
+            items: [
+              FDropdownItem(
+                value: 'full',
+                child: Text(context.l10n.settingFull),
+              ),
+              FDropdownItem(
+                value: 'compact',
+                child: Text(context.l10n.settingCompact),
+              ),
+              FDropdownItem(
+                value: 'custom',
+                child: Text(context.l10n.settingCustom),
+              ),
             ],
             onChanged: (value) {
               if (value != null) {
@@ -1683,15 +1804,18 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         const Divider(height: 1),
         SettingRow(
-          title: '行情显示货币',
-          description: '行情价格按可用汇率换算',
+          title: context.l10n.settingDisplayCurrency,
+          description: context.l10n.settingCurrencyDescription,
           control: FDropdown<String>(
             key: const ValueKey('display-currency'),
             initialValue: _draft.displayCurrency,
             isExpanded: true,
             decoration: const InputDecoration(isDense: true),
             items: [
-              const FDropdownItem(value: '', child: Text('保留原币')),
+              FDropdownItem(
+                value: '',
+                child: Text(context.l10n.settingOriginalCurrency),
+              ),
               for (final currency in {
                 'USD',
                 'CNY',
@@ -1716,7 +1840,7 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
         const SizedBox(height: 8),
         Text(
-          '行情货币按可用汇率换算；汇率不可用时保留原币并显示提示。自定义倍率用于其他单位。',
+          context.l10n.settingConversionDescription,
           style: TextStyle(
             fontSize: 12,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1729,7 +1853,7 @@ class _SettingsPageState extends State<SettingsPage> {
               contentPadding: EdgeInsets.zero,
               title: Text('${entry.key} → ${entry.value}'),
               trailing: FIconButton(
-                tooltip: '删除单位标签',
+                tooltip: context.l10n.settingDeleteUnitLabel,
                 icon: const Icon(Icons.close),
                 onPressed: () => setState(() {
                   final labels = Map<String, String>.of(_draft.unitLabels)
@@ -1741,7 +1865,7 @@ class _SettingsPageState extends State<SettingsPage> {
           FButton.icon(
             onPressed: _addUnitLabel,
             icon: const Icon(Icons.add),
-            label: const Text('添加单位标签'),
+            label: Text(context.l10n.settingAddUnitLabel),
           ),
         ],
         const SizedBox(height: 10),
@@ -1751,9 +1875,13 @@ class _SettingsPageState extends State<SettingsPage> {
             title: Text(
               '${_draft.unitRules[i].sourceUnit} → ${_draft.unitRules[i].targetUnit}',
             ),
-            subtitle: Text('数值 × ${_draft.unitRules[i].multiplier}'),
+            subtitle: Text(
+              context.l10n.settingMultiplierSummary(
+                _draft.unitRules[i].multiplier,
+              ),
+            ),
             trailing: FIconButton(
-              tooltip: '删除倍率规则',
+              tooltip: context.l10n.settingDeleteUnitRule,
               icon: const Icon(Icons.close),
               onPressed: () => setState(
                 () => _draft = _draft.copyWith(
@@ -1768,7 +1896,7 @@ class _SettingsPageState extends State<SettingsPage> {
         FButton.icon(
           onPressed: _addUnitRule,
           icon: const Icon(Icons.add),
-          label: const Text('添加倍率规则'),
+          label: Text(context.l10n.settingAddUnitRule),
         ),
       ],
     ),
@@ -1782,7 +1910,7 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (context) => StatefulBuilder(
         builder: (context, refresh) => FAlertDialog(
           scrollable: true,
-          title: const Text('自定义单位标签'),
+          title: Text(context.l10n.settingCustomUnitLabel),
           content: SizedBox(
             width: 360,
             child: Column(
@@ -1791,18 +1919,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 FTextFormField(
                   key: const ValueKey('label-source'),
                   autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: '原单位',
-                    hintText: '例如 USDT',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.settingSourceUnit,
+                    hintText: context.l10n.settingUsdtHint,
                   ),
                   onChanged: (value) => source = value.trim(),
                 ),
                 const SizedBox(height: 10),
                 FTextFormField(
                   key: const ValueKey('label-text'),
-                  decoration: const InputDecoration(
-                    labelText: '显示标签',
-                    hintText: '例如 U',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.settingDisplayLabel,
+                    hintText: context.l10n.settingUHint,
                   ),
                   onChanged: (value) => label = value.trim(),
                 ),
@@ -1819,17 +1947,17 @@ class _SettingsPageState extends State<SettingsPage> {
           actions: [
             FTextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              child: Text(context.l10n.settingCancel),
             ),
             FFilledButton(
               onPressed: () {
                 if (source.isEmpty || label.isEmpty) {
-                  refresh(() => error = '请填写原单位和显示标签。');
+                  refresh(() => error = context.l10n.settingUnitLabelRequired);
                   return;
                 }
                 Navigator.pop(context, MapEntry(source, label));
               },
-              child: const Text('保存标签'),
+              child: Text(context.l10n.settingSaveLabel),
             ),
           ],
         ),
@@ -1857,7 +1985,7 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (context) => StatefulBuilder(
         builder: (context, refresh) => FAlertDialog(
           scrollable: true,
-          title: const Text('自定义倍率换算'),
+          title: Text(context.l10n.settingCustomConversion),
           content: SizedBox(
             width: 360,
             child: Column(
@@ -1866,18 +1994,18 @@ class _SettingsPageState extends State<SettingsPage> {
                 FTextFormField(
                   key: const ValueKey('rule-source'),
                   autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: '原单位',
-                    hintText: '例如 oz',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.settingSourceUnit,
+                    hintText: context.l10n.settingOunceHint,
                   ),
                   onChanged: (value) => source = value.trim(),
                 ),
                 const SizedBox(height: 10),
                 FTextFormField(
                   key: const ValueKey('rule-target'),
-                  decoration: const InputDecoration(
-                    labelText: '目标单位',
-                    hintText: '例如 g',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.settingTargetUnit,
+                    hintText: context.l10n.settingGramHint,
                   ),
                   onChanged: (value) => target = value.trim(),
                 ),
@@ -1887,9 +2015,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: '倍率',
-                    hintText: '例如 28.3495',
+                  decoration: InputDecoration(
+                    labelText: context.l10n.settingMultiplier,
+                    hintText: context.l10n.settingMultiplierHint,
                   ),
                   onChanged: (value) => multiplier = value.trim(),
                 ),
@@ -1906,7 +2034,7 @@ class _SettingsPageState extends State<SettingsPage> {
           actions: [
             FTextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+              child: Text(context.l10n.settingCancel),
             ),
             FFilledButton(
               onPressed: () {
@@ -1916,7 +2044,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     number == null ||
                     !number.isFinite ||
                     number <= 0) {
-                  refresh(() => error = '请填写两个单位和大于 0 的有效倍率。');
+                  refresh(() => error = context.l10n.settingUnitRuleRequired);
                   return;
                 }
                 Navigator.pop(
@@ -1928,7 +2056,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                 );
               },
-              child: const Text('保存规则'),
+              child: Text(context.l10n.settingSaveRule),
             ),
           ],
         ),
@@ -1973,7 +2101,7 @@ class _SettingsPageState extends State<SettingsPage> {
         value: value.clamp(min, max),
         min: min,
         max: max,
-        divisions: label == '悬浮窗透明度' ? 60 : 30,
+        divisions: max <= 1 ? 60 : 30,
         onChanged: (value) => setState(() => change(value)),
       ),
     ],
@@ -1990,7 +2118,9 @@ class _SettingsPageState extends State<SettingsPage> {
       try {
         await SystemFonts.ensureLoaded(font);
       } catch (_) {
-        if (mounted) setState(() => _error = '字体无法加载，请重新选择其他字体。');
+        if (mounted) {
+          setState(() => _error = context.l10n.settingFontLoadFailed);
+        }
         return;
       }
       if (!mounted) return;

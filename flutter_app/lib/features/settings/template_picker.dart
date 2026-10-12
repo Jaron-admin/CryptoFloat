@@ -4,6 +4,7 @@ import 'package:fluent_ui/fluent_ui.dart' as f;
 import 'package:flutter/material.dart';
 
 import '../../domain/models.dart';
+import '../../l10n/l10n.dart';
 import 'fluent_controls.dart';
 import '../../domain/template_presets.dart';
 
@@ -15,20 +16,48 @@ Future<AppConfig?> showTemplatePicker(
   builder: (_) => _TemplateDialog(config: config),
 );
 
-const _titles = {
-  TemplateKind.weather: '城市天气',
-  TemplateKind.exchangeRates: '参考汇率',
-  TemplateKind.github: 'GitHub 仓库',
-  TemplateKind.marketBar: '简洁行情条',
-  TemplateKind.reminder: '文字提醒',
+Map<TemplateKind, String> _titles(AppLocalizations l10n) => {
+  TemplateKind.weather: l10n.editTemplateWeather,
+  TemplateKind.exchangeRates: l10n.editTemplateRates,
+  TemplateKind.github: l10n.editTemplateGithub,
+  TemplateKind.marketBar: l10n.editTemplateMarket,
+  TemplateKind.reminder: l10n.editTemplateReminder,
 };
-const _details = {
-  TemplateKind.weather: '气温、体感温度和湿度；15 分钟刷新。由 Open-Meteo 提供，适合个人使用。',
-  TemplateKind.exchangeRates: '美元兑人民币、欧元、USDT 的参考汇率；5 分钟刷新。',
-  TemplateKind.github: '公开仓库的 Stars 和未解决议题与 PR 数量；10 分钟刷新。',
-  TemplateKind.marketBar: '把关注列表的前 3 个行情组合成一行，跟随单位设置。',
-  TemplateKind.reminder: '直接显示一段文字，不需要网络。也可以用显示行编辑器继续加入数据字段。',
+Map<TemplateKind, String> _details(AppLocalizations l10n) => {
+  TemplateKind.weather: l10n.editTemplateWeatherHelp,
+  TemplateKind.exchangeRates: l10n.editTemplateRatesHelp,
+  TemplateKind.github: l10n.editTemplateGithubHelp,
+  TemplateKind.marketBar: l10n.editTemplateMarketHelp,
+  TemplateKind.reminder: l10n.editTemplateReminderHelp,
 };
+
+TemplateStrings _templateStrings(AppLocalizations l10n) => TemplateStrings(
+  cityLabels: {
+    '北京': l10n.editCityBeijing,
+    '上海': l10n.editCityShanghai,
+    '广州': l10n.editCityGuangzhou,
+    '深圳': l10n.editCityShenzhen,
+    '杭州': l10n.editCityHangzhou,
+    '成都': l10n.editCityChengdu,
+    '武汉': l10n.editCityWuhan,
+    '西安': l10n.editCityXian,
+  },
+  weatherName: l10n.editTemplateWeatherName,
+  invalidCity: l10n.editTemplateCityInvalid,
+  temperature: l10n.editTemplateTemperature,
+  feelsLike: l10n.editTemplateFeelsLike,
+  humidity: l10n.editTemplateHumidity,
+  usdRates: l10n.editTemplateUsdRates,
+  usdCny: l10n.editTemplateUsdCny,
+  usdEur: l10n.editTemplateUsdEur,
+  usdUsdt: l10n.editTemplateUsdUsdt,
+  referenceRates: l10n.editTemplateRates,
+  invalidRepository: l10n.editTemplateRepoInvalid,
+  openIssues: l10n.editTemplateOpenIssues,
+  open: l10n.editTemplateOpen,
+  emptyWatchlist: l10n.editTemplateMarketEmpty,
+  emptyText: l10n.editTemplateTextEmpty,
+);
 
 class _TemplateDialog extends StatefulWidget {
   const _TemplateDialog({required this.config});
@@ -43,7 +72,16 @@ class _TemplateDialogState extends State<_TemplateDialog> {
   String? _error;
   final _owner = TextEditingController(text: 'flutter');
   final _repo = TextEditingController(text: 'flutter');
-  final _text = TextEditingController(text: '提醒：起来走走，喝杯水');
+  final _text = TextEditingController();
+  bool _initialized = false;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
+    _text.text = context.l10n.editTemplateDefaultReminder;
+  }
+
   @override
   void dispose() {
     _owner.dispose();
@@ -61,6 +99,7 @@ class _TemplateDialogState extends State<_TemplateDialog> {
         owner: _owner.text,
         repository: _repo.text,
         text: _text.text,
+        strings: _templateStrings(context.l10n),
       );
       Navigator.pop(context, draft);
     } on FormatException catch (error) {
@@ -79,14 +118,14 @@ class _TemplateDialogState extends State<_TemplateDialog> {
             padding: const EdgeInsets.fromLTRB(18, 12, 8, 8),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    '添加实用模板',
+                    context.l10n.editTemplateAdd,
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                   ),
                 ),
                 FIconButton(
-                  tooltip: '关闭模板',
+                  tooltip: context.l10n.editTemplateClose,
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
@@ -105,7 +144,7 @@ class _TemplateDialogState extends State<_TemplateDialog> {
                     children: [
                       for (final kind in TemplateKind.values)
                         FChoiceChip(
-                          label: Text(_titles[kind]!),
+                          label: Text(_titles(context.l10n)[kind]!),
                           selected: kind == _kind,
                           onSelected: (_) => setState(() {
                             _kind = kind;
@@ -116,7 +155,7 @@ class _TemplateDialogState extends State<_TemplateDialog> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    _details[_kind]!,
+                    _details(context.l10n)[_kind]!,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -125,27 +164,34 @@ class _TemplateDialogState extends State<_TemplateDialog> {
                   if (_kind == TemplateKind.weather)
                     FDropdown<String>(
                       initialValue: _city,
-                      decoration: const InputDecoration(labelText: '城市'),
+                      decoration: InputDecoration(
+                        labelText: context.l10n.editCity,
+                      ),
                       items: [
                         for (final city in weatherCities.keys)
-                          FDropdownItem(value: city, child: Text(city)),
+                          FDropdownItem(
+                            value: city,
+                            child: Text(
+                              _templateStrings(context.l10n).cityLabel(city),
+                            ),
+                          ),
                       ],
                       onChanged: (value) => setState(() => _city = value!),
                     ),
                   if (_kind == TemplateKind.github) ...[
                     FTextField(
                       controller: _owner,
-                      decoration: const InputDecoration(
-                        labelText: '仓库拥有者',
-                        hintText: '例如 flutter',
+                      decoration: InputDecoration(
+                        labelText: context.l10n.editRepoOwner,
+                        hintText: context.l10n.editRepoOwnerHint,
                       ),
                     ),
                     const SizedBox(height: 12),
                     FTextField(
                       controller: _repo,
-                      decoration: const InputDecoration(
-                        labelText: '仓库名称',
-                        hintText: '例如 CryptoFloat',
+                      decoration: InputDecoration(
+                        labelText: context.l10n.editRepoName,
+                        hintText: context.l10n.editRepoNameHint,
                       ),
                     ),
                   ],
@@ -154,7 +200,9 @@ class _TemplateDialogState extends State<_TemplateDialog> {
                       controller: _text,
                       minLines: 2,
                       maxLines: 4,
-                      decoration: const InputDecoration(labelText: '显示文字'),
+                      decoration: InputDecoration(
+                        labelText: context.l10n.editDisplayText,
+                      ),
                     ),
                   if (_error != null)
                     Padding(
@@ -178,10 +226,13 @@ class _TemplateDialogState extends State<_TemplateDialog> {
               children: [
                 FTextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('取消'),
+                  child: Text(context.l10n.editCancel),
                 ),
                 const SizedBox(width: 8),
-                FFilledButton(onPressed: _add, child: const Text('加入显示')),
+                FFilledButton(
+                  onPressed: _add,
+                  child: Text(context.l10n.editAddToDisplay),
+                ),
               ],
             ),
           ),

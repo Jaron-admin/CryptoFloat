@@ -4,26 +4,31 @@ import 'package:fluent_ui/fluent_ui.dart' as f;
 import 'package:flutter/material.dart';
 
 import '../../domain/models.dart';
+import '../../l10n/l10n.dart';
 import 'fluent_controls.dart';
 import '../panel/display_row_view.dart';
 
-const _builtinFields = <String, String>{
-  'symbol': '代码',
-  'name': '名称',
-  'price': '价格',
-  'currency': '货币单位',
-  'change': '涨跌幅',
-  'provider': '数据源',
-  'updatedAt': '更新时间',
+Map<String, String> _builtinFields(AppLocalizations l10n) => {
+  'symbol': l10n.editFieldSymbol,
+  'name': l10n.editFieldLabel,
+  'price': l10n.editFieldPrice,
+  'currency': l10n.editFieldCurrency,
+  'change': l10n.editFieldChange,
+  'provider': l10n.editFieldProvider,
+  'updatedAt': l10n.editFieldUpdatedAt,
 };
 
-String fieldLabel(DisplaySegment segment, AppConfig config) {
+String fieldLabel(
+  DisplaySegment segment,
+  AppConfig config,
+  AppLocalizations l10n,
+) {
   final asset = [
-    ...Asset.popular,
     ...config.customAssets,
+    ...Asset.popular,
   ].where((asset) => asset.id == segment.assetId).firstOrNull;
   if (asset != null) {
-    return '${asset.name} · ${_builtinFields[segment.fieldId] ?? segment.fieldId}';
+    return '${localizedAssetName(asset, l10n)} · ${_builtinFields(l10n)[segment.fieldId] ?? segment.fieldId}';
   }
   final source = config.customSources
       .where((source) => 'custom:${source.id}' == segment.assetId)
@@ -31,7 +36,7 @@ String fieldLabel(DisplaySegment segment, AppConfig config) {
   final field = source?.fields
       .where((field) => field.id == segment.fieldId)
       .firstOrNull;
-  return '${source?.name ?? '未找到的数据源'} · ${field?.label ?? segment.fieldId}';
+  return '${source?.name ?? l10n.editSourceMissing} · ${field?.label ?? segment.fieldId}';
 }
 
 class RowEditor extends StatefulWidget {
@@ -70,27 +75,27 @@ class _RowEditorState extends State<RowEditor> {
     final result = await f.showDialog<String>(
       context: context,
       builder: (context) => FAlertDialog(
-        title: const Text('显示文字'),
+        title: Text(context.l10n.editDisplayText),
         content: SizedBox(
           width: 450,
           child: FTextField(
             controller: input,
             autofocus: true,
             maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: '想显示的文字',
-              hintText: '例如：今天的价格：  或  我的余额 ',
+            decoration: InputDecoration(
+              labelText: context.l10n.editWantedText,
+              hintText: context.l10n.editWantedTextHint,
             ),
           ),
         ),
         actions: [
           FTextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
+            child: Text(context.l10n.editCancel),
           ),
           FFilledButton(
             onPressed: () => Navigator.pop(context, input.text),
-            child: const Text('加入显示'),
+            child: Text(context.l10n.editAddToDisplay),
           ),
         ],
       ),
@@ -142,14 +147,14 @@ class _RowEditorState extends State<RowEditor> {
             padding: const EdgeInsets.all(24),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
-                    '组合显示行',
+                    context.l10n.editComposeRow,
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
                   ),
                 ),
                 FIconButton(
-                  tooltip: '关闭编辑器',
+                  tooltip: context.l10n.editCloseEditor,
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close),
                 ),
@@ -161,7 +166,7 @@ class _RowEditorState extends State<RowEditor> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               children: [
                 Text(
-                  '文字与字段从左到右显示，可加入空格和标点。',
+                  context.l10n.editComposeRowHelp,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
@@ -174,25 +179,25 @@ class _RowEditorState extends State<RowEditor> {
                     FButton.icon(
                       onPressed: _text,
                       icon: const Icon(Icons.text_fields),
-                      label: const Text('添加文字'),
+                      label: Text(context.l10n.editAddText),
                     ),
                     FFilledButton.icon(
                       onPressed: _field,
                       icon: const Icon(Icons.add_chart),
-                      label: const Text('添加数据字段'),
+                      label: Text(context.l10n.editAddDataField),
                     ),
                   ],
                 ),
                 const SizedBox(height: 14),
                 if (_segments.isEmpty)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Center(child: Text('尚未添加文字或字段')),
+                    child: Center(child: Text(context.l10n.editEmptyRow)),
                   ),
                 for (var i = 0; i < _segments.length; i++) _segmentCard(i),
                 const SizedBox(height: 16),
                 Text(
-                  '最终显示预览',
+                  context.l10n.editDisplayPreview,
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.primary,
                   ),
@@ -225,14 +230,14 @@ class _RowEditorState extends State<RowEditor> {
               children: [
                 FTextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('取消'),
+                  child: Text(context.l10n.editCancel),
                 ),
                 const SizedBox(width: 10),
                 FFilledButton(
                   onPressed: _segments.isEmpty
                       ? null
                       : () => Navigator.pop(context, _row),
-                  child: const Text('保存这一行'),
+                  child: Text(context.l10n.editSaveRow),
                 ),
               ],
             ),
@@ -253,19 +258,19 @@ class _RowEditorState extends State<RowEditor> {
             mainAxisSize: MainAxisSize.min,
             children: [
               FIconButton(
-                tooltip: '左移',
+                tooltip: context.l10n.editMoveLeft,
                 onPressed: index == 0 ? null : () => _move(index, -1),
                 icon: const Icon(Icons.arrow_back, size: 17),
               ),
               FIconButton(
-                tooltip: '右移',
+                tooltip: context.l10n.editMoveRight,
                 onPressed: index == _segments.length - 1
                     ? null
                     : () => _move(index, 1),
                 icon: const Icon(Icons.arrow_forward, size: 17),
               ),
               FIconButton(
-                tooltip: '移除',
+                tooltip: context.l10n.editRemove,
                 onPressed: () => setState(() => _segments.removeAt(index)),
                 icon: const Icon(Icons.close, size: 17),
               ),
@@ -282,16 +287,24 @@ class _RowEditorState extends State<RowEditor> {
                 ),
                 title: Text(
                   _segments[index].isField
-                      ? fieldLabel(_segments[index], widget.config)
+                      ? fieldLabel(
+                          _segments[index],
+                          widget.config,
+                          context.l10n,
+                        )
                       : _segments[index].text.isEmpty
-                      ? '空文字'
+                      ? context.l10n.editEmptyText
                       : _segments[index].text,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                 ),
                 subtitle: _segments[index].isField
                     ? Text(
-                        '格式：${_segments[index].format.isEmpty ? '自动' : _segments[index].format}',
+                        context.l10n.editRowFormat(
+                          _segments[index].format.isEmpty
+                              ? context.l10n.editAutomatic
+                              : _segments[index].format,
+                        ),
                       )
                     : null,
                 onTap: () =>
@@ -323,7 +336,15 @@ class _FieldDialog extends StatefulWidget {
 }
 
 class _FieldDialogState extends State<_FieldDialog> {
-  late final Map<String, String> _sources;
+  Map<String, String> get _sources => {
+    for (final asset in widget.config.assets)
+      asset.id:
+          '${localizedAssetName(asset, context.l10n)} · ${asset.provider}',
+    for (final source in widget.config.customSources)
+      'custom:${source.id}': source.name,
+  };
+
+  bool _initialized = false;
   String? _source;
   String? _field;
   String _format = '';
@@ -334,16 +355,12 @@ class _FieldDialogState extends State<_FieldDialog> {
           ))
             for (final field in source.fields) field.id: field.label,
         }
-      : _builtinFields;
+      : _builtinFields(context.l10n);
   @override
-  void initState() {
-    super.initState();
-    _sources = {
-      for (final asset in widget.config.assets)
-        asset.id: '${asset.name} · ${asset.provider}',
-      for (final source in widget.config.customSources)
-        'custom:${source.id}': source.name,
-    };
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
+    _initialized = true;
     _source = _sources.containsKey(widget.segment?.assetId)
         ? widget.segment!.assetId
         : _sources.keys.firstOrNull;
@@ -357,18 +374,20 @@ class _FieldDialogState extends State<_FieldDialog> {
 
   @override
   Widget build(BuildContext context) => FAlertDialog(
-    title: const Text('选择显示字段'),
+    title: Text(context.l10n.editSelectField),
     content: SizedBox(
       width: 460,
       child: _sources.isEmpty
-          ? const Text('请先在“关注内容”中选择行情，或添加自定义 API。')
+          ? Text(context.l10n.editSelectSourceFirst)
           : Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 FDropdown<String>(
                   initialValue: _source,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: '来自哪个内容？'),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.editFieldSource,
+                  ),
                   items: [
                     for (final source in _sources.entries)
                       FDropdownItem(
@@ -389,7 +408,9 @@ class _FieldDialogState extends State<_FieldDialog> {
                   key: ValueKey(_source),
                   initialValue: _field,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: '显示什么？'),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.editFieldSelection,
+                  ),
                   items: [
                     for (final field in _fields.entries)
                       FDropdownItem(value: field.key, child: Text(field.value)),
@@ -399,13 +420,30 @@ class _FieldDialogState extends State<_FieldDialog> {
                 const SizedBox(height: 14),
                 FDropdown<String>(
                   initialValue: _format,
-                  decoration: const InputDecoration(labelText: '数字格式'),
-                  items: const [
-                    FDropdownItem(value: '', child: Text('自动')),
-                    FDropdownItem(value: '.2f', child: Text('2 位小数')),
-                    FDropdownItem(value: '.4f', child: Text('4 位小数')),
-                    FDropdownItem(value: '+.2f', child: Text('正负号 + 2 位小数')),
-                    FDropdownItem(value: 'raw', child: Text('保留接口原值')),
+                  decoration: InputDecoration(
+                    labelText: context.l10n.editNumberFormat,
+                  ),
+                  items: [
+                    FDropdownItem(
+                      value: '',
+                      child: Text(context.l10n.editAutomatic),
+                    ),
+                    FDropdownItem(
+                      value: '.2f',
+                      child: Text(context.l10n.editDecimalsTwo),
+                    ),
+                    FDropdownItem(
+                      value: '.4f',
+                      child: Text(context.l10n.editDecimalsFour),
+                    ),
+                    FDropdownItem(
+                      value: '+.2f',
+                      child: Text(context.l10n.editDecimalsSigned),
+                    ),
+                    FDropdownItem(
+                      value: 'raw',
+                      child: Text(context.l10n.editRawValue),
+                    ),
                   ],
                   onChanged: (value) => setState(() => _format = value!),
                 ),
@@ -415,7 +453,7 @@ class _FieldDialogState extends State<_FieldDialog> {
     actions: [
       FTextButton(
         onPressed: () => Navigator.pop(context),
-        child: const Text('取消'),
+        child: Text(context.l10n.editCancel),
       ),
       FFilledButton(
         onPressed: _source == null || _field == null
@@ -428,7 +466,7 @@ class _FieldDialogState extends State<_FieldDialog> {
                   format: _format,
                 ),
               ),
-        child: const Text('加入显示'),
+        child: Text(context.l10n.editAddToDisplay),
       ),
     ],
   );

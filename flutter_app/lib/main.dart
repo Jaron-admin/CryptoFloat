@@ -14,6 +14,7 @@ import 'features/settings/settings_page.dart';
 import 'platform/floating_window_host.dart';
 import 'platform/secret_store.dart';
 import 'platform/system_fonts.dart';
+import 'l10n/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,9 +116,10 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
       return MaterialApp(
         title: 'CryptoFloat',
         debugShowCheckedModeBanner: false,
-        locale: const Locale('zh', 'CN'),
-        supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
+        locale: config.language == 'system' ? null : Locale(config.language),
+        supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [
+          AppLocalizations.delegate,
           f.FluentLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
@@ -134,7 +136,9 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
           final theme = Theme.of(context);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
-              unawaited(widget.controller.menus.updateAppearance(theme));
+              unawaited(
+                widget.controller.menus.updateAppearance(theme, context.l10n),
+              );
             }
           });
           return f.FluentTheme(

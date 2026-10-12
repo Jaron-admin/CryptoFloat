@@ -1,4 +1,6 @@
-# CryptoFloat 1.0.0 · Flutter 桌面版
+# CryptoFloat 1.1.0 · Flutter 桌面版
+
+**简体中文** · [English](README.en.md)
 
 Windows 首期桌面版。数据、设置和界面使用 Dart/Flutter，原生悬浮窗口与密钥保护隔离在 `lib/platform/` 和 Windows runner 中。macOS/Linux 工程骨架已生成，原生悬浮窗口和系统密钥适配将在后续补齐。
 
@@ -13,6 +15,7 @@ Windows 首期桌面版。数据、设置和界面使用 Dart/Flutter，原生�
 - **显示布局**：默认行情与自由显示行可以同时显示；也能关闭默认行情列。使用文字和字段组合显示行，调整顺序和小数格式；编辑器与悬浮窗使用相同的渲染。
 - **实用模板**：添加城市天气、参考汇率、GitHub 公开仓库统计、简洁行情条或文字提醒。模板追加到当前草稿，保留现有内容；字段与文字可继续编辑。
 - **外观**：“悬浮窗透明度”位于页面最上方，0% 表示完全不透明。分别选择系统文字/数字字体，调整字号与间距；字体选择器预览含中英文及数字。
+- **语言**：在“外观 → 语言”中选择简体中文、English 或跟随系统。保存后应用于界面、提示、悬浮窗和托盘菜单；再次启动时保留选择。自定义名称、显示文本及接口返回内容保留原值。
 - **浅色与深色**：主题模式可选浅色、深色、跟随系统；两套配色独立保存。提供 Fluent 蓝、Catppuccin、Nord、Solarized 四组浅深预设，并保留独立自定义背景。“将当前配色另存为主题”可创建任意多套命名预设；每套包含浅、深两组颜色，支持编辑、复制、删除。图形取色器提供方形色谱、色相/亮度滑条、RGB/HEX 输入与实时预览，可分别设置背景、卡片、文字、次级文字、边框、强调色、上涨和下跌颜色。图标下拉显示真实图形，旁边可预览表情和本地图片。
 - **单位与换算**：管理单位简写、自定义标签、显示货币和固定倍率。
 - **窗口与托盘**：调整置顶，查看窗口移动与托盘操作；透明度在“外观”中调整。
@@ -52,20 +55,39 @@ Windows 新版设置保存在 `%APPDATA%\CryptoFloatFlutter\settings.json`，保
 
 ## 开发与构建
 
-当前开发环境：Flutter 3.47.5 / Dart 3.13.4，Windows x64，Visual Studio 2022 Build Tools 的 C++ 桌面工具、MSVC、CMake 和 Windows SDK。其他机器按 [Flutter Windows 配置文档](https://docs.flutter.dev/platform-integration/windows/setup)准备工具链。
+构建使用 Flutter 3.47.5 / Dart 3.13.4、Windows x64，以及 Visual Studio 的 C++ 桌面工具、MSVC、CMake 和 Windows SDK。按 [Flutter Windows 配置文档](https://docs.flutter.dev/platform-integration/windows/setup)准备工具链。
 
 ```powershell
+git clone https://github.com/Jaron-admin/CryptoFloat.git
+cd CryptoFloat/flutter_app
 flutter pub get
+flutter run -d windows
+```
+
+代码检查与发布构建：
+
+```powershell
 flutter analyze
 flutter test
-flutter run -d windows
 flutter build windows --release
 ```
 
-也可运行 `tool/build_windows.ps1`；发布目录和 ZIP 会写入 `dist/`。脚本在 Windows 无符号连接权限时，会在项目生成目录创建插件目录连接，无需修改系统开发者模式。构建 macOS/Linux 需要相应平台的开发环境，并需要补齐平台窗口/受保护存储适配。Android/iOS 尚未生成项目。
+生成完整发布包：
 
-## 1.0.0 检查范围
+```powershell
+./tool/build_windows.ps1 -PackageName CryptoFloat-Windows-x64-1.1.0
+```
 
-静态分析与 Windows 发布版构建；回归检查范围为菜单关闭、系统数字字体保存、保存后主窗口继续运行。其余已有测试未在本次全部重跑。
+发布目录和 ZIP 写入 `dist/`，包含程序、中英文使用说明、项目许可证和第三方许可文本。脚本使用发布构建并将调试信息保存在独立目录，分享时使用生成的 ZIP。Flutter 未加入 PATH 时，可以传入 `-Flutter` 指定本机 Flutter 命令路径。
 
-实际桌面外观、真实多屏跨 DPI 拖动、屏幕断开恢复和系统密钥存储往返仍需实际验收。
+脚本在 Windows 无符号连接权限时，会在项目生成目录创建插件目录连接，无需修改系统开发者模式。构建 macOS/Linux 需要相应平台的开发环境，并补齐平台窗口、受保护存储与字体资源适配。Android/iOS 尚未生成项目。
+
+## 平台范围
+
+当前发行包仅面向 Windows x64。真实多屏跨 DPI 拖动、屏幕断开恢复等行为还取决于显示器与系统配置。
+
+## 开源协议
+
+CryptoFloat 自有源码使用 [MIT License](../LICENSE)。允许使用、修改、分发和商业使用；分发时请保留版权声明及许可文本。
+
+依赖、图标字体和外部数据分别遵循各自的许可与服务条款，见 [第三方许可说明](../THIRD_PARTY_NOTICES.md)。Windows 发布包保留 Flutter 生成的 `data/flutter_assets/NOTICES.Z`，并附有解压后的 `THIRD_PARTY_LICENSES.txt`。微软图标字体不属于项目 MIT 授权范围，不能直接沿用到非 Windows 发行包。

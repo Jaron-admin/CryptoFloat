@@ -13,6 +13,49 @@ const weatherCities = <String, (double, double)>{
   '西安': (34.3416, 108.9398),
 };
 
+/// Text copied into a new template. Existing saved content is never translated.
+class TemplateStrings {
+  const TemplateStrings({
+    this.cityLabels = const {},
+    this.weatherName = _defaultWeatherName,
+    this.invalidCity = '请选择列表中的城市。添加后可在数据源中调整地址。',
+    this.temperature = '气温',
+    this.feelsLike = '体感',
+    this.humidity = '湿度',
+    this.usdRates = '美元参考汇率',
+    this.usdCny = '美元兑人民币',
+    this.usdEur = '美元兑欧元',
+    this.usdUsdt = '美元兑 USDT',
+    this.referenceRates = '参考汇率',
+    this.invalidRepository = '请填写公开仓库的拥有者和仓库名，例如 flutter / flutter。',
+    this.openIssues = '未解决议题与 PR',
+    this.open = '未解决',
+    this.emptyWatchlist = '请先选择至少一个币种或股票。',
+    this.emptyText = '请填写要显示的文字。',
+  });
+
+  final Map<String, String> cityLabels;
+  final String Function(String city) weatherName;
+  final String invalidCity,
+      temperature,
+      feelsLike,
+      humidity,
+      usdRates,
+      usdCny,
+      usdEur,
+      usdUsdt,
+      referenceRates,
+      invalidRepository,
+      openIssues,
+      open,
+      emptyWatchlist,
+      emptyText;
+
+  String cityLabel(String city) => cityLabels[city] ?? city;
+}
+
+String _defaultWeatherName(String city) => '$city天气';
+
 AppConfig appendTemplate(
   AppConfig config,
   TemplateKind kind, {
@@ -21,6 +64,7 @@ AppConfig appendTemplate(
   String repository = 'flutter',
   String text = '提醒：起来走走，喝杯水',
   String? id,
+  TemplateStrings strings = const TemplateStrings(),
 }) {
   final base = id ?? 'preset_${DateTime.now().microsecondsSinceEpoch}';
   var key = base;
@@ -39,11 +83,11 @@ AppConfig appendTemplate(
     case TemplateKind.weather:
       final coordinates = weatherCities[city];
       if (coordinates == null) {
-        throw const FormatException('请选择列表中的城市。添加后可在数据源中调整地址。');
+        throw FormatException(strings.invalidCity);
       }
       source = CustomApiSource(
         id: key,
-        name: '$city天气',
+        name: strings.weatherName(strings.cityLabel(city)),
         refreshSeconds: 900,
         url: Uri.https('api.open-meteo.com', '/v1/forecast', {
           'latitude': '${coordinates.$1}',
@@ -51,61 +95,61 @@ AppConfig appendTemplate(
           'current': 'temperature_2m,apparent_temperature,relative_humidity_2m',
           'timezone': 'auto',
         }).toString(),
-        fields: const [
+        fields: [
           CustomField(
             id: 'temperature',
-            label: '气温',
+            label: strings.temperature,
             path: 'current.temperature_2m',
             unit: '°C',
           ),
           CustomField(
             id: 'feels',
-            label: '体感',
+            label: strings.feelsLike,
             path: 'current.apparent_temperature',
             unit: '°C',
           ),
           CustomField(
             id: 'humidity',
-            label: '湿度',
+            label: strings.humidity,
             path: 'current.relative_humidity_2m',
             unit: '%',
           ),
         ],
       );
-      literal('$city  ');
+      literal('${strings.cityLabel(city)}  ');
       field('temperature', format: '.1f');
-      literal('  体感 ');
+      literal('  ${strings.feelsLike} ');
       field('feels', format: '.1f');
-      literal('  湿度 ');
+      literal('  ${strings.humidity} ');
       field('humidity', format: '.0f');
     case TemplateKind.exchangeRates:
       source = CustomApiSource(
         id: key,
-        name: '美元参考汇率',
+        name: strings.usdRates,
         url: 'https://api.coinbase.com/v2/exchange-rates?currency=USD',
         refreshSeconds: 300,
-        fields: const [
+        fields: [
           CustomField(
             id: 'cny',
-            label: '美元兑人民币',
+            label: strings.usdCny,
             path: 'data.rates.CNY',
             unit: 'CNY/USD',
           ),
           CustomField(
             id: 'eur',
-            label: '美元兑欧元',
+            label: strings.usdEur,
             path: 'data.rates.EUR',
             unit: 'EUR/USD',
           ),
           CustomField(
             id: 'usdt',
-            label: '美元兑 USDT',
+            label: strings.usdUsdt,
             path: 'data.rates.USDT',
             unit: 'USDT/USD',
           ),
         ],
       );
-      literal('参考汇率  ');
+      literal('${strings.referenceRates}  ');
       field('cny', format: '.4f');
       literal('  ');
       field('eur', format: '.4f');
@@ -119,7 +163,7 @@ AppConfig appendTemplate(
           !valid.hasMatch(repository) ||
           owner.contains('..') ||
           repository.contains('..')) {
-        throw const FormatException('请填写公开仓库的拥有者和仓库名，例如 flutter / flutter。');
+        throw FormatException(strings.invalidRepository);
       }
       source = CustomApiSource(
         id: key,
@@ -133,18 +177,18 @@ AppConfig appendTemplate(
           'Accept': 'application/vnd.github+json',
           'User-Agent': 'CryptoFloat',
         },
-        fields: const [
+        fields: [
           CustomField(id: 'stars', label: 'Stars', path: 'stargazers_count'),
           CustomField(
             id: 'issues',
-            label: '未解决议题与 PR',
+            label: strings.openIssues,
             path: 'open_issues_count',
           ),
         ],
       );
       literal('$repository  ★ ');
       field('stars', format: '.0f');
-      literal('  未解决 ');
+      literal('  ${strings.open} ');
       field('issues', format: '.0f');
     case TemplateKind.marketBar:
       for (final asset in config.assets.take(3)) {
@@ -156,9 +200,9 @@ AppConfig appendTemplate(
           DisplaySegment.field(assetId: asset.id, fieldId: 'currency'),
         );
       }
-      if (segments.isEmpty) throw const FormatException('请先选择至少一个币种或股票。');
+      if (segments.isEmpty) throw FormatException(strings.emptyWatchlist);
     case TemplateKind.reminder:
-      if (text.trim().isEmpty) throw const FormatException('请填写要显示的文字。');
+      if (text.trim().isEmpty) throw FormatException(strings.emptyText);
       literal(text);
   }
   return config.copyWith(

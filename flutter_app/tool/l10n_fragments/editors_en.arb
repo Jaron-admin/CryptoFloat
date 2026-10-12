@@ -1,0 +1,242 @@
+{
+  "editCancel": "Cancel",
+  "editSave": "Save",
+  "editAdd": "Add",
+  "editDelete": "Delete",
+  "editAddToDisplay": "Add to panel",
+  "editRemove": "Remove",
+  "editSourceNameRequired": "Enter a name for this data source.",
+  "editSourceUrlInvalid": "Enter an HTTPS API URL. Put API keys in the request headers.",
+  "editSourceIntervalInvalid": "The refresh interval must be between 15 and 3600 seconds.",
+  "editSourceDuplicateHeader": "A request header name is duplicated. Keep only one entry.",
+  "editSourceFieldsRequired": "Select at least one field to display.",
+  "editSetField": "Set up display field",
+  "editField": "Edit display field",
+  "editFieldName": "Display name",
+  "editFieldNameHint": "For example: Account balance or Outdoor temperature",
+  "editFieldUnit": "Unit (optional)",
+  "editFieldUnitHint": "For example: USD, °C or people",
+  "editFieldPath": "Path in the response",
+  "editFieldPathHint": "For example: data.balance or items[0].price",
+  "editSourceAdd": "Add custom API",
+  "editSourceEdit": "Edit custom API",
+  "editSourceEnabled": "Enable this source",
+  "editConnectSource": "Connect a data source",
+  "editSourceName": "Source name",
+  "editSourceNameHint": "For example: My account or Weather",
+  "editSourceUrl": "HTTPS API URL",
+  "editSourceInterval": "Refresh interval (seconds)",
+  "editSourceIntervalHelp": "15–3600 seconds. Follow the API rate limits.",
+  "editSourceHeaders": "Request headers / API keys (if needed)",
+  "editSourceHeadersOptional": "Skip this for APIs that do not require keys",
+  "editHeaderName": "Header name",
+  "editHeaderSecret": "Secret value",
+  "editHeaderValue": "Header value",
+  "editHeaderRetain": "Saved. Leave blank to keep the current value",
+  "editHeaderTokenHint": "For example: Bearer your-token",
+  "editHeaderSecure": "Store securely as a secret",
+  "editHeaderAdd": "Add header",
+  "editReadFields": "Read response fields",
+  "editDisplayFields": "Display fields",
+  "editReadFieldsHelp": "After loading the response, select a value and give it a display name and unit.",
+  "editSelectedFields": "Selected fields",
+  "editRemoveField": "Remove field",
+  "editAdvancedField": "Advanced: enter a field path",
+  "editAddFieldPath": "Add field path",
+  "editFieldSymbol": "Symbol",
+  "editFieldLabel": "Name",
+  "editFieldPrice": "Price",
+  "editFieldCurrency": "Currency",
+  "editFieldChange": "Change",
+  "editFieldProvider": "Provider",
+  "editFieldUpdatedAt": "Updated at",
+  "editSourceMissing": "Source not found",
+  "editDisplayText": "Display text",
+  "editWantedText": "Text to display",
+  "editWantedTextHint": "For example: Today’s price:  or  My balance ",
+  "editComposeRow": "Compose display row",
+  "editCloseEditor": "Close editor",
+  "editComposeRowHelp": "Text and fields appear from left to right. Add spaces and punctuation as needed.",
+  "editAddText": "Add text",
+  "editAddDataField": "Add data field",
+  "editEmptyRow": "No text or fields added yet",
+  "editDisplayPreview": "Display preview",
+  "editSaveRow": "Save row",
+  "editMoveLeft": "Move left",
+  "editMoveRight": "Move right",
+  "editEmptyText": "Empty text",
+  "editAutomatic": "Automatic",
+  "editSelectField": "Select display field",
+  "editSelectSourceFirst": "Select an item in Watchlist or add a custom API first.",
+  "editFieldSource": "Source",
+  "editFieldSelection": "Field",
+  "editNumberFormat": "Number format",
+  "editDecimalsTwo": "2 decimal places",
+  "editDecimalsFour": "4 decimal places",
+  "editDecimalsSigned": "Sign + 2 decimal places",
+  "editRawValue": "Original API value",
+  "editThemeMode": "Theme mode",
+  "editSystem": "System",
+  "editLight": "Light",
+  "editDark": "Dark",
+  "editLightPreview": "Light preview",
+  "editDarkPreview": "Dark preview",
+  "editMyThemes": "My themes",
+  "editSaveThemeAs": "Save current colors as a theme",
+  "editThemesHelp": "Save your favorite colors and switch between them.",
+  "editCustomBackground": "Custom background",
+  "editDarkPalette": "Dark palette",
+  "editLightPalette": "Light palette",
+  "editDarkBackground": "Dark background",
+  "editLightBackground": "Light background",
+  "editChooseColor": "Choose color",
+  "editDeleteTheme": "Delete theme",
+  "editThemeNameRequired": "Enter a theme name",
+  "editThemeNew": "Save new theme",
+  "editThemeEdit": "Edit theme",
+  "editThemeName": "Theme name",
+  "editThemeNameHint": "Name this color palette",
+  "editThemePalette": "Palette to edit",
+  "editColorRole": "Color role",
+  "editHue": "Hue",
+  "editBrightness": "Brightness",
+  "editSaveTheme": "Save theme",
+  "editApplyColor": "Apply color",
+  "editRoleBackground": "Window background",
+  "editRoleSurface": "Card background",
+  "editRoleForeground": "Primary text",
+  "editRoleSecondary": "Secondary text",
+  "editRoleBorder": "Borders and dividers",
+  "editRoleAccent": "Accent",
+  "editRolePositive": "Positive change",
+  "editRoleNegative": "Negative change",
+  "editTemplateWeather": "City weather",
+  "editTemplateRates": "Reference exchange rates",
+  "editTemplateGithub": "GitHub repository",
+  "editTemplateMarket": "Compact market ticker",
+  "editTemplateReminder": "Text reminder",
+  "editTemplateWeatherHelp": "Temperature, feels-like temperature and humidity. Refreshes every 15 minutes. Powered by Open-Meteo for personal use.",
+  "editTemplateRatesHelp": "Reference rates from USD to CNY, EUR and USDT. Refreshes every 5 minutes.",
+  "editTemplateGithubHelp": "Stars and open issues / pull requests for a public repository. Refreshes every 10 minutes.",
+  "editTemplateMarketHelp": "Combines the first 3 watchlist items into one row using your unit settings.",
+  "editTemplateReminderHelp": "Displays text without a network connection. You can add data fields later in the row editor.",
+  "editTemplateDefaultReminder": "Reminder: Take a walk and drink some water",
+  "editTemplateAdd": "Add a template",
+  "editTemplateClose": "Close templates",
+  "editCity": "City",
+  "editRepoOwner": "Repository owner",
+  "editRepoOwnerHint": "For example: flutter",
+  "editRepoName": "Repository name",
+  "editRepoNameHint": "For example: CryptoFloat",
+  "editHeaderMissingSecret": "Enter the secret for {name}.",
+  "@editHeaderMissingSecret": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editHeaderCount": "{count, plural, one{1 header} other{{count} headers}}",
+  "@editHeaderCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "editRowFormat": "Format: {format}",
+  "@editRowFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeEditNamed": "Edit {name}",
+  "@editThemeEditNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeCopyNamed": "Copy {name}",
+  "@editThemeCopyNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeDeleteNamed": "Delete {name}",
+  "@editThemeDeleteNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeCopyName": "{name} copy",
+  "@editThemeCopyName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeDeleteConfirm": "Delete “{name}”? Any active palette will switch to Fluent Blue.",
+  "@editThemeDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeBackgroundTitle": "Custom {mode} background",
+  "@editThemeBackgroundTitle": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeFluent": "Fluent Blue",
+  "editThemeNord": "Nord",
+  "editThemeSolarized": "Solarized",
+  "editCityBeijing": "Beijing",
+  "editCityShanghai": "Shanghai",
+  "editCityGuangzhou": "Guangzhou",
+  "editCityShenzhen": "Shenzhen",
+  "editCityHangzhou": "Hangzhou",
+  "editCityChengdu": "Chengdu",
+  "editCityWuhan": "Wuhan",
+  "editCityXian": "Xi’an",
+  "editTemplateCityInvalid": "Choose a city from the list. You can edit the source URL after adding it.",
+  "editTemplateTemperature": "Temperature",
+  "editTemplateFeelsLike": "Feels like",
+  "editTemplateHumidity": "Humidity",
+  "editTemplateUsdRates": "USD reference rates",
+  "editTemplateUsdCny": "USD to CNY",
+  "editTemplateUsdEur": "USD to EUR",
+  "editTemplateUsdUsdt": "USD to USDT",
+  "editTemplateRepoInvalid": "Enter the owner and name of a public repository, for example flutter / flutter.",
+  "editTemplateOpenIssues": "Open issues and pull requests",
+  "editTemplateOpen": "Open",
+  "editTemplateMarketEmpty": "Select at least one coin or stock first.",
+  "editTemplateTextEmpty": "Enter some text to display.",
+  "editTemplateWeatherName": "{city} weather",
+  "@editTemplateWeatherName": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "editMyTheme": "My theme",
+  "editMenuHide": "Hide to tray",
+  "editMenuShow": "Show floating panel",
+  "editMenuRefresh": "Refresh now",
+  "editMenuTopmost": "Always on top",
+  "editMenuSettings": "Settings",
+  "editMenuExit": "Exit"
+}

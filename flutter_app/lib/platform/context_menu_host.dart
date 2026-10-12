@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../l10n/l10n.dart';
+
 /// A Windows popup owns its surface, so a small panel cannot clip its menu.
 class ContextMenuHost {
   static const _channel = MethodChannel('cryptofloat/platform');
@@ -11,8 +13,16 @@ class ContextMenuHost {
   bool get supported =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
-  Map<String, Object> _style(ThemeData theme) => {
+  Map<String, Object> _style(ThemeData theme, AppLocalizations l10n) => {
     'fontFamily': 'Segoe UI',
+    'labels': {
+      'hide': l10n.editMenuHide,
+      'show': l10n.editMenuShow,
+      'refresh': l10n.editMenuRefresh,
+      'topmost': l10n.editMenuTopmost,
+      'settings': l10n.editMenuSettings,
+      'exit': l10n.editMenuExit,
+    },
     'colors': {
       'background': theme.colorScheme.surfaceContainer.toARGB32(),
       'foreground': theme.colorScheme.onSurface.toARGB32(),
@@ -23,9 +33,9 @@ class ContextMenuHost {
     },
   };
 
-  Future<void> updateAppearance(ThemeData theme) async {
+  Future<void> updateAppearance(ThemeData theme, AppLocalizations l10n) async {
     if (!supported) return;
-    final style = _style(theme);
+    final style = _style(theme, l10n);
     final signature = jsonEncode(style);
     if (_lastStyle == signature) return;
     try {
@@ -42,13 +52,14 @@ class ContextMenuHost {
     Offset point, {
     required bool alwaysOnTop,
     required ThemeData theme,
+    required AppLocalizations l10n,
   }) async {
     if (!supported) return (handled: false, action: null);
     try {
       final action = await _channel.invokeMethod<String>(
         'window.showContextMenu',
         {
-          ..._style(theme),
+          ..._style(theme, l10n),
           'x': point.dx,
           'y': point.dy,
           'alwaysOnTop': alwaysOnTop,

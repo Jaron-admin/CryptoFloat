@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -100,6 +101,27 @@ bool DecodeMenuStyle(const Map* values, ContextMenuStyle* style) {
   if (const auto family = Text(Entry(values, "fontFamily"))) {
     style->font_family = WideText(*family);
     if (style->font_family.size() >= LF_FACESIZE) return false;
+  }
+  // Labels arrive with the palette so tray and panel menus share one locale.
+  // Older callers without labels retain the neutral English defaults.
+  if (const auto label_value = Entry(values, "labels")) {
+    const auto labels = AsMap(label_value);
+    if (!labels) return false;
+    const std::pair<const char*, std::wstring*> names[] = {
+        {"hide", &style->hide_label}, {"show", &style->show_label},
+        {"refresh", &style->refresh_label}, {"topmost", &style->topmost_label},
+        {"settings", &style->settings_label}, {"exit", &style->exit_label}};
+    for (const auto& name : names) {
+      const auto label = Text(Entry(labels, name.first));
+      if (!label || label->empty() || label->size() > 320) return false;
+      auto wide = WideText(*label);
+      if (wide.empty() || wide.size() > 80 ||
+          wide.find(L'\0') != std::wstring::npos ||
+          wide.find_first_of(L"\r\n\t") != std::wstring::npos) {
+        return false;
+      }
+      *name.second = std::move(wide);
+    }
   }
   return true;
 }

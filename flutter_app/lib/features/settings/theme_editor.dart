@@ -2,6 +2,7 @@ import 'package:fluent_ui/fluent_ui.dart';
 
 import '../../app/theme_presets.dart';
 import '../../domain/models.dart';
+import '../../l10n/l10n.dart';
 
 class ThemeEditorDialog extends StatefulWidget {
   const ThemeEditorDialog({
@@ -27,15 +28,15 @@ class _ThemeEditorDialogState extends State<ThemeEditorDialog> {
   int _pickerRevision = 0;
   final Map<String, HSVColor> _hsvByRole = {};
 
-  static const _roles = {
-    'background': '窗口背景',
-    'surface': '卡片背景',
-    'foreground': '主要文字',
-    'secondary': '次要文字',
-    'border': '边框与分隔线',
-    'accent': '强调色',
-    'positive': '上涨颜色',
-    'negative': '下跌颜色',
+  Map<String, String> get _roles => {
+    'background': context.l10n.editRoleBackground,
+    'surface': context.l10n.editRoleSurface,
+    'foreground': context.l10n.editRoleForeground,
+    'secondary': context.l10n.editRoleSecondary,
+    'border': context.l10n.editRoleBorder,
+    'accent': context.l10n.editRoleAccent,
+    'positive': context.l10n.editRolePositive,
+    'negative': context.l10n.editRoleNegative,
   };
 
   ThemePaletteData get _palette => _dark ? _draft.dark : _draft.light;
@@ -116,7 +117,7 @@ class _ThemeEditorDialogState extends State<ThemeEditorDialog> {
   void _save() {
     final name = _name.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = '请输入主题名称');
+      setState(() => _error = context.l10n.editThemeNameRequired);
       return;
     }
     Navigator.pop(context, _draft.copyWith(name: name));
@@ -127,10 +128,12 @@ class _ThemeEditorDialogState extends State<ThemeEditorDialog> {
     constraints: const BoxConstraints(maxWidth: 760),
     title: Text(
       widget.backgroundBrightness != null
-          ? '${_dark ? '深色' : '浅色'}自定义背景'
+          ? context.l10n.editThemeBackgroundTitle(
+              _dark ? context.l10n.editDark : context.l10n.editLight,
+            )
           : widget.isNew
-          ? '保存新主题'
-          : '编辑主题',
+          ? context.l10n.editThemeNew
+          : context.l10n.editThemeEdit,
     ),
     content: SingleChildScrollView(
       child: Column(
@@ -139,10 +142,10 @@ class _ThemeEditorDialogState extends State<ThemeEditorDialog> {
         children: [
           if (widget.backgroundBrightness == null) ...[
             InfoLabel(
-              label: '主题名称',
+              label: context.l10n.editThemeName,
               child: TextBox(
                 controller: _name,
-                placeholder: '为这套配色命名',
+                placeholder: context.l10n.editThemeNameHint,
                 maxLength: 60,
                 onChanged: (_) {
                   if (_error != null) setState(() => _error = null);
@@ -167,15 +170,21 @@ class _ThemeEditorDialogState extends State<ThemeEditorDialog> {
               runSpacing: 8,
               children: [
                 InfoLabel(
-                  label: '编辑配色',
+                  label: context.l10n.editThemePalette,
                   child: SizedBox(
                     width: 140,
                     child: ComboBox<bool>(
                       value: _dark,
                       isExpanded: true,
-                      items: const [
-                        ComboBoxItem(value: false, child: Text('浅色')),
-                        ComboBoxItem(value: true, child: Text('深色')),
+                      items: [
+                        ComboBoxItem(
+                          value: false,
+                          child: Text(context.l10n.editLight),
+                        ),
+                        ComboBoxItem(
+                          value: true,
+                          child: Text(context.l10n.editDark),
+                        ),
                       ],
                       onChanged: (value) {
                         if (value != null) setState(() => _dark = value);
@@ -184,7 +193,7 @@ class _ThemeEditorDialogState extends State<ThemeEditorDialog> {
                   ),
                 ),
                 InfoLabel(
-                  label: '颜色用途',
+                  label: context.l10n.editColorRole,
                   child: SizedBox(
                     width: 180,
                     child: ComboBox<String>(
@@ -227,18 +236,20 @@ class _ThemeEditorDialogState extends State<ThemeEditorDialog> {
                 children: [
                   ThemePalettePreview(
                     palette: AppPalette.fromData(_palette),
-                    label: _dark ? '深色预览' : '浅色预览',
+                    label: _dark
+                        ? context.l10n.editDarkPreview
+                        : context.l10n.editLightPreview,
                   ),
                   const SizedBox(height: 16),
                   _hsvSlider(
-                    '色相',
+                    context.l10n.editHue,
                     _hsv.hue,
                     359,
                     (value) => _setHsv(_hsv.withHue(value)),
                   ),
                   const SizedBox(height: 8),
                   _hsvSlider(
-                    '亮度',
+                    context.l10n.editBrightness,
                     _hsv.value * 100,
                     100,
                     (value) => _setHsv(_hsv.withValue(value / 100)),
@@ -277,10 +288,17 @@ class _ThemeEditorDialogState extends State<ThemeEditorDialog> {
       ),
     ),
     actions: [
-      Button(onPressed: () => Navigator.pop(context), child: const Text('取消')),
+      Button(
+        onPressed: () => Navigator.pop(context),
+        child: Text(context.l10n.editCancel),
+      ),
       FilledButton(
         onPressed: _save,
-        child: Text(widget.backgroundBrightness == null ? '保存主题' : '应用颜色'),
+        child: Text(
+          widget.backgroundBrightness == null
+              ? context.l10n.editSaveTheme
+              : context.l10n.editApplyColor,
+        ),
       ),
     ],
   );

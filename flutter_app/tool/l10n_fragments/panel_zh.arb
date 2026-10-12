@@ -1,0 +1,114 @@
+{
+  "appMoutai": "贵州茅台",
+  "appPingAn": "平安银行",
+  "appCatl": "宁德时代",
+  "panelUnpin": "取消窗口置顶",
+  "panelPin": "窗口始终置顶",
+  "panelSettings": "设置…",
+  "panelNoSources": "未设置数据源",
+  "panelLive": "实时",
+  "panelWaiting": "等待首次更新",
+  "panelLastUpdate": "上次更新于 {time}",
+  "@panelLastUpdate": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelPending": "上次更新于 {time} · {count}项待更新",
+  "@panelPending": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "panelAutoRefresh": " · 自动刷新 {interval}",
+  "@panelAutoRefresh": {
+    "placeholders": {
+      "interval": {
+        "type": "String"
+      }
+    }
+  },
+  "panelMinutes": "{count}分",
+  "@panelMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "panelSeconds": "{count}秒",
+  "@panelSeconds": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "panelRatesPending": " · 汇率未更新",
+  "panelSourceInterval": "每{seconds}秒",
+  "@panelSourceInterval": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "panelLastFetch": "上次获取 {time}",
+  "@panelLastFetch": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelRatesInterval": "换算汇率每5分钟刷新",
+  "panelLiveNote": "实时表示按期获取成功；上游行情可能延迟。",
+  "panelQuoteTime": "行情时间 {time}",
+  "@panelQuoteTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelOriginal": "原价 {value} {currency}",
+  "@panelOriginal": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "panelUpdated": "更新于 {time}",
+  "@panelUpdated": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelChoose": "选择你想关注的内容",
+  "panelAdd": "添加行情或 API",
+  "panelRemoved": "已移除的内容",
+  "panelNoData": "暂无数据，请检查关注内容或数据源",
+  "panelStale": "过期数据 {time}",
+  "@panelStale": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelConnectionError": "连接异常",
+  "panelNeverUpdated": "未更新"
+}

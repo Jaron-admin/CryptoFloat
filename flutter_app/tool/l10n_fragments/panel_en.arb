@@ -1,0 +1,114 @@
+{
+  "appMoutai": "Kweichow Moutai",
+  "appPingAn": "Ping An Bank",
+  "appCatl": "CATL",
+  "panelUnpin": "Turn off always on top",
+  "panelPin": "Always on top",
+  "panelSettings": "Settings…",
+  "panelNoSources": "No sources configured",
+  "panelLive": "Live",
+  "panelWaiting": "Waiting for first update",
+  "panelLastUpdate": "Last updated {time}",
+  "@panelLastUpdate": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelPending": "Last updated {time} · {count} pending",
+  "@panelPending": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "panelAutoRefresh": " · Auto-refresh {interval}",
+  "@panelAutoRefresh": {
+    "placeholders": {
+      "interval": {
+        "type": "String"
+      }
+    }
+  },
+  "panelMinutes": "{count}m",
+  "@panelMinutes": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "panelSeconds": "{count}s",
+  "@panelSeconds": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "panelRatesPending": " · Rates unavailable",
+  "panelSourceInterval": "Every {seconds}s",
+  "@panelSourceInterval": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "panelLastFetch": "Last fetched {time}",
+  "@panelLastFetch": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelRatesInterval": "Exchange rates refresh every 5 minutes",
+  "panelLiveNote": "Live means requests are up to date; upstream quotes may be delayed.",
+  "panelQuoteTime": "Quote time {time}",
+  "@panelQuoteTime": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelOriginal": "Original {value} {currency}",
+  "@panelOriginal": {
+    "placeholders": {
+      "value": {
+        "type": "String"
+      },
+      "currency": {
+        "type": "String"
+      }
+    }
+  },
+  "panelUpdated": "Updated {time}",
+  "@panelUpdated": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelChoose": "Choose what to follow",
+  "panelAdd": "Add instruments or API",
+  "panelRemoved": "Removed item",
+  "panelNoData": "No data. Check the watchlist or source.",
+  "panelStale": "Stale data {time}",
+  "@panelStale": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "panelConnectionError": "Connection error",
+  "panelNeverUpdated": "Never updated"
+}

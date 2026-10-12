@@ -300,13 +300,13 @@ void ContextMenu::ShowPanel(POINT screen_point, bool always_on_top,
   session->point = screen_point;
   session->style = style;
   session->result = std::move(result);
-  session->Add(L"隐藏到托盘", "hide", L'h');
-  session->Add(L"立即刷新", "refresh", L'r');
+  session->Add(session->style.hide_label.c_str(), "hide", L'h');
+  session->Add(session->style.refresh_label.c_str(), "refresh", L'r');
   session->Add(L"", "", 0);
-  session->Add(L"窗口置顶", "topmost", L't', always_on_top);
-  session->Add(L"设置", "settings", L's');
+  session->Add(session->style.topmost_label.c_str(), "topmost", L't', always_on_top);
+  session->Add(session->style.settings_label.c_str(), "settings", L's');
   session->Add(L"", "", 0);
-  session->Add(L"退出", "exit", L'q');
+  session->Add(session->style.exit_label.c_str(), "exit", L'q');
   Queue(std::move(session));
 }
 
@@ -315,11 +315,11 @@ void ContextMenu::ShowTray(POINT screen_point, Action action) {
   session->point = screen_point;
   session->style = last_style_;
   session->action = std::move(action);
-  session->Add(L"显示悬浮窗", "show", L'h');
-  session->Add(L"立即刷新", "refresh", L'r');
-  session->Add(L"设置", "settings", L's');
+  session->Add(session->style.show_label.c_str(), "show", L'h');
+  session->Add(session->style.refresh_label.c_str(), "refresh", L'r');
+  session->Add(session->style.settings_label.c_str(), "settings", L's');
   session->Add(L"", "", 0);
-  session->Add(L"退出", "exit", L'q');
+  session->Add(session->style.exit_label.c_str(), "exit", L'q');
   Queue(std::move(session));
 }
 

@@ -609,9 +609,11 @@ class AppConfig {
     this.showHeaderIcon = true,
     this.windowBounds,
     this.schemaVersion = 1,
+    this.language = 'system',
   });
 
   final int schemaVersion;
+  final String language;
   final List<String> selectedAssetIds;
   final List<Asset> customAssets;
   final List<CustomApiSource> customSources;
@@ -680,6 +682,7 @@ class AppConfig {
   }
 
   AppConfig copyWith({
+    String? language,
     List<String>? selectedAssetIds,
     List<Asset>? customAssets,
     List<CustomApiSource>? customSources,
@@ -713,6 +716,7 @@ class AppConfig {
     bool clearWindowBounds = false,
   }) => AppConfig(
     schemaVersion: schemaVersion,
+    language: language ?? this.language,
     selectedAssetIds: selectedAssetIds ?? this.selectedAssetIds,
     customAssets: customAssets ?? this.customAssets,
     customSources: customSources ?? this.customSources,
@@ -747,6 +751,7 @@ class AppConfig {
 
   Map<String, Object?> toJson() => {
     'schemaVersion': schemaVersion,
+    'language': language,
     'selectedAssetIds': selectedAssetIds,
     'customAssets': customAssets.map((asset) => asset.toJson()).toList(),
     'customSources': customSources.map((source) => source.toJson()).toList(),
@@ -826,6 +831,9 @@ class AppConfig {
         : defaults.selectedAssetIds;
     return AppConfig(
       schemaVersion: _int(json['schemaVersion'], 1),
+      language: ['system', 'zh', 'en'].contains(json['language'])
+          ? json['language'] as String
+          : 'system',
       selectedAssetIds: selectedIds.map(normalizeAssetId).toSet().toList(),
       customAssets: _unique(
         _maps(json['customAssets'] ?? json['custom_assets'])

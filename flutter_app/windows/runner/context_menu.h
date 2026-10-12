@@ -17,6 +17,12 @@ struct ContextMenuStyle {
   COLORREF hover = RGB(52, 52, 52);
   COLORREF accent = RGB(96, 205, 255);
   std::wstring font_family;
+  std::wstring hide_label = L"Hide to tray";
+  std::wstring show_label = L"Show floating panel";
+  std::wstring refresh_label = L"Refresh now";
+  std::wstring topmost_label = L"Always on top";
+  std::wstring settings_label = L"Settings";
+  std::wstring exit_label = L"Exit";
 };
 
 // A native popup is independent of the Flutter surface, so even a short panel

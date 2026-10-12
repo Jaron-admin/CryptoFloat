@@ -1,0 +1,242 @@
+{
+  "editCancel": "取消",
+  "editSave": "保存",
+  "editAdd": "添加",
+  "editDelete": "删除",
+  "editAddToDisplay": "加入显示",
+  "editRemove": "移除",
+  "editSourceNameRequired": "请为这个数据源起个名字。",
+  "editSourceUrlInvalid": "请输入 HTTPS 数据接口地址，密钥请放在请求头中。",
+  "editSourceIntervalInvalid": "刷新间隔应在 15 到 3600 秒之间。",
+  "editSourceDuplicateHeader": "请求头名称重复，请保留一项。",
+  "editSourceFieldsRequired": "请至少选择一个显示字段。",
+  "editSetField": "设置显示字段",
+  "editField": "编辑显示字段",
+  "editFieldName": "显示名称",
+  "editFieldNameHint": "例如：账户余额、室外温度",
+  "editFieldUnit": "单位（可选）",
+  "editFieldUnitHint": "例如：USD、°C、人",
+  "editFieldPath": "返回数据中的位置",
+  "editFieldPathHint": "例如：data.balance 或 items[0].price",
+  "editSourceAdd": "添加自定义 API",
+  "editSourceEdit": "编辑自定义 API",
+  "editSourceEnabled": "启用这个数据源",
+  "editConnectSource": "连接数据源",
+  "editSourceName": "数据源名称",
+  "editSourceNameHint": "例如：我的账户、天气",
+  "editSourceUrl": "HTTPS 接口地址",
+  "editSourceInterval": "刷新间隔（秒）",
+  "editSourceIntervalHelp": "15–3600 秒，请遵循接口的调用频率限制。",
+  "editSourceHeaders": "请求头 / API 密钥（需要时填写）",
+  "editSourceHeadersOptional": "免密钥接口可以跳过",
+  "editHeaderName": "请求头名称",
+  "editHeaderSecret": "密钥内容",
+  "editHeaderValue": "请求头值",
+  "editHeaderRetain": "已保存，留空保留原值",
+  "editHeaderTokenHint": "例如：Bearer your-token",
+  "editHeaderSecure": "作为密钥，由系统保护存储",
+  "editHeaderAdd": "添加请求头",
+  "editReadFields": "读取返回字段",
+  "editDisplayFields": "显示字段",
+  "editReadFieldsHelp": "读取成功后，点击某个返回值，为它起显示名称并填写单位。",
+  "editSelectedFields": "已选择的显示字段",
+  "editRemoveField": "移除字段",
+  "editAdvancedField": "高级：手动指定字段位置",
+  "editAddFieldPath": "添加字段位置",
+  "editFieldSymbol": "代码",
+  "editFieldLabel": "名称",
+  "editFieldPrice": "价格",
+  "editFieldCurrency": "货币单位",
+  "editFieldChange": "涨跌幅",
+  "editFieldProvider": "数据源",
+  "editFieldUpdatedAt": "更新时间",
+  "editSourceMissing": "未找到的数据源",
+  "editDisplayText": "显示文字",
+  "editWantedText": "想显示的文字",
+  "editWantedTextHint": "例如：今天的价格：  或  我的余额 ",
+  "editComposeRow": "组合显示行",
+  "editCloseEditor": "关闭编辑器",
+  "editComposeRowHelp": "文字与字段从左到右显示，可加入空格和标点。",
+  "editAddText": "添加文字",
+  "editAddDataField": "添加数据字段",
+  "editEmptyRow": "尚未添加文字或字段",
+  "editDisplayPreview": "最终显示预览",
+  "editSaveRow": "保存这一行",
+  "editMoveLeft": "左移",
+  "editMoveRight": "右移",
+  "editEmptyText": "空文字",
+  "editAutomatic": "自动",
+  "editSelectField": "选择显示字段",
+  "editSelectSourceFirst": "请先在“关注内容”中选择行情，或添加自定义 API。",
+  "editFieldSource": "来自哪个内容？",
+  "editFieldSelection": "显示什么？",
+  "editNumberFormat": "数字格式",
+  "editDecimalsTwo": "2 位小数",
+  "editDecimalsFour": "4 位小数",
+  "editDecimalsSigned": "正负号 + 2 位小数",
+  "editRawValue": "保留接口原值",
+  "editThemeMode": "主题模式",
+  "editSystem": "跟随系统",
+  "editLight": "浅色",
+  "editDark": "深色",
+  "editLightPreview": "浅色预览",
+  "editDarkPreview": "深色预览",
+  "editMyThemes": "我的主题",
+  "editSaveThemeAs": "将当前配色另存为主题",
+  "editThemesHelp": "保存喜欢的配色，随时切换使用。",
+  "editCustomBackground": "自定义背景",
+  "editDarkPalette": "深色配色",
+  "editLightPalette": "浅色配色",
+  "editDarkBackground": "深色背景",
+  "editLightBackground": "浅色背景",
+  "editChooseColor": "选择颜色",
+  "editDeleteTheme": "删除主题",
+  "editThemeNameRequired": "请输入主题名称",
+  "editThemeNew": "保存新主题",
+  "editThemeEdit": "编辑主题",
+  "editThemeName": "主题名称",
+  "editThemeNameHint": "为这套配色命名",
+  "editThemePalette": "编辑配色",
+  "editColorRole": "颜色用途",
+  "editHue": "色相",
+  "editBrightness": "亮度",
+  "editSaveTheme": "保存主题",
+  "editApplyColor": "应用颜色",
+  "editRoleBackground": "窗口背景",
+  "editRoleSurface": "卡片背景",
+  "editRoleForeground": "主要文字",
+  "editRoleSecondary": "次要文字",
+  "editRoleBorder": "边框与分隔线",
+  "editRoleAccent": "强调色",
+  "editRolePositive": "上涨颜色",
+  "editRoleNegative": "下跌颜色",
+  "editTemplateWeather": "城市天气",
+  "editTemplateRates": "参考汇率",
+  "editTemplateGithub": "GitHub 仓库",
+  "editTemplateMarket": "简洁行情条",
+  "editTemplateReminder": "文字提醒",
+  "editTemplateWeatherHelp": "气温、体感温度和湿度；15 分钟刷新。由 Open-Meteo 提供，适合个人使用。",
+  "editTemplateRatesHelp": "美元兑人民币、欧元、USDT 的参考汇率；5 分钟刷新。",
+  "editTemplateGithubHelp": "公开仓库的 Stars 和未解决议题与 PR 数量；10 分钟刷新。",
+  "editTemplateMarketHelp": "把关注列表的前 3 个行情组合成一行，跟随单位设置。",
+  "editTemplateReminderHelp": "直接显示一段文字，不需要网络。也可以用显示行编辑器继续加入数据字段。",
+  "editTemplateDefaultReminder": "提醒：起来走走，喝杯水",
+  "editTemplateAdd": "添加实用模板",
+  "editTemplateClose": "关闭模板",
+  "editCity": "城市",
+  "editRepoOwner": "仓库拥有者",
+  "editRepoOwnerHint": "例如 flutter",
+  "editRepoName": "仓库名称",
+  "editRepoNameHint": "例如 CryptoFloat",
+  "editHeaderMissingSecret": "请填写 {name} 的密钥。",
+  "@editHeaderMissingSecret": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editHeaderCount": "{count} 个请求头",
+  "@editHeaderCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "editRowFormat": "格式：{format}",
+  "@editRowFormat": {
+    "placeholders": {
+      "format": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeEditNamed": "编辑 {name}",
+  "@editThemeEditNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeCopyNamed": "复制 {name}",
+  "@editThemeCopyNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeDeleteNamed": "删除 {name}",
+  "@editThemeDeleteNamed": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeCopyName": "{name} 副本",
+  "@editThemeCopyName": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeDeleteConfirm": "删除“{name}”？正在使用的配色将切换为 Fluent 蓝。",
+  "@editThemeDeleteConfirm": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeBackgroundTitle": "{mode}自定义背景",
+  "@editThemeBackgroundTitle": {
+    "placeholders": {
+      "mode": {
+        "type": "String"
+      }
+    }
+  },
+  "editThemeFluent": "Fluent 蓝",
+  "editThemeNord": "Nord 北欧",
+  "editThemeSolarized": "Solarized 护眼",
+  "editCityBeijing": "北京",
+  "editCityShanghai": "上海",
+  "editCityGuangzhou": "广州",
+  "editCityShenzhen": "深圳",
+  "editCityHangzhou": "杭州",
+  "editCityChengdu": "成都",
+  "editCityWuhan": "武汉",
+  "editCityXian": "西安",
+  "editTemplateCityInvalid": "请选择列表中的城市。添加后可在数据源中调整地址。",
+  "editTemplateTemperature": "气温",
+  "editTemplateFeelsLike": "体感",
+  "editTemplateHumidity": "湿度",
+  "editTemplateUsdRates": "美元参考汇率",
+  "editTemplateUsdCny": "美元兑人民币",
+  "editTemplateUsdEur": "美元兑欧元",
+  "editTemplateUsdUsdt": "美元兑 USDT",
+  "editTemplateRepoInvalid": "请填写公开仓库的拥有者和仓库名，例如 flutter / flutter。",
+  "editTemplateOpenIssues": "未解决议题与 PR",
+  "editTemplateOpen": "未解决",
+  "editTemplateMarketEmpty": "请先选择至少一个币种或股票。",
+  "editTemplateTextEmpty": "请填写要显示的文字。",
+  "editTemplateWeatherName": "{city}天气",
+  "@editTemplateWeatherName": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "editMyTheme": "我的主题",
+  "editMenuHide": "隐藏到托盘",
+  "editMenuShow": "显示悬浮窗",
+  "editMenuRefresh": "立即刷新",
+  "editMenuTopmost": "窗口置顶",
+  "editMenuSettings": "设置",
+  "editMenuExit": "退出"
+}

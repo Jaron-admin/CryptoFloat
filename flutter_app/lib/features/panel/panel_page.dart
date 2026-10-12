@@ -10,6 +10,7 @@ import '../../domain/refresh_status.dart';
 import '../../domain/unit_conversion.dart';
 import '../../platform/system_fonts.dart';
 import 'display_row_view.dart';
+import '../../l10n/l10n.dart';
 
 class PanelPage extends StatelessWidget {
   const PanelPage({
@@ -26,6 +27,7 @@ class PanelPage extends StatelessWidget {
       point,
       alwaysOnTop: controller.config.alwaysOnTop,
       theme: Theme.of(context),
+      l10n: context.l10n,
     );
     if (!context.mounted) return;
     if (native.handled) {
@@ -41,16 +43,26 @@ class PanelPage extends StatelessWidget {
       context: context,
       position: position,
       items: [
-        const PopupMenuItem(value: 'hide', child: Text('隐藏到托盘')),
-        const PopupMenuItem(value: 'refresh', child: Text('立即刷新')),
+        PopupMenuItem(value: 'hide', child: Text(context.l10n.editMenuHide)),
+        PopupMenuItem(
+          value: 'refresh',
+          child: Text(context.l10n.editMenuRefresh),
+        ),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: 'topmost',
-          child: Text(controller.config.alwaysOnTop ? '取消窗口置顶' : '窗口始终置顶'),
+          child: Text(
+            controller.config.alwaysOnTop
+                ? context.l10n.panelUnpin
+                : context.l10n.panelPin,
+          ),
         ),
-        const PopupMenuItem(value: 'settings', child: Text('设置…')),
+        PopupMenuItem(
+          value: 'settings',
+          child: Text(context.l10n.panelSettings),
+        ),
         const PopupMenuDivider(),
-        const PopupMenuItem(value: 'exit', child: Text('退出 CryptoFloat')),
+        PopupMenuItem(value: 'exit', child: Text(context.l10n.editMenuExit)),
       ],
     );
     if (!context.mounted || value == null) return;
@@ -101,36 +113,51 @@ class PanelPage extends StatelessWidget {
             (source, field),
     ];
     final status = controller.data.refreshStatus;
+    final l10n = context.l10n;
     final intervalText = status.intervalsSeconds.isEmpty
         ? ''
-        : ' · 自动刷新 ${status.intervalsSeconds.map((value) => value >= 60 && value % 60 == 0 ? '${value ~/ 60}分' : '$value秒').join('/')}';
+        : l10n.panelAutoRefresh(
+            status.intervalsSeconds
+                .map(
+                  (value) => value >= 60 && value % 60 == 0
+                      ? l10n.panelMinutes(value ~/ 60)
+                      : l10n.panelSeconds(value),
+                )
+                .join('/'),
+          );
     final last = status.lastUpdatedAt;
     final now = DateTime.now();
     final updatedText = last == null
         ? ''
         : '${last.year != now.year || last.month != now.month || last.day != now.day ? '${last.month.toString().padLeft(2, '0')}-${last.day.toString().padLeft(2, '0')} ' : ''}${formatValue(last)}';
     final statusText = switch (status.state) {
-      RefreshState.noSources => '未设置数据源',
-      RefreshState.live => '实时',
+      RefreshState.noSources => l10n.panelNoSources,
+      RefreshState.live => l10n.panelLive,
       RefreshState.waiting =>
         last == null
-            ? '等待首次更新'
-            : '上次更新于 $updatedText · ${status.waitingSourceCount}项待更新',
-      RefreshState.stale => '上次更新于 $updatedText',
+            ? l10n.panelWaiting
+            : l10n.panelPending(updatedText, status.waitingSourceCount),
+      RefreshState.stale => l10n.panelLastUpdate(updatedText),
     };
     final rateNote = config.displayCurrency.isNotEmpty && rates.isEmpty
-        ? ' · 汇率未更新'
+        ? l10n.panelRatesPending
         : '';
+    String fetchTime(String id) =>
+        controller.data.lastSuccessfulFetchAt[id] == null
+        ? l10n.panelWaiting
+        : l10n.panelLastFetch(
+            formatValue(controller.data.lastSuccessfulFetchAt[id]),
+          );
     final details = [
       for (final asset in config.assets)
-        '${asset.name} · 每${asset.provider == 'YAHOO' ? 60 : 15}秒 · ${controller.data.lastSuccessfulFetchAt[asset.id] == null ? '等待首次更新' : '上次获取 ${formatValue(controller.data.lastSuccessfulFetchAt[asset.id])}'}${quotes[asset.id]?.error == null ? '' : '\n${quotes[asset.id]!.error}'}',
+        '${localizedAssetName(asset, l10n)} · ${l10n.panelSourceInterval(asset.provider == 'YAHOO' ? 60 : 15)} · ${fetchTime(asset.id)}${quotes[asset.id]?.error == null ? '' : '\n${localizeAppError(context, quotes[asset.id]!.error)}'}',
       for (final source in config.customSources.where(
         (source) => source.enabled,
       ))
-        '${source.name} · 每${source.refreshSeconds}秒 · ${controller.data.lastSuccessfulFetchAt['custom:${source.id}'] == null ? '等待首次更新' : '上次获取 ${formatValue(controller.data.lastSuccessfulFetchAt['custom:${source.id}'])}'}',
+        '${source.name} · ${l10n.panelSourceInterval(source.refreshSeconds)} · ${fetchTime('custom:${source.id}')}',
       if (config.displayCurrency.isNotEmpty)
-        '换算汇率每5分钟刷新${controller.data.ratesFetchedAt == null ? '' : '，上次获取 ${formatValue(controller.data.ratesFetchedAt)}'}${controller.data.ratesError == null ? '' : '\n${controller.data.ratesError}'}',
-      '实时表示按期获取成功；上游行情可能延迟。',
+        '${l10n.panelRatesInterval}${controller.data.ratesFetchedAt == null ? '' : ' · ${l10n.panelLastFetch(formatValue(controller.data.ratesFetchedAt))}'}${controller.data.ratesError == null ? '' : '\n${localizeAppError(context, controller.data.ratesError)}'}',
+      l10n.panelLiveNote,
     ].join('\n\n');
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -176,7 +203,7 @@ class PanelPage extends StatelessWidget {
                     vertical: 4,
                   ),
                   child: Text(
-                    controller.startupMessage!,
+                    localizeAppError(context, controller.startupMessage),
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
                       fontSize: 11,
@@ -337,7 +364,7 @@ class _AssetRow extends StatelessWidget {
         : asset.symbol;
     return Tooltip(
       message:
-          '${asset.name} · ${asset.provider}\n${quote == null ? '等待首次更新' : '行情时间 ${formatValue(quote!.updatedAt)}'}${quote?.error == null ? '' : '\n${quote!.error}'}${converted?.error == null ? '' : '\n${converted!.error}'}${converted?.converted == true ? '\n原价 ${formatValue(quote?.price)} $currency' : ''}',
+          '${localizedAssetName(asset, context.l10n)} · ${asset.provider}\n${quote == null ? context.l10n.panelWaiting : context.l10n.panelQuoteTime(localizedValue(quote!.updatedAt, context.l10n))}${quote?.error == null ? '' : '\n${localizeAppError(context, quote!.error)}'}${converted?.error == null ? '' : '\n${localizeAppError(context, converted!.error)}'}${converted?.converted == true ? '\n${context.l10n.panelOriginal(formatValue(quote?.price), currency)}' : ''}',
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: spacing / 2 + 3),
         child: Row(
@@ -357,7 +384,7 @@ class _AssetRow extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    asset.name,
+                    localizedAssetName(asset, context.l10n),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -448,7 +475,11 @@ class _CustomFieldRow extends StatelessWidget {
     final unit = displayUnitLabel(converted?.unit ?? field.unit, config);
     return Tooltip(
       message:
-          '${source.name}\n${quote?.error ?? '更新于 ${formatValue(quote?.updatedAt)}'}${converted?.error == null ? '' : '\n${converted!.error}'}',
+          '${source.name}\n${quote?.error != null
+              ? localizeAppError(context, quote!.error)
+              : quote == null
+              ? context.l10n.panelWaiting
+              : context.l10n.panelUpdated(localizedValue(quote!.updatedAt, context.l10n))}${converted?.error == null ? '' : '\n${localizeAppError(context, converted!.error)}'}',
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: spacing / 2 + 3),
         child: Row(
@@ -506,12 +537,12 @@ class _EmptyPanel extends StatelessWidget {
     padding: const EdgeInsets.symmetric(vertical: 24),
     child: Column(
       children: [
-        const Text('选择你想关注的内容'),
+        Text(context.l10n.panelChoose),
         const SizedBox(height: 10),
         FilledButton.icon(
           onPressed: onSettings,
           icon: const Icon(Icons.add),
-          label: const Text('添加行情或 API'),
+          label: Text(context.l10n.panelAdd),
         ),
       ],
     ),

@@ -4,6 +4,7 @@ import '../../domain/display_formatter.dart';
 import '../../domain/models.dart';
 import '../../platform/system_fonts.dart';
 import '../../app/theme_presets.dart';
+import '../../l10n/l10n.dart';
 
 /// Used by the panel and editors so previews use the same field styles.
 class DisplayRowView extends StatelessWidget {
@@ -21,17 +22,19 @@ class DisplayRowView extends StatelessWidget {
   final Map<String, double> rates;
   final bool showFreshness;
 
-  String _name(String id) {
+  String _name(String id, AppLocalizations l10n) {
     final asset = [
-      ...Asset.popular,
       ...config.customAssets,
+      ...Asset.popular,
     ].where((asset) => asset.id == id).firstOrNull;
-    if (asset != null) return '${asset.name} · ${asset.provider}';
+    if (asset != null) {
+      return '${localizedAssetName(asset, l10n)} · ${asset.provider}';
+    }
     return config.customSources
             .where((source) => 'custom:${source.id}' == id)
             .firstOrNull
             ?.name ??
-        '已移除的内容';
+        l10n.panelRemoved;
   }
 
   TextStyle _style(BuildContext context, DisplaySegment segment) {
@@ -74,7 +77,7 @@ class DisplayRowView extends StatelessWidget {
     final details = ids
         .map((id) {
           final quote = quotes[id];
-          return '${_name(id)}\n${quote == null ? '暂无数据，请检查关注内容或数据源' : '更新于 ${formatValue(quote.updatedAt)}'}${quote?.error == null ? '' : '\n${quote!.error}'}';
+          return '${_name(id, context.l10n)}\n${quote == null ? context.l10n.panelNoData : context.l10n.panelUpdated(localizedValue(quote.updatedAt, context.l10n))}${quote?.error == null ? '' : '\n${localizeAppError(context, quote!.error)}'}';
         })
         .join('\n\n');
     final line = Text.rich(
@@ -82,7 +85,13 @@ class DisplayRowView extends StatelessWidget {
         children: [
           for (final segment in row.segments)
             TextSpan(
-              text: renderSegment(segment, config, quotes, rates: rates),
+              text: localizedSegment(
+                segment,
+                config,
+                quotes,
+                context.l10n,
+                rates: rates,
+              ),
               style: _style(context, segment),
             ),
         ],
@@ -110,9 +119,9 @@ class DisplayRowView extends StatelessWidget {
                       stale
                           .map(
                             (id) =>
-                                '${_name(id)} · ${quotes[id]!.updatedAt.millisecondsSinceEpoch > 0 ? '过期数据 ${formatValue(quotes[id]!.updatedAt)}' : '连接异常'}',
+                                '${_name(id, context.l10n)} · ${quotes[id]!.updatedAt.millisecondsSinceEpoch > 0 ? context.l10n.panelStale(localizedValue(quotes[id]!.updatedAt, context.l10n)) : context.l10n.panelConnectionError}',
                           )
-                          .join('；'),
+                          .join('; '),
                       style: TextStyle(
                         fontSize: 10,
                         color: Theme.of(context).colorScheme.error,

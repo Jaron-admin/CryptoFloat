@@ -17,6 +17,7 @@ void main() {
       AppController(
         config: AppConfig.defaults.copyWith(
           selectedAssetIds: ['OKX:BTC-USDT'],
+          language: 'zh',
           proxyEnabled: false,
         ),
         store: store,
