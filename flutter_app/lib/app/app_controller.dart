@@ -1,0 +1,153 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+
+import '../data/config_store.dart';
+import '../data/asset_catalog_service.dart';
+import '../data/http_transport.dart';
+import '../data/market_data_service.dart';
+import '../domain/models.dart';
+import '../platform/floating_window_host.dart';
+import '../platform/secret_store.dart';
+import '../platform/system_proxy.dart';
+import '../platform/tray_host.dart';
+import '../platform/context_menu_host.dart';
+
+class AppController extends ChangeNotifier {
+  AppController({
+    required AppConfig config,
+    required this.store,
+    required this.host,
+    required this.secrets,
+    this.startupMessage,
+    AssetCatalogService? assetCatalog,
+  }) : _config = config {
+    catalog =
+        assetCatalog ??
+        AssetCatalogService(
+          transport: HttpTransport(
+            systemProxyResolver: PlatformSystemProxyResolver(),
+          ),
+          cacheDirectory: File(store.configPath).parent.path,
+        );
+    catalog.addListener(notifyListeners);
+    data = MarketDataService(
+      config,
+      secrets,
+      systemProxyResolver: PlatformSystemProxyResolver(),
+    )..addListener(notifyListeners);
+    unawaited(data.refresh(force: true));
+    _boundsTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => unawaited(rememberBounds()),
+    );
+  }
+  final ConfigStore store;
+  final FloatingWindowHost host;
+  final SecretStore secrets;
+  final TrayHost tray = TrayHost();
+  final ContextMenuHost menus = ContextMenuHost();
+  late final MarketDataService data;
+  late final AssetCatalogService catalog;
+  AppConfig _config;
+  AppConfig get config => _config;
+  AppConfig? _appearancePreview;
+  AppConfig get appearanceConfig => _appearancePreview ?? _config;
+
+  void previewAppearance(AppConfig value) {
+    _appearancePreview = value;
+    notifyListeners();
+  }
+
+  void clearAppearancePreview() {
+    if (_appearancePreview == null) return;
+    _appearancePreview = null;
+    notifyListeners();
+  }
+
+  String? startupMessage;
+  bool settingsOpen = false;
+  Future<bool> Function()? beforeExit;
+  bool _saving = false;
+  bool _disposed = false;
+  Timer? _boundsTimer;
+
+  Future<void> apply(AppConfig value) async {
+    if (_saving) throw StateError('设置正在保存，请稍候。');
+    _saving = true;
+    try {
+      final next = value.copyWith(windowBounds: _config.windowBounds);
+      await store.save(next);
+      _config = next;
+      _appearancePreview = null;
+      data.updateConfig(next);
+      startupMessage = null;
+      // Settings and secret ownership are committed before optional host work.
+      try {
+        await host.setAlwaysOnTop(next.alwaysOnTop);
+      } catch (_) {
+        startupMessage = '设置已保存；窗口置顶未能应用，重新打开可重试。';
+      }
+      try {
+        await host.setOpacity(next.opacity);
+      } catch (_) {
+        startupMessage = '设置已保存；窗口透明度未能应用，重新打开可重试。';
+      }
+      notifyListeners();
+      unawaited(data.refresh(force: true));
+    } finally {
+      _saving = false;
+    }
+  }
+
+  Future<void> rememberBounds() async {
+    if (_saving || settingsOpen || _disposed || !host.supported) return;
+    _saving = true;
+    try {
+      final bounds = await host.getBounds();
+      if (bounds == null || _disposed) return;
+      final before = _config.windowBounds;
+      if (before != null &&
+          encodeJson(before.toJson()) == encodeJson(bounds.toJson())) {
+        return;
+      }
+      _config = _config.copyWith(windowBounds: bounds);
+      await store.save(_config);
+    } catch (_) {
+      // Position persistence must never interrupt the visible price panel.
+    } finally {
+      _saving = false;
+    }
+  }
+
+  Future<void> close() async {
+    final guard = beforeExit;
+    if (guard != null) {
+      await tray.show();
+      if (!await guard()) return;
+    }
+    await rememberBounds();
+    await host.close();
+  }
+
+  Future<void> hideToTray() async {
+    await rememberBounds();
+    if (!await tray.hide() && !_disposed) {
+      startupMessage = '暂时无法创建托盘图标，窗口保持显示。请稍后重试。';
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _boundsTimer?.cancel();
+    data.removeListener(notifyListeners);
+    data.dispose();
+    catalog.removeListener(notifyListeners);
+    catalog.dispose();
+    tray.dispose();
+    super.dispose();
+  }
+}

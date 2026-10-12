@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>CryptoFloat</title>
+  <desc>A compact dark floating market panel with a rising mint price line.</desc>
+  <rect x="16" y="24" width="224" height="220" rx="48" fill="#061019" opacity="0.24"/>
+  <rect x="22" y="16" width="212" height="220" rx="44" fill="#121E2C" stroke="#344A60" stroke-width="2"/>
+  <circle cx="59" cy="54" r="6" fill="#57E3C0"/>
+  <rect x="78" y="48" width="78" height="12" rx="6" fill="#526B84"/>
+  <rect x="172" y="48" width="26" height="12" rx="6" fill="#2C4358"/>
+  <line x1="54" y1="82" x2="202" y2="82" stroke="#293E52" stroke-width="2"/>
+  <line x1="57" y1="180" x2="199" y2="180" stroke="#253A4D" stroke-width="2"/>
+  <polyline points="62,164 91,130 119,147 153,105 194,93" fill="none" stroke="#57E3C0" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="194" cy="93" r="9" fill="#8FF0D6"/>
+  <rect x="58" y="202" width="44" height="8" rx="4" fill="#526B84"/>
+  <rect x="113" y="202" width="24" height="8" rx="4" fill="#334D65"/>
+  <rect x="150" y="202" width="48" height="8" rx="4" fill="#57E3C0"/>
+</svg>
