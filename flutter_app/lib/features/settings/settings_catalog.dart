@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../l10n/l10n.dart';
+import '../../l10n/metrics_strings.dart';
 
 class SettingsCategory {
   const SettingsCategory(this.id, this.icon);
@@ -13,6 +14,7 @@ class SettingsCategory {
     'layout' => l10n.settingLayout,
     'appearance' => l10n.settingAppearance,
     'units' => l10n.settingUnitsTitle,
+    'metrics' => MetricsStrings(l10n.localeName.startsWith('zh')).system,
     _ => l10n.settingWindow,
   };
 }
@@ -24,6 +26,7 @@ const settingsCategories = [
   SettingsCategory('appearance', Icons.palette_outlined),
   SettingsCategory('units', Icons.currency_exchange_rounded),
   SettingsCategory('window', Icons.desktop_windows_outlined),
+  SettingsCategory('metrics', Icons.monitor_heart_outlined),
 ];
 
 class SettingLocation {
@@ -53,6 +56,7 @@ class SettingLocation {
     'units' => l10n.settingCatalogUnits,
     'window' => l10n.settingCatalogWindow,
     'tray' => l10n.settingCatalogTray,
+    'metrics' => MetricsStrings(l10n.localeName.startsWith('zh')).system,
     _ => l10n.settingStorage,
   };
 
@@ -68,6 +72,12 @@ class SettingLocation {
 }
 
 const settingsLocations = [
+  SettingLocation(
+    6,
+    'metrics',
+    '系统监测',
+    'cpu memory ram gpu vram network upload download disk system monitor 内存 显卡 显存 网速 上传 下载 磁盘 采样 系统 指标',
+  ),
   SettingLocation(
     0,
     'assets',

@@ -1,5 +1,6 @@
 import 'models.dart';
 import 'unit_conversion.dart';
+import 'system_metric.dart';
 
 String formatValue(Object? value, [String format = '']) {
   if (value == null) return '—';
@@ -52,6 +53,25 @@ String renderSegment(
 }) {
   if (!segment.isField) return segment.text;
   final raw = segmentValue(segment, config, quotes);
+  if (segment.assetId == 'system') {
+    final definition = systemMetricCatalog
+        .where((metric) => metric.id == segment.fieldId)
+        .firstOrNull;
+    if (raw is! num || definition == null) return '—';
+    final reading = MetricReading(raw.toDouble(), definition.unit, 'valid');
+    if (!reading.valid) return '—';
+    final converted = convertUnitValue(raw, definition.unit, config, rates);
+    final formatted = converted.converted || segment.format.isNotEmpty
+        ? MetricText(
+            formatValue(converted.value, segment.format),
+            converted.unit,
+          )
+        : formatSystemMetric(definition.id, reading);
+    return MetricText(
+      formatted.value,
+      displayUnitLabel(formatted.unit, config),
+    ).text;
+  }
   Object? value = raw;
   String unit = '';
   if (segment.assetId!.startsWith('custom:')) {

@@ -14,6 +14,9 @@ add_executable(${BINARY_NAME} WIN32
   "platform_channel.cpp"
   "single_instance.cpp"
   "system_proxy.cpp"
+  "system_metrics.cpp"
+  "metrics_math.cpp"
+  "monitor_channel.cpp"
   "utils.cpp"
   "win32_window.cpp"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
@@ -42,8 +45,10 @@ target_link_libraries(${BINARY_NAME} PRIVATE flutter flutter_wrapper_app)
 target_link_libraries(${BINARY_NAME} PRIVATE
   "dwmapi.lib" "comctl32.lib" "crypt32.lib" "advapi32.lib" "shell32.lib" "ole32.lib"
   "winhttp.lib"
+  "pdh.lib" "iphlpapi.lib" "dxgi.lib" "ws2_32.lib"
 )
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
 
 # Run the Flutter tool portions of the build. This must not be removed.
 add_dependencies(${BINARY_NAME} flutter_assemble)
+include("taskbar.cmake")

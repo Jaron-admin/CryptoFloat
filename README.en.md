@@ -1,26 +1,26 @@
-# CryptoFloat
+# MetricPerch · 数栖
 
 [简体中文](README.md) · **English**
 
-A customizable floating desktop panel for market quotes, JSON APIs, and text. Built with Flutter and Material 3, with English and Simplified Chinese interfaces.
+Show market quotes, JSON API fields, text, and local system metrics in a floating desktop panel and the Windows taskbar. Choose content and appearance independently for each display. Built with Flutter and Material 3, with English and Simplified Chinese interfaces.
 
-![Example CryptoFloat floating panel](docs/images/panel-preview.png)
+![Example MetricPerch floating panel](docs/images/panel-preview.png)
 
 Example appearance from v1.1: customize the name, fonts, colors, transparency, and displayed content. The settings interface has changed in the current version.
 
-### Settings in v1.2
+### Settings preview
 
 ![Material 3 appearance settings](docs/images/settings-en.png)
 
-Compact navigation, searchable settings, and grouped forms. This preview uses sample data. Watchlist selections stay in place while editing; selected items move to the top when reopening the page or refreshing the catalog.
+The retained v1.2 screenshot illustrates the appearance; v1.3 adds display targets and system monitoring settings. This preview uses sample data. Watchlist selections stay in place while editing; selected items move to the top when reopening the page or refreshing the catalog.
 
 ## Download and run
 
-Download **CryptoFloat-Windows-x64-1.2.0.zip** from [Releases](https://github.com/Jaron-admin/CryptoFloat/releases).
+Download **MetricPerch-Windows-x64-1.3.0.zip** from [Releases](https://github.com/Jaron-admin/MetricPerch/releases).
 
-Extract the entire archive and run `cryptofloat.exe`. Keep the accompanying libraries and `data` folder beside the executable.
+Extract the entire archive and run `metricperch.exe`. Keep `metricperch_taskbar.exe`, the accompanying libraries, and the `data` folder beside it. The taskbar helper starts and exits with the main app.
 
-This is a portable app: settings, caches, imported icons, and protected secrets live in `user_data` beside the executable. Use a writable folder and move the whole folder together. Only one instance runs for the current Windows user in the current login session; launching again brings the existing window forward. Exit v1.1 or earlier before upgrading.
+This is a portable app: settings, caches, imported icons, and protected secrets live in `user_data` beside the executable. Use a writable folder and move the whole folder together. Only one instance runs for the current Windows user in the current login session; launching again brings the existing window forward. Exit the old version before upgrading and keep your `user_data` in the new app folder. Existing CryptoFloat portable settings are migrated while preserving custom titles, icons, themes, and display content.
 
 The current release provides a **Windows x64** build. macOS and Linux project scaffolds are included, but their native window and protected storage integrations are incomplete. Android and iOS releases are not available.
 
@@ -28,6 +28,9 @@ Right-click the floating panel to open Settings. Select **Settings → Appearanc
 
 ## Features
 
+- The floating market panel and taskbar monitoring start enabled; the taskbar initially shows CPU, memory percentage, upload, and download rates.
+- Each display independently selects quotes, API fields, text templates, and system metrics, with its own order, fonts, colors, and units. Data sources and device choices are shared.
+- CPU, memory, GPU, video memory, network rates, and disk read/write rates, with a 1–60 second sample interval and automatic or manual device selection.
 - Cryptocurrency, US stock, and selected mainland China stock quotes, with prices, changes, units, and update status.
 - Searchable OKX, Binance, and KuCoin trading-pair catalogs. Reorder your watchlist by dragging or using move-up and move-down buttons.
 - Custom HTTPS JSON APIs, fields, and display templates. Built-in quotes and free-form text can appear together.
@@ -36,6 +39,12 @@ Right-click the floating panel to open Settings. Select **Settings → Appearanc
 - Custom system fonts, numeric fonts, transparency, text size, spacing, app name, and icon.
 - Context menu, always-on-top window, double-click to hide to the tray, click to restore, and per-monitor DPI support.
 - English and Simplified Chinese interfaces, with manual or system language selection.
+
+Select **Floating panel** or **Taskbar** in Settings before editing its content and appearance. **Taskbar layout** controls its own enable switch, width, and one or two rows. Preview the draft, then Save to apply it or cancel to discard changes. Devices and the sample interval apply to both displays.
+
+The first release targets the standard primary Windows taskbar. It displays only when a usable region can be confirmed and has enough room. Unsupported layouts, insufficient space, and an unavailable taskbar pause the display; Settings shows the actual state. Windows 11 has no supported third-party reserved slot, so every layout cannot be guaranteed. The taskbar menu provides settings, refresh, show floating panel, disable taskbar, and exit actions. The tray remains a way to restore the floating panel.
+
+Missing metrics and samples establishing a baseline show `—`; only valid zero values show `0`. Automatic network selection uses active physical interfaces; manual selection can include virtual interfaces. GPU usage represents the busiest engine on the selected adapter; a memory percentage is unavailable when its capacity cannot be established. Rates need a new baseline after startup, resume, or a device change. Compatibility with the real taskbar still requires validation for the particular Windows version and desktop layout.
 
 ## Data and settings
 
@@ -47,13 +56,15 @@ Public data may be delayed, rate-limited, or temporarily unavailable. “Live”
 
 See the [usage and build guide](flutter_app/README.en.md) for details.
 
+See the [changelog](CHANGELOG.md) for this release.
+
 ## Build from source
 
 Use Flutter 3.47.5 / Dart 3.13.4 and the Visual Studio desktop development with C++ toolchain. Follow the [Flutter Windows setup guide](https://docs.flutter.dev/platform-integration/windows/setup).
 
 ```powershell
-git clone https://github.com/Jaron-admin/CryptoFloat.git
-cd CryptoFloat/flutter_app
+git clone https://github.com/Jaron-admin/MetricPerch.git
+cd MetricPerch/flutter_app
 flutter pub get
 flutter build windows --release
 ```
@@ -61,11 +72,11 @@ flutter build windows --release
 To create a release folder and ZIP containing the usage guides and licenses:
 
 ```powershell
-./tool/build_windows.ps1 -PackageName CryptoFloat-Windows-x64-1.2.0
+./tool/build_windows.ps1 -PackageName MetricPerch-Windows-x64-1.3.0
 ```
 
 ## License
 
-CryptoFloat's own source code is licensed under the [MIT License](LICENSE). You may use, modify, distribute, and use it commercially while retaining the license and copyright notice.
+MetricPerch's own source code is licensed under the [MIT License](LICENSE). You may use, modify, distribute, and use it commercially while retaining the license and copyright notice.
 
 Dependencies and fonts retain their own licenses. See [Third-party notices](THIRD_PARTY_NOTICES.md). Release packages include the project license and full third-party license texts.

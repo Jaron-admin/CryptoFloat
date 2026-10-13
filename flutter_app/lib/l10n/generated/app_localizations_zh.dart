@@ -395,7 +395,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editRepoName => '仓库名称';
 
   @override
-  String get editRepoNameHint => '例如 CryptoFloat';
+  String get editRepoNameHint => '例如 MetricPerch';
 
   @override
   String editHeaderMissingSecret(String name) {
@@ -983,7 +983,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingReturnToPanel => '返回悬浮窗';
 
   @override
-  String get settingTitle => 'CryptoFloat 设置';
+  String get settingTitle => 'MetricPerch 设置';
 
   @override
   String get settingSaving => '保存中…';

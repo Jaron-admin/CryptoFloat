@@ -33,7 +33,7 @@ void main() {
     await tester.pumpWidget(CryptoFloatApp(controller: controller));
     await tester.pumpAndSettle();
     await tester.tap(
-      find.text('CryptoFloat'),
+      find.byKey(const ValueKey('panel-title')),
       buttons: kSecondaryMouseButton,
       kind: PointerDeviceKind.mouse,
     );
@@ -42,7 +42,7 @@ void main() {
     await tester.tapAt(const Offset(8, 580));
     await tester.pumpAndSettle();
     expect(find.text('立即刷新'), findsNothing);
-    expect(find.text('CryptoFloat'), findsOneWidget);
+    expect(find.byKey(const ValueKey('panel-title')), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -55,7 +55,7 @@ void main() {
       await tester.pumpWidget(CryptoFloatApp(controller: controller));
       await tester.pumpAndSettle();
       await tester.tap(
-        find.text('CryptoFloat'),
+        find.byKey(const ValueKey('panel-title')),
         buttons: kSecondaryMouseButton,
         kind: PointerDeviceKind.mouse,
       );
@@ -74,7 +74,7 @@ void main() {
       expect(store.saved?.numberFontFamily, 'Consolas');
       expect(host.closed, isFalse);
       expect(host.settingsModes, [true, false]);
-      expect(find.text('CryptoFloat'), findsOneWidget);
+      expect(find.byKey(const ValueKey('panel-title')), findsOneWidget);
       expect(find.text('USDT'), findsOneWidget);
       expect(
         find.byWidgetPredicate(
@@ -225,7 +225,7 @@ void main() {
       await tester.pumpWidget(CryptoFloatApp(controller: controller));
       await tester.pumpAndSettle();
       await tester.tap(
-        find.text('CryptoFloat'),
+        find.byKey(const ValueKey('panel-title')),
         buttons: kSecondaryMouseButton,
         kind: PointerDeviceKind.mouse,
       );

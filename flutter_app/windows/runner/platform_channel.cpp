@@ -3,6 +3,7 @@
 #include "notification_tray.h"
 #include "system_proxy.h"
 #include "context_menu.h"
+#include "monitor_channel.h"
 
 #include <flutter/standard_method_codec.h>
 #include <shlobj.h>
@@ -514,6 +515,8 @@ PlatformChannel::PlatformChannel(Win32Window* window,
         });
       });
   system_proxy_ = std::make_unique<SystemProxy>(window_->GetHandle());
+  metrics_ = std::make_unique<SystemMetrics>();
+  taskbar_ = std::make_unique<TaskbarHost>(window_->GetHandle());
   channel_->SetMethodCallHandler(
       [this](const flutter::MethodCall<Value>& call,
              std::unique_ptr<Result> result) {
@@ -527,6 +530,8 @@ PlatformChannel::~PlatformChannel() {
   // Cancel asynchronous requests before the messenger goes away. The worker
   // callbacks retain only detached job state, never this channel or its result.
   system_proxy_.reset();
+  taskbar_.reset();
+  metrics_.reset();
   tray_.reset();
   context_menu_.reset();
 }
@@ -550,7 +555,25 @@ void PlatformChannel::HandleMethod(const flutter::MethodCall<Value>& call,
   const Value* arguments = call.arguments();
   const Map* values = AsMap(arguments);
 
-  if (method == "window.initialize") {
+  if (method == "metrics.configure") {
+    SystemMetricsOptions options;
+    if (!DecodeMetricsOptions(values, &options)) { InvalidArguments(result.get()); return; }
+    metrics_->Configure(options);
+    result->Success();
+  } else if (method == "metrics.read") {
+    result->Success(EncodeMetrics(metrics_->Snapshot()));
+  } else if (method == "taskbar.update") {
+    TaskbarFrame frame;
+    if (!DecodeTaskbarFrame(values, &frame)) { InvalidArguments(result.get()); return; }
+    const auto state = taskbar_->Update(frame);
+    const auto action = taskbar_->TakeAction();
+    result->Success(Value(Map{{Value("state"), Value(state)}, {Value("action"), Value(action)}}));
+  } else if (method == "taskbar.close") {
+    TaskbarFrame frame;
+    frame.enabled = false;
+    taskbar_->Update(frame);
+    result->Success();
+  } else if (method == "window.initialize") {
     const auto topmost_value = Entry(values, "alwaysOnTop");
     const auto topmost = topmost_value ? std::get_if<bool>(topmost_value) : nullptr;
     double opacity = 0.96;

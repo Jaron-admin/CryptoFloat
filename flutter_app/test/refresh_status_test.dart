@@ -114,6 +114,7 @@ void main() {
 
   final customConfig = AppConfig.defaults.copyWith(
     selectedAssetIds: [],
+    selectedCustomFieldIds: ['custom:metrics|price'],
     customSources: const [
       CustomApiSource(
         id: 'metrics',
@@ -206,66 +207,58 @@ void main() {
     },
   );
 
-  testWidgets(
-    'new generation FX task survives an old completion and stale cache write',
-    (tester) async {
-      var clock = now;
-      final transport = DeferredTransport();
-      final config = AppConfig.defaults.copyWith(
-        selectedAssetIds: [],
-        displayCurrency: 'CNY',
-        proxyEnabled: false,
+  testWidgets('unrelated catalog edit keeps the current shared FX request', (
+    tester,
+  ) async {
+    var clock = now;
+    final transport = DeferredTransport();
+    final config = AppConfig.defaults.copyWith(
+      selectedAssetIds: [],
+      displayCurrency: 'CNY',
+      proxyEnabled: false,
+    );
+    final service = MarketDataService(
+      config,
+      SettingsSecrets(),
+      transport: transport,
+      now: () => clock,
+    );
+    Object document(String rate) => {
+      'data': {
+        'currency': 'USD',
+        'rates': {'USD': '1', 'CNY': rate},
+      },
+    };
+    try {
+      await tester.pump();
+      service.updateConfig(
+        config.copyWith(
+          customSources: [
+            const CustomApiSource(
+              id: 'inactive',
+              name: '备用来源',
+              url: 'https://example.com/data',
+              fields: [],
+              enabled: false,
+            ),
+          ],
+        ),
       );
-      final service = MarketDataService(
-        config,
-        SettingsSecrets(),
-        transport: transport,
-        now: () => clock,
-      );
-      Object document(String rate) => {
-        'data': {
-          'currency': 'USD',
-          'rates': {'USD': '1', 'CNY': rate},
-        },
-      };
-      try {
-        await tester.pump();
-        service.updateConfig(
-          config.copyWith(
-            customSources: [
-              const CustomApiSource(
-                id: 'inactive',
-                name: '备用来源',
-                url: 'https://example.com/data',
-                fields: [],
-                enabled: false,
-              ),
-            ],
-          ),
-        );
-        await tester.pump();
-        expect(transport.requests.length, 2);
-        expect(
-          transport.requests[1].config.customSources.single.id,
-          'inactive',
-        );
-        transport.requests[0].response.complete(document('99'));
-        await tester.pump();
-        expect(service.ratesFetchedAt, isNull);
-        final forced = service.refresh(force: true);
-        await tester.pump();
-        expect(transport.requests.length, 2);
-        clock = now.add(const Duration(seconds: 2));
-        transport.requests[1].response.complete(document('7'));
-        await forced;
-        expect(service.exchangeRates['CNY'], 7);
-        expect(service.ratesFetchedAt, clock);
-      } finally {
-        service.dispose();
-        await tester.pump();
-      }
-    },
-  );
+      await tester.pump();
+      expect(transport.requests.length, 1);
+      final forced = service.refresh(force: true);
+      await tester.pump();
+      expect(transport.requests.length, 1);
+      clock = now.add(const Duration(seconds: 2));
+      transport.requests[0].response.complete(document('7'));
+      await forced;
+      expect(service.exchangeRates['CNY'], 7);
+      expect(service.ratesFetchedAt, clock);
+    } finally {
+      service.dispose();
+      await tester.pump();
+    }
+  });
 
   testWidgets(
     'successful fetch survives brief failure and ages without idle notifications',

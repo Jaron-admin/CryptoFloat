@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../domain/models.dart';
+import '../../domain/system_metric.dart';
+import '../../l10n/metrics_strings.dart';
 import '../../l10n/l10n.dart';
 import 'fluent_controls.dart';
 import '../panel/display_row_view.dart';
@@ -22,6 +24,14 @@ String fieldLabel(
   AppConfig config,
   AppLocalizations l10n,
 ) {
+  if (segment.assetId == 'system') {
+    return systemMetricCatalog
+            .where((metric) => metric.id == segment.fieldId)
+            .firstOrNull
+            ?.name(l10n.localeName.startsWith('zh')) ??
+        segment.fieldId ??
+        '';
+  }
   final asset = [
     ...config.customAssets,
     ...Asset.popular,
@@ -340,13 +350,19 @@ class _FieldDialogState extends State<_FieldDialog> {
           '${localizedAssetName(asset, context.l10n)} · ${asset.provider}',
     for (final source in widget.config.customSources)
       'custom:${source.id}': source.name,
+    'system': context.metrics.system,
   };
 
   bool _initialized = false;
   String? _source;
   String? _field;
   String _format = '';
-  Map<String, String> get _fields => _source?.startsWith('custom:') == true
+  Map<String, String> get _fields => _source == 'system'
+      ? {
+          for (final metric in systemMetricCatalog)
+            metric.id: metric.name(context.metrics.chinese),
+        }
+      : _source?.startsWith('custom:') == true
       ? {
           for (final source in widget.config.customSources.where(
             (source) => 'custom:${source.id}' == _source,

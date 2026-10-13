@@ -5,6 +5,7 @@ import '../../domain/models.dart';
 import '../../platform/system_fonts.dart';
 import '../../app/theme_presets.dart';
 import '../../l10n/l10n.dart';
+import '../../l10n/metrics_strings.dart';
 
 /// Used by the panel and editors so previews use the same field styles.
 class DisplayRowView extends StatelessWidget {
@@ -23,6 +24,9 @@ class DisplayRowView extends StatelessWidget {
   final bool showFreshness;
 
   String _name(String id, AppLocalizations l10n) {
+    if (id == 'system') {
+      return MetricsStrings(l10n.localeName.startsWith('zh')).system;
+    }
     final asset = [
       ...config.customAssets,
       ...Asset.popular,
@@ -69,15 +73,52 @@ class DisplayRowView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    DateTime? updateTime(String id) {
+      final quote = quotes[id];
+      if (!id.startsWith('custom:')) return quote?.updatedAt;
+      final times = [
+        for (final segment in row.segments.where(
+          (segment) => segment.assetId == id,
+        ))
+          if (quote?.fieldUpdatedAt[segment.fieldId] != null)
+            quote!.fieldUpdatedAt[segment.fieldId]!,
+      ]..sort();
+      return times.firstOrNull;
+    }
+
+    String? errorFor(String id) {
+      final quote = quotes[id];
+      final errors = <String>{
+        if (quote?.error != null) quote!.error!,
+        for (final segment in row.segments.where(
+          (segment) => segment.assetId == id,
+        ))
+          if (quote?.fieldErrors[segment.fieldId] != null)
+            quote!.fieldErrors[segment.fieldId]!,
+      };
+      return errors.isEmpty
+          ? null
+          : errors.map((error) => localizeAppError(context, error)).join('\n');
+    }
+
     final ids = row.segments
         .where((segment) => segment.isField)
         .map((segment) => segment.assetId!)
         .toSet();
-    final stale = ids.where((id) => quotes[id]?.isStale == true).toList();
+    final stale = ids
+        .where(
+          (id) =>
+              quotes[id] != null &&
+              row.segments
+                  .where((segment) => segment.assetId == id)
+                  .any((segment) => quotes[id]!.isFieldStale(segment.fieldId!)),
+        )
+        .toList();
     final details = ids
         .map((id) {
-          final quote = quotes[id];
-          return '${_name(id, context.l10n)}\n${quote == null ? context.l10n.panelNoData : context.l10n.panelUpdated(localizedValue(quote.updatedAt, context.l10n))}${quote?.error == null ? '' : '\n${localizeAppError(context, quote!.error)}'}';
+          final time = updateTime(id);
+          final error = errorFor(id);
+          return '${_name(id, context.l10n)}\n${time == null ? context.l10n.panelNoData : context.l10n.panelUpdated(localizedValue(time, context.l10n))}${error == null ? '' : '\n$error'}';
         })
         .join('\n\n');
     final line = Text.rich(
@@ -119,7 +160,7 @@ class DisplayRowView extends StatelessWidget {
                       stale
                           .map(
                             (id) =>
-                                '${_name(id, context.l10n)} · ${quotes[id]!.updatedAt.millisecondsSinceEpoch > 0 ? context.l10n.panelStale(localizedValue(quotes[id]!.updatedAt, context.l10n)) : context.l10n.panelConnectionError}',
+                                '${_name(id, context.l10n)} · ${updateTime(id) != null && updateTime(id)!.millisecondsSinceEpoch > 0 ? context.l10n.panelStale(localizedValue(updateTime(id), context.l10n)) : context.l10n.panelConnectionError}',
                           )
                           .join('; '),
                       style: TextStyle(

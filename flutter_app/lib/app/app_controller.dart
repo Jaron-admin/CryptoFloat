@@ -1,13 +1,18 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import '../data/config_store.dart';
 import '../data/asset_catalog_service.dart';
 import '../data/http_transport.dart';
 import '../data/market_data_service.dart';
+import '../data/system_metrics_service.dart';
+import '../domain/display_snapshot.dart';
+import '../domain/refresh_status.dart';
 import '../domain/models.dart';
+import '../platform/taskbar_host.dart';
+import 'theme_presets.dart';
 import '../platform/floating_window_host.dart';
 import '../platform/secret_store.dart';
 import '../platform/system_proxy.dart';
@@ -37,6 +42,16 @@ class AppController extends ChangeNotifier {
       secrets,
       systemProxyResolver: PlatformSystemProxyResolver(),
     )..addListener(notifyListeners);
+    metrics.addListener(_metricsChanged);
+    taskbar.addListener(notifyListeners);
+    unawaited(configureMonitoring());
+    if (taskbar.supported) {
+      _taskbarTimer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => unawaited(publishTaskbar()),
+      );
+      unawaited(publishTaskbar());
+    }
     unawaited(data.refresh(force: true));
     _boundsTimer = Timer.periodic(
       const Duration(seconds: 3),
@@ -48,6 +63,8 @@ class AppController extends ChangeNotifier {
   final SecretStore secrets;
   final TrayHost tray = TrayHost();
   final ContextMenuHost menus = ContextMenuHost();
+  final SystemMetricsService metrics = SystemMetricsService();
+  final TaskbarHost taskbar = TaskbarHost();
   late final MarketDataService data;
   late final AssetCatalogService catalog;
   AppConfig _config;
@@ -72,6 +89,86 @@ class AppController extends ChangeNotifier {
   bool _saving = false;
   bool _disposed = false;
   Timer? _boundsTimer;
+  Timer? _taskbarTimer;
+
+  Map<String, MarketQuote> get displayQuotes => withSystemQuote(
+    data.quotes,
+    metrics.snapshot,
+    _config.systemMonitor.intervalSeconds,
+  );
+
+  RefreshStatus refreshStatusFor(AppConfig view) =>
+      displayRefreshStatus(view, data.lastSuccessfulFetchAt, metrics.snapshot);
+
+  void _metricsChanged() {
+    if (_disposed) return;
+    notifyListeners();
+    unawaited(publishTaskbar());
+  }
+
+  Future<void> configureMonitoring() => metrics.configure(
+    enabled:
+        settingsOpen ||
+        DisplayDependencies.forConfig(_config).metricIds.isNotEmpty,
+    intervalSeconds: _config.systemMonitor.intervalSeconds,
+    networkAdapterId: _config.systemMonitor.networkAdapterId,
+    gpuAdapterId: _config.systemMonitor.gpuAdapterId,
+    diskId: _config.systemMonitor.diskId,
+  );
+
+  Future<void> publishTaskbar() async {
+    if (_disposed || !taskbar.supported) return;
+    final view = _config.displayFor(DisplayTarget.taskbar);
+    final brightness = switch (view.themeMode) {
+      'light' => Brightness.light,
+      'dark' => Brightness.dark,
+      _ => WidgetsBinding.instance.platformDispatcher.platformBrightness,
+    };
+    final palette = resolveAppPalette(view, brightness: brightness);
+    final chinese =
+        _config.language == 'zh' ||
+        (_config.language == 'system' &&
+            WidgetsBinding.instance.platformDispatcher.locale.languageCode ==
+                'zh');
+    final cells = taskbarVisibleCells(
+      buildDisplayTexts(
+        view,
+        data.quotes,
+        metrics.snapshot,
+        rates: data.exchangeRates,
+      ),
+      chinese: chinese,
+    );
+    await taskbar.update({
+      'enabled': _config.taskbar.enabled,
+      'chinese': chinese,
+      'width': _config.taskbar.width.round(),
+      'lineCount': _config.taskbar.lineCount,
+      'fontSize': view.fontSize.clamp(6, 32),
+      'fontFamily': boundedTaskbarText(
+        view.fontFamily.isEmpty ? 'Segoe UI' : view.fontFamily,
+        128,
+      ),
+      'numberFontFamily': boundedTaskbarText(
+        view.numberFontFamily.isEmpty ? 'Segoe UI' : view.numberFontFamily,
+        128,
+      ),
+      'background': palette.background.toARGB32(),
+      'foreground': palette.foreground.toARGB32(),
+      'cells': [
+        for (final cell in cells)
+          {
+            'text': boundedTaskbarText(cell.text, 200),
+            'tooltip': boundedTaskbarText(
+              '${cell.text}${cell.change == null ? '' : '  ${cell.change! >= 0 ? '+' : ''}${cell.change!.toStringAsFixed(2)}%'}${cell.stale ? (chinese ? ' · 等待更新' : ' · Awaiting update') : ''}',
+              600,
+            ),
+            'color': (cell.stale ? palette.secondary : palette.foreground)
+                .toARGB32(),
+          },
+      ],
+    });
+  }
 
   Future<void> apply(AppConfig value) async {
     if (_saving) throw StateError('设置正在保存，请稍候。');
@@ -82,6 +179,8 @@ class AppController extends ChangeNotifier {
       _config = next;
       _appearancePreview = null;
       data.updateConfig(next);
+      unawaited(configureMonitoring());
+      unawaited(publishTaskbar());
       startupMessage = null;
       // Settings and secret ownership are committed before optional host work.
       try {
@@ -95,7 +194,6 @@ class AppController extends ChangeNotifier {
         startupMessage = '设置已保存；窗口透明度未能应用，重新打开可重试。';
       }
       notifyListeners();
-      unawaited(data.refresh(force: true));
     } finally {
       _saving = false;
     }
@@ -143,6 +241,11 @@ class AppController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _boundsTimer?.cancel();
+    _taskbarTimer?.cancel();
+    metrics.removeListener(_metricsChanged);
+    metrics.dispose();
+    taskbar.removeListener(notifyListeners);
+    taskbar.dispose();
     data.removeListener(notifyListeners);
     data.dispose();
     catalog.removeListener(notifyListeners);

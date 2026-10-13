@@ -220,7 +220,7 @@ Future<void> _openSettings(
   );
   await tester.pumpAndSettle();
   await tester.tap(
-    find.text('CryptoFloat'),
+    find.byKey(const ValueKey('panel-title')),
     buttons: kSecondaryMouseButton,
     kind: PointerDeviceKind.mouse,
   );

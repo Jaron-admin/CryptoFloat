@@ -49,6 +49,10 @@ class MarketDataService extends ChangeNotifier {
   bool _publishedRatesUsable = false;
   bool _disposed = false;
   int _generation = 0;
+  final Map<String, int> _sourceGenerations = {};
+  int _sourceGeneration(String key) => _sourceGenerations[key] ?? 0;
+  bool _sourceCurrent(String key, int generation) =>
+      !_disposed && generation == _sourceGeneration(key);
 
   Map<String, MarketQuote> get quotes => Map.unmodifiable(_quotes);
   bool get refreshing => _running.isNotEmpty;
@@ -63,18 +67,45 @@ class MarketDataService extends ChangeNotifier {
   String? get ratesError => _ratesError;
   Map<String, DateTime> get lastSuccessfulFetchAt =>
       Map.unmodifiable(_lastSuccessfulFetchAt);
-  RefreshStatus get refreshStatus => calculateRefreshStatus(
-    now: _now(),
-    sourceIntervals: {
-      for (final asset in _config.assets)
-        asset.id: asset.provider == 'YAHOO' ? 60 : 15,
-      for (final source in _config.customSources.where(
-        (source) => source.enabled && source.fields.isNotEmpty,
-      ))
-        'custom:${source.id}': source.refreshSeconds.clamp(15, 3600),
-    },
-    lastSuccessfulFetchAt: _lastSuccessfulFetchAt,
-  );
+
+  /// Raw customFieldKey => last successful value, independent of sibling fields.
+  Map<String, DateTime> get customFieldSuccessfulFetchAt => Map.unmodifiable({
+    for (final entry in _lastSuccessfulFetchAt.entries)
+      if (entry.key.startsWith('field:')) entry.key.substring(6): entry.value,
+  });
+
+  RefreshStatus get refreshStatus =>
+      _statusForDependencies(DisplayDependencies.forConfig(_config));
+
+  /// Each display ages only its selected or template-referenced fields.
+  RefreshStatus refreshStatusFor(DisplayTarget target) {
+    final enabled = target == DisplayTarget.floating
+        ? _config.floatingEnabled
+        : _config.taskbar.enabled;
+    return _statusForDependencies(
+      enabled
+          ? DisplayDependencies.forProfile(
+              DisplayProfile.fromConfig(_config.displayFor(target)),
+            )
+          : const DisplayDependencies(),
+    );
+  }
+
+  RefreshStatus _statusForDependencies(DisplayDependencies dependencies) =>
+      calculateRefreshStatus(
+        now: _now(),
+        sourceIntervals: {
+          for (final asset in _config.acquisitionAssets)
+            if (dependencies.assetIds.contains(asset.id))
+              asset.id: asset.provider == 'YAHOO' ? 60 : 15,
+          for (final source in _config.customSources)
+            if (source.enabled)
+              for (final fieldKey in dependencies.customFieldIds)
+                if (fieldKey.startsWith('custom:${source.id}|'))
+                  'field:$fieldKey': source.refreshSeconds.clamp(15, 3600),
+        },
+        lastSuccessfulFetchAt: _lastSuccessfulFetchAt,
+      );
 
   void _tick() {
     if (_disposed) return;
@@ -97,30 +128,57 @@ class MarketDataService extends ChangeNotifier {
 
   void updateConfig(AppConfig config) {
     if (_disposed) return;
-    final changed = _sourceSignature(config) != _sourceSignature(_config);
-    final conversionChanged = config.displayCurrency != _config.displayCurrency;
-    _config = config;
-    final activeKeys = {
-      for (final asset in config.assets) asset.id,
-      for (final source in config.customSources) 'custom:${source.id}',
+    final before = _sourceSignatures(_config);
+    final after = _sourceSignatures(config);
+    final changedKeys = {
+      for (final key in {...before.keys, ...after.keys})
+        if (before[key] != after[key]) key,
     };
+    final conversionChanged =
+        config.needsExchangeRates != _config.needsExchangeRates;
+    final networkChanged =
+        config.proxyEnabled != _config.proxyEnabled ||
+        config.proxyHost != _config.proxyHost ||
+        config.proxyPort != _config.proxyPort;
+    final beforeFields = DisplayDependencies.forConfig(_config).customFieldIds;
+    final addedFields = DisplayDependencies.forConfig(config).customFieldIds
+        .difference(beforeFields);
+    _config = config;
+    final activeKeys = after.keys.toSet();
     _quotes.removeWhere((key, _) => !activeKeys.contains(key));
-    _lastSuccessfulFetchAt.removeWhere((key, _) => !activeKeys.contains(key));
+    _lastSuccessfulFetchAt.removeWhere(
+      (key, _) => !activeKeys.contains(_timestampSourceKey(key)),
+    );
     _nextDue.removeWhere((key, _) => !activeKeys.contains(key));
-    if (changed) {
-      _generation++;
-      _nextDue.clear();
-      // Old work may finish, but must not block requests for the new settings.
-      _running.clear();
-      _ratesRunning = null;
-      _lastSuccessfulFetchAt.clear();
-      for (final key in _quotes.keys.toList()) {
-        _quotes[key] = _quotes[key]!.withError('设置已更新，等待新行情。');
+    for (final key in changedKeys) {
+      _sourceGenerations[key] = _sourceGeneration(key) + 1;
+      _nextDue.remove(key);
+      _running.remove(key);
+      _lastSuccessfulFetchAt.removeWhere(
+        (timestamp, _) => _timestampSourceKey(timestamp) == key,
+      );
+      if (_quotes[key] != null) {
+        _quotes[key] = _quotes[key]!.withError(
+          '设置已更新，等待新行情。',
+          clearFieldTimestamps: true,
+        );
       }
     }
-    if (changed || conversionChanged) _nextRatesDue = null;
+    for (final fieldKey in addedFields) {
+      final separator = fieldKey.indexOf('|');
+      if (separator > 0 &&
+          !_lastSuccessfulFetchAt.containsKey('field:$fieldKey')) {
+        _nextDue.remove(fieldKey.substring(0, separator));
+      }
+    }
+    if (networkChanged) {
+      _generation++;
+      _ratesRunning = null;
+      _nextRatesDue = null;
+    }
     for (final source in config.customSources.where(
-      (source) => !source.enabled,
+      (source) =>
+          !source.enabled && config.activeCustomSourceIds.contains(source.id),
     )) {
       final key = 'custom:${source.id}';
       _quotes[key] = (_quotes[key] ?? _emptyCustomQuote(source)).withError(
@@ -128,7 +186,12 @@ class MarketDataService extends ChangeNotifier {
       );
     }
     _notify();
-    if (changed || conversionChanged) unawaited(refresh());
+    if (changedKeys.isNotEmpty ||
+        addedFields.isNotEmpty ||
+        conversionChanged ||
+        networkChanged) {
+      unawaited(refresh());
+    }
   }
 
   Future<void> refresh({bool force = false}) async {
@@ -139,31 +202,34 @@ class MarketDataService extends ChangeNotifier {
     final pending = <Future<void>>[];
     final ratesJob = _startRates(config, generation, now, force);
     if (ratesJob != null) pending.add(ratesJob);
-    for (final asset in config.assets) {
+    for (final asset in config.acquisitionAssets) {
       final key = asset.id;
+      final sourceGeneration = _sourceGeneration(key);
       final interval = asset.provider == 'YAHOO' ? 60 : 15;
       final job = _start(
         key,
         now,
         interval,
         force,
-        generation,
-        () => _refreshAsset(asset, config, generation),
+        sourceGeneration,
+        () => _refreshAsset(asset, config, sourceGeneration),
       );
       if (job != null) pending.add(job);
     }
     for (final source in config.customSources.where(
-      (source) => source.enabled,
+      (source) =>
+          source.enabled && config.activeCustomSourceIds.contains(source.id),
     )) {
       final key = 'custom:${source.id}';
+      final sourceGeneration = _sourceGeneration(key);
       final interval = source.refreshSeconds.clamp(15, 3600);
       final job = _start(
         key,
         now,
         interval,
         force,
-        generation,
-        () => _refreshCustom(source, config, generation),
+        sourceGeneration,
+        () => _refreshCustom(source, config, sourceGeneration),
       );
       if (job != null) pending.add(job);
     }
@@ -176,9 +242,7 @@ class MarketDataService extends ChangeNotifier {
     DateTime now,
     bool force,
   ) {
-    if (_disposed ||
-        generation != _generation ||
-        config.displayCurrency.trim().isEmpty) {
+    if (_disposed || generation != _generation || !config.needsExchangeRates) {
       return null;
     }
     if (_ratesRunning != null) return _ratesRunning;
@@ -228,7 +292,7 @@ class MarketDataService extends ChangeNotifier {
     int generation,
     Future<void> Function() action,
   ) {
-    if (_disposed || generation != _generation) return null;
+    if (!_sourceCurrent(key, generation)) return null;
     if (_running.containsKey(key)) return _running[key];
     final due = _nextDue[key];
     if (!force && due != null && now.isBefore(due)) return null;
@@ -237,10 +301,10 @@ class MarketDataService extends ChangeNotifier {
     late final Future<void> operation;
     operation =
         Future<void>.microtask(() async {
-          if (_disposed || generation != _generation) return;
+          if (!_sourceCurrent(key, generation)) return;
           await action();
         }).whenComplete(() {
-          if (generation != _generation ||
+          if (!_sourceCurrent(key, generation) ||
               !identical(_running[key], operation)) {
             return;
           }
@@ -259,11 +323,11 @@ class MarketDataService extends ChangeNotifier {
   ) async {
     try {
       final quote = await _provider.fetch(asset, config);
-      if (_disposed || generation != _generation) return;
+      if (!_sourceCurrent(asset.id, generation)) return;
       _quotes[asset.id] = quote;
       _lastSuccessfulFetchAt[asset.id] = _now();
     } on Object catch (error) {
-      if (_disposed || generation != _generation) return;
+      if (!_sourceCurrent(asset.id, generation)) return;
       _quotes[asset.id] =
           (_quotes[asset.id] ??
                   MarketQuote(
@@ -290,22 +354,76 @@ class MarketDataService extends ChangeNotifier {
     final key = 'custom:${source.id}';
     try {
       final document = await _fetchCustom(source, config);
+      if (!_sourceCurrent(key, generation)) return;
+      final sampleTime = _now();
+      final previous = _quotes[key];
       final values = <String, Object?>{
+        ...?previous?.extra,
         'name': source.name,
         'provider': source.name,
         'symbol': source.id,
       };
+      final errors = <String, String>{...?previous?.fieldErrors};
+      final timestamps = <String, DateTime>{...?previous?.fieldUpdatedAt};
+      final selected = {
+        for (final fieldKey in DisplayDependencies.forConfig(
+          _config,
+        ).customFieldIds)
+          if (fieldKey.startsWith('$key|')) fieldKey.substring(key.length + 1),
+      };
+      final successful = <String>{};
       for (final field in source.fields) {
-        final value = resolveJsonPath(document, field.path);
-        if (value is Map || value is List) {
-          throw const SourceException('所选字段需要单个数字、文本或布尔值。');
+        final selectedValue = selected.contains(field.id);
+        final selectedUnit = selected.contains('${field.id}.unit');
+        if (!selectedValue && !selectedUnit) continue;
+        final unitId = '${field.id}.unit';
+        values[unitId] = field.unit;
+        if (selectedUnit) {
+          errors.remove(unitId);
+          timestamps[unitId] = sampleTime;
+          successful.add(unitId);
         }
-        values[field.id] = value;
-        values['${field.id}.unit'] = field.unit;
+        if (!selectedValue) continue;
+        try {
+          final value = resolveJsonPath(document, field.path);
+          if (value == null) throw const SourceException('所选字段暂无有效数据。');
+          if (!(value is String ||
+              value is bool ||
+              value is num && value.isFinite)) {
+            throw const SourceException('所选字段需要单个数字、文本或布尔值。');
+          }
+          values[field.id] = value;
+          timestamps[field.id] = sampleTime;
+          errors.remove(field.id);
+          successful.add(field.id);
+        } on Object catch (error) {
+          errors[field.id] = _friendlyError(error);
+          values[field.id] = timestamps.containsKey(field.id)
+              ? previous?.field(field.id)
+              : null;
+        }
       }
-      if (source.fields.isNotEmpty &&
-          source.fields.every((field) => values[field.id] == null)) {
-        throw const SourceException('所选字段暂无有效数据。');
+      // Template metadata is a valid dependency even without a configured path.
+      final catalogIds = {
+        for (final field in source.fields) field.id,
+        for (final field in source.fields) '${field.id}.unit',
+      };
+      for (final id in selected.difference(catalogIds)) {
+        final value = switch (id) {
+          'name' || 'provider' => source.name,
+          'symbol' => source.id,
+          'updatedAt' => sampleTime,
+          _ => null,
+        };
+        if (value == null) {
+          errors[id] = '所选字段不存在。';
+          if (!timestamps.containsKey(id)) values[id] = null;
+        } else {
+          values[id] = value;
+          timestamps[id] = sampleTime;
+          errors.remove(id);
+          successful.add(id);
+        }
       }
       final number = values['price'];
       final numeric = number is num
@@ -315,24 +433,27 @@ class MarketDataService extends ChangeNotifier {
       final numericChange = change is num
           ? change.toDouble()
           : double.tryParse('$change');
-      if (_disposed || generation != _generation) return;
       _quotes[key] = MarketQuote(
         assetId: key,
         price: numeric != null && numeric.isFinite ? numeric : null,
         currency: values['price.unit'] is String
             ? values['price.unit'] as String
             : '',
-        updatedAt: _now(),
+        updatedAt: sampleTime,
         changePercent: numericChange != null && numericChange.isFinite
             ? numericChange
             : null,
         extra: values,
+        fieldErrors: errors,
+        fieldUpdatedAt: timestamps,
       );
-      if (source.fields.isNotEmpty) {
-        _lastSuccessfulFetchAt[key] = _now();
+      for (final id in successful) {
+        _lastSuccessfulFetchAt['field:${customFieldKey(source.id, id)}'] =
+            sampleTime;
       }
+      if (successful.isNotEmpty) _lastSuccessfulFetchAt[key] = sampleTime;
     } on Object catch (error) {
-      if (_disposed || generation != _generation) return;
+      if (!_sourceCurrent(key, generation)) return;
       _quotes[key] = (_quotes[key] ?? _emptyCustomQuote(source)).withError(
         _friendlyError(error),
       );
@@ -376,10 +497,19 @@ class MarketDataService extends ChangeNotifier {
     extra: {'name': source.name, 'provider': source.name, 'symbol': source.id},
   );
 
-  static String _sourceSignature(AppConfig config) => jsonEncode({
-    'assets': config.assets.map((asset) => asset.toJson()).toList(),
-    'sources': config.customSources.map((source) => source.toJson()).toList(),
-  });
+  static String _timestampSourceKey(String key) {
+    if (!key.startsWith('field:')) return key;
+    final separator = key.indexOf('|', 6);
+    return separator < 0 ? key : key.substring(6, separator);
+  }
+
+  static Map<String, String> _sourceSignatures(AppConfig config) => {
+    for (final asset in config.acquisitionAssets)
+      asset.id: jsonEncode(asset.toJson()),
+    for (final source in config.customSources)
+      if (config.activeCustomSourceIds.contains(source.id))
+        'custom:${source.id}': jsonEncode(source.toJson()),
+  };
 
   static String _friendlyError(Object error) {
     if (error is SourceException) return error.message;

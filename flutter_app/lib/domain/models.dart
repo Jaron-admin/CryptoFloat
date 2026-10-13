@@ -1,5 +1,10 @@
 import 'dart:convert';
 
+import 'display_profile.dart';
+import 'display_dependencies.dart';
+export 'display_profile.dart';
+export 'display_dependencies.dart';
+
 enum MarketKind { crypto, equity }
 
 class Asset {
@@ -351,6 +356,8 @@ class MarketQuote {
     this.changePercent,
     this.extra = const {},
     this.error,
+    this.fieldErrors = const {},
+    this.fieldUpdatedAt = const {},
   });
 
   final String assetId;
@@ -361,7 +368,13 @@ class MarketQuote {
   final Map<String, Object?> extra;
   final String? error;
 
+  /// Custom fields retain their own latest parse result and successful timestamp.
+  final Map<String, String> fieldErrors;
+  final Map<String, DateTime> fieldUpdatedAt;
+
   bool get isStale => error != null;
+  bool isFieldStale(String name) =>
+      error != null || fieldErrors.containsKey(name) || field(name) == null;
 
   Object? field(String name) => extra.containsKey(name)
       ? extra[name]
@@ -373,15 +386,18 @@ class MarketQuote {
           _ => extra[name],
         };
 
-  MarketQuote withError(String message) => MarketQuote(
-    assetId: assetId,
-    price: price,
-    currency: currency,
-    updatedAt: updatedAt,
-    changePercent: changePercent,
-    extra: extra,
-    error: message,
-  );
+  MarketQuote withError(String message, {bool clearFieldTimestamps = false}) =>
+      MarketQuote(
+        assetId: assetId,
+        price: price,
+        currency: currency,
+        updatedAt: updatedAt,
+        changePercent: changePercent,
+        extra: extra,
+        error: message,
+        fieldErrors: fieldErrors,
+        fieldUpdatedAt: clearFieldTimestamps ? const {} : fieldUpdatedAt,
+      );
 }
 
 class WindowBounds {
@@ -602,17 +618,29 @@ class AppConfig {
     this.unitLabels = const {},
     this.displayCurrency = '',
     this.unitRules = const [],
-    this.headerName = 'CryptoFloat',
+    this.headerName = 'MetricPerch',
     this.headerIcon = 'chart',
     this.headerImagePath = '',
     this.showHeaderName = true,
     this.showHeaderIcon = true,
     this.windowBounds,
-    this.schemaVersion = 1,
+    this.schemaVersion = 2,
+    this.floatingEnabled = true,
+    this.selectedMetricIds = const [],
+    this.selectedCustomFieldIds = const [],
+    this.displayOrder = const [],
+    this.systemMonitor = const SystemMonitorSettings(),
+    this.taskbar = const TaskbarConfig(),
     this.language = 'system',
   });
 
   final int schemaVersion;
+  final bool floatingEnabled;
+  final List<String> selectedMetricIds, selectedCustomFieldIds;
+  final List<String> displayOrder;
+  final SystemMonitorSettings systemMonitor;
+  final TaskbarConfig taskbar;
+
   final String language;
   final List<String> selectedAssetIds;
   final List<Asset> customAssets;
@@ -681,7 +709,64 @@ class AppConfig {
         .toList();
   }
 
+  List<Asset> get acquisitionAssets {
+    final ids = DisplayDependencies.forConfig(this).assetIds;
+    final catalog = {
+      for (final asset in Asset.popular) asset.id: asset,
+      for (final asset in customAssets) asset.id: asset,
+    };
+    return [
+      for (final id in ids)
+        if (catalog[id] != null) catalog[id]!,
+    ];
+  }
+
+  Set<String> get activeCustomSourceIds =>
+      DisplayDependencies.forConfig(this).customSourceIds;
+  bool get needsExchangeRates =>
+      (floatingEnabled && displayCurrency.trim().isNotEmpty) ||
+      (taskbar.enabled && taskbar.profile.displayCurrency.trim().isNotEmpty);
+
+  AppConfig displayFor(DisplayTarget target) =>
+      target == DisplayTarget.floating ? this : taskbar.profile.applyTo(this);
+
+  AppConfig withDisplay(DisplayTarget target, AppConfig view) {
+    final shared = copyWith(
+      customAssets: view.customAssets,
+      customSources: view.customSources,
+      systemMonitor: view.systemMonitor,
+      language: view.language,
+      taskbar: view.taskbar,
+      floatingEnabled: view.floatingEnabled,
+      proxyEnabled: view.proxyEnabled,
+      proxyHost: view.proxyHost,
+      proxyPort: view.proxyPort,
+    );
+    if (target == DisplayTarget.floating) {
+      return DisplayProfile.fromConfig(view)
+          .applyTo(shared)
+          .copyWith(
+            alwaysOnTop: view.alwaysOnTop,
+            opacity: view.opacity,
+            windowBounds: view.windowBounds,
+          );
+    }
+    return shared.copyWith(
+      taskbar: shared.taskbar.copyWith(
+        profile: DisplayProfile.fromConfig(view),
+      ),
+    );
+  }
+
   AppConfig copyWith({
+    int? schemaVersion,
+    bool? floatingEnabled,
+    List<String>? selectedMetricIds,
+    List<String>? selectedCustomFieldIds,
+    List<String>? displayOrder,
+    SystemMonitorSettings? systemMonitor,
+    TaskbarConfig? taskbar,
+
     String? language,
     List<String>? selectedAssetIds,
     List<Asset>? customAssets,
@@ -715,7 +800,14 @@ class AppConfig {
     WindowBounds? windowBounds,
     bool clearWindowBounds = false,
   }) => AppConfig(
-    schemaVersion: schemaVersion,
+    schemaVersion: schemaVersion ?? this.schemaVersion,
+    floatingEnabled: floatingEnabled ?? this.floatingEnabled,
+    selectedMetricIds: selectedMetricIds ?? this.selectedMetricIds,
+    displayOrder: displayOrder ?? this.displayOrder,
+    selectedCustomFieldIds:
+        selectedCustomFieldIds ?? this.selectedCustomFieldIds,
+    systemMonitor: systemMonitor ?? this.systemMonitor,
+    taskbar: taskbar ?? this.taskbar,
     language: language ?? this.language,
     selectedAssetIds: selectedAssetIds ?? this.selectedAssetIds,
     customAssets: customAssets ?? this.customAssets,
@@ -751,6 +843,13 @@ class AppConfig {
 
   Map<String, Object?> toJson() => {
     'schemaVersion': schemaVersion,
+    'floatingEnabled': floatingEnabled,
+    'selectedMetricIds': selectedMetricIds,
+    'selectedCustomFieldIds': selectedCustomFieldIds,
+    'displayOrder': displayOrder,
+    'systemMonitor': systemMonitor.toJson(),
+    'taskbar': taskbar.toJson(),
+
     'language': language,
     'selectedAssetIds': selectedAssetIds,
     'customAssets': customAssets.map((asset) => asset.toJson()).toList(),
@@ -791,6 +890,9 @@ class AppConfig {
   };
 
   factory AppConfig.fromJson(Map<String, dynamic> json) {
+    final inputVersion = _int(json['schemaVersion'], 1);
+    if (inputVersion > 2) throw const FormatException('config_future_schema');
+
     final network = _map(json['network']);
     final appearance = _map(json['appearance']);
     final display = _map(json['display']);
@@ -829,8 +931,28 @@ class AppConfig {
         : legacySelected is List
         ? legacySelected.whereType<String>().toList()
         : defaults.selectedAssetIds;
+    final sources = _unique(
+      _maps(json['customSources'] ?? json['custom_sources'])
+          .map(CustomApiSource.fromJson),
+      (source) => source.id,
+    );
+    final rows = _maps(json['displayRows']).map(DisplayRow.fromJson).toList();
     return AppConfig(
-      schemaVersion: _int(json['schemaVersion'], 1),
+      schemaVersion: 2,
+      floatingEnabled: _bool(json['floatingEnabled'], true),
+      selectedMetricIds: _strings(json['selectedMetricIds']),
+      displayOrder: _strings(json['displayOrder']),
+      selectedCustomFieldIds: inputVersion < 2
+          ? legacyCustomFieldSelection(
+              sources,
+              rows,
+              showDefaultRows: _bool(display['showDefaultRows'], true),
+            )
+          : _strings(json['selectedCustomFieldIds']),
+      systemMonitor: SystemMonitorSettings.fromJson(
+        _map(json['systemMonitor']),
+      ),
+      taskbar: TaskbarConfig.fromJson(_map(json['taskbar'])),
       language: ['system', 'zh', 'en'].contains(json['language'])
           ? json['language'] as String
           : 'system',
@@ -840,12 +962,8 @@ class AppConfig {
             .map(Asset.fromJson),
         (asset) => asset.id,
       ),
-      customSources: _unique(
-        _maps(json['customSources'] ?? json['custom_sources'])
-            .map(CustomApiSource.fromJson),
-        (source) => source.id,
-      ),
-      displayRows: _maps(json['displayRows']).map(DisplayRow.fromJson).toList(),
+      customSources: sources,
+      displayRows: rows,
       proxyEnabled: _bool(network['proxyEnabled'], true),
       proxyHost: _string(network['proxyHost'], '127.0.0.1'),
       proxyPort: _int(network['proxyPort'], 7890).clamp(1, 65535),
@@ -900,7 +1018,9 @@ class AppConfig {
       unitRules: _maps(display['unitRules'])
           .map(UnitConversionRule.fromJson)
           .toList(),
-      headerName: _string(appearance['headerName'], 'CryptoFloat'),
+      headerName: appearance['headerName'] is String
+          ? appearance['headerName'] as String
+          : 'MetricPerch',
       headerIcon: _string(appearance['headerIcon'], 'chart'),
       headerImagePath: _string(appearance['headerImagePath'], ''),
       showHeaderName: _bool(appearance['showHeaderName'], true),
@@ -1004,3 +1124,6 @@ Map<String, String> _stringMap(Object? value) => value is Map
 List<Map<String, dynamic>> _maps(Object? value) => value is List
     ? value.whereType<Map<String, dynamic>>().toList()
     : <Map<String, dynamic>>[];
+
+List<String> _strings(Object? value) =>
+    value is List ? value.whereType<String>().toSet().toList() : [];

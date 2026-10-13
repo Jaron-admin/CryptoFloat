@@ -1,7 +1,7 @@
 name: cryptofloat
-description: "Customizable market and API floating panel for desktop."
+description: "MetricPerch: customizable market, API and system metrics for desktop displays."
 publish_to: 'none'
-version: 1.2.0+8
+version: 1.3.0+9
 
 environment:
   sdk: ^3.13.4

@@ -720,7 +720,7 @@ class ThemePalettePreview extends StatelessWidget {
         Text(label, style: TextStyle(color: palette.secondary, fontSize: 12)),
         const SizedBox(height: 14),
         Text(
-          'CryptoFloat',
+          'MetricPerch',
           style: TextStyle(
             color: palette.foreground,
             fontSize: 16,

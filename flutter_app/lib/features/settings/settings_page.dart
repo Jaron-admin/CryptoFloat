@@ -8,6 +8,10 @@ import 'fluent_controls.dart';
 
 import '../../app/app_controller.dart';
 import '../../domain/models.dart';
+import '../../domain/display_snapshot.dart';
+import '../../l10n/metrics_strings.dart';
+import 'system_monitor_settings.dart';
+import 'taskbar_settings.dart';
 import '../../l10n/l10n.dart';
 import '../../platform/system_fonts.dart';
 import '../../platform/header_image_store.dart';
@@ -35,7 +39,37 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  late AppConfig _draft;
+  late AppConfig _rootDraft;
+  DisplayTarget _target = DisplayTarget.floating;
+  AppConfig get _draft => _rootDraft.displayFor(_target);
+  set _draft(AppConfig value) {
+    final before = _draft;
+    var updated = value;
+    if (value.displayOrder.isNotEmpty &&
+        encodeJson(value.displayOrder) == encodeJson(before.displayOrder)) {
+      final groups = <String, (List<String>, List<String>)>{
+        'asset:': (before.selectedAssetIds, value.selectedAssetIds),
+        'metric:': (before.selectedMetricIds, value.selectedMetricIds),
+        'row:': (
+          before.displayRows.map((row) => row.id).toList(),
+          value.displayRows.map((row) => row.id).toList(),
+        ),
+      };
+      for (final entry in groups.entries) {
+        if (encodeJson(entry.value.$1) != encodeJson(entry.value.$2)) {
+          updated = updated.copyWith(
+            displayOrder: reorderDisplayGroup(
+              updated.displayOrder,
+              entry.key,
+              entry.value.$2.map((id) => '${entry.key}$id').toList(),
+            ),
+          );
+        }
+      }
+    }
+    _rootDraft = _rootDraft.withDisplay(_target, updated);
+  }
+
   int _section = 0;
   String _search = '';
   String _kind = 'all';
@@ -68,7 +102,7 @@ class _SettingsPageState extends State<SettingsPage> {
   final Set<String> _createdSecrets = {};
 
   bool get _dirty {
-    final draft = Map<String, Object?>.of(_draft.toJson())
+    final draft = Map<String, Object?>.of(_rootDraft.toJson())
       ..remove('windowBounds');
     final saved = Map<String, Object?>.of(widget.controller.config.toJson())
       ..remove('windowBounds');
@@ -78,7 +112,7 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
-    _draft = widget.controller.config;
+    _rootDraft = widget.controller.config;
     _resetCatalogOrder();
     widget.controller.catalog.addListener(_catalogChanged);
     _exitGuard = () => _requestLeave(exitApp: true);
@@ -117,7 +151,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (_draft.language != value.language) _error = null;
       _draft = value;
     });
-    widget.controller.previewAppearance(value);
+    widget.controller.previewAppearance(_rootDraft);
   }
 
   Future<void> _close() async {
@@ -168,7 +202,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) return false;
       widget.controller.clearAppearancePreview();
       if (exitApp) {
-        setState(() => _draft = widget.controller.config);
+        setState(() => _rootDraft = widget.controller.config);
       } else {
         widget.onClose();
       }
@@ -192,7 +226,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<bool> _save({bool closeSettings = true}) async {
     if (_saving || _pickingImage) return false;
-    final draftToSave = _draft;
+    final draftToSave = _rootDraft;
     setState(() {
       _saving = true;
       _error = null;
@@ -242,6 +276,39 @@ class _SettingsPageState extends State<SettingsPage> {
         child: Column(
           children: [
             _settingsHeader(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<DisplayTarget>(
+                  key: const ValueKey('display-target-selector'),
+                  showSelectedIcon: false,
+                  segments: [
+                    ButtonSegment(
+                      value: DisplayTarget.floating,
+                      icon: const Icon(Icons.picture_in_picture_alt, size: 18),
+                      label: Text(context.metrics.floating),
+                    ),
+                    ButtonSegment(
+                      value: DisplayTarget.taskbar,
+                      icon: const Icon(Icons.dock_outlined, size: 18),
+                      label: Text(context.metrics.taskbar),
+                    ),
+                  ],
+                  selected: {_target},
+                  onSelectionChanged: (values) => setState(() {
+                    _target = values.single;
+                    _resetCatalogOrder();
+                    _assetPage = 0;
+                    _assetSearch.clear();
+                    _search = '';
+                    if (_scrollController.hasClients) {
+                      _scrollController.jumpTo(0);
+                    }
+                  }),
+                ),
+              ),
+            ),
             if (_error != null)
               Container(
                 width: double.infinity,
@@ -533,7 +600,29 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       _anchor('units', _unitOptions()),
     ]),
-    _ => _window(),
+    5 =>
+      _target == DisplayTarget.taskbar
+          ? _page([
+              TaskbarSettingsView(
+                config: _draft,
+                snapshot: widget.controller.metrics.snapshot,
+                quotes: widget.controller.displayQuotes,
+                rates: widget.controller.data.exchangeRates,
+                status: widget.controller.taskbar.state,
+                onChanged: _preview,
+              ),
+            ])
+          : _window(),
+    _ => _page([
+      _anchor(
+        'metrics',
+        SystemMonitorSettingsView(
+          config: _draft,
+          snapshot: widget.controller.metrics.snapshot,
+          onChanged: _preview,
+        ),
+      ),
+    ]),
   };
 
   void _selectSection(int section, {String? anchor}) {
@@ -1265,11 +1354,13 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final imported = await widget.controller.store.importLegacy(path);
       if (mounted) {
-        _preview(imported);
         setState(() {
+          _rootDraft = imported;
+          _target = DisplayTarget.floating;
           _resetCatalogOrder();
           _assetPage = 0;
         });
+        widget.controller.previewAppearance(_rootDraft);
       }
     } catch (error) {
       if (mounted) {
@@ -1339,13 +1430,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   icon: const Icon(Icons.edit_outlined),
                 ),
                 FIconButton(
-                  onPressed: () => setState(
-                    () => _draft = _draft.copyWith(
-                      customSources: _draft.customSources
-                          .where((item) => item.id != source.id)
-                          .toList(),
-                    ),
-                  ),
+                  onPressed: () => _removeSource(source),
                   tooltip: context.l10n.settingRemove,
                   icon: const Icon(Icons.delete_outline),
                 ),
@@ -1365,7 +1450,21 @@ class _SettingsPageState extends State<SettingsPage> {
               runSpacing: 8,
               children: [
                 for (final field in source.fields)
-                  _SettingTag(
+                  FilterChip(
+                    selected: _draft.selectedCustomFieldIds.contains(
+                      customFieldKey(source.id, field.id),
+                    ),
+                    onSelected: (selected) => setState(() {
+                      final key = customFieldKey(source.id, field.id);
+                      _draft = _draft.copyWith(
+                        selectedCustomFieldIds: [
+                          ..._draft.selectedCustomFieldIds.where(
+                            (value) => value != key,
+                          ),
+                          if (selected) key,
+                        ],
+                      );
+                    }),
                     label: Text(
                       '${field.label}${field.unit.isEmpty ? '' : ' · ${field.unit}'}',
                     ),
@@ -1400,18 +1499,64 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     if (result == null || !mounted) return;
     _createdSecrets.addAll(result.createdSecretKeys);
+    final removed =
+        source?.fields
+            .where(
+              (field) =>
+                  !result.source.fields.any((next) => next.id == field.id),
+            )
+            .expand(
+              (field) => [
+                customFieldKey(source.id, field.id),
+                customFieldKey(source.id, '${field.id}.unit'),
+              ],
+            )
+            .toSet() ??
+        <String>{};
+    if (DisplayDependencies.forConfig(
+      _rootDraft,
+      includeDisabled: true,
+    ).customFieldIds.any(removed.contains)) {
+      setState(() => _error = context.metrics.removeSourceBody);
+      return;
+    }
     setState(
       () => _draft = _draft.copyWith(
         customSources: [
           ..._draft.customSources.where((item) => item.id != result.source.id),
           result.source,
         ],
+        selectedCustomFieldIds: source == null
+            ? [
+                ..._draft.selectedCustomFieldIds,
+                for (final field in result.source.fields)
+                  customFieldKey(result.source.id, field.id),
+              ]
+            : _draft.selectedCustomFieldIds,
+      ),
+    );
+  }
+
+  void _removeSource(CustomApiSource source) {
+    if (DisplayDependencies.forConfig(
+      _rootDraft,
+      includeDisabled: true,
+    ).customSourceIds.contains(source.id)) {
+      setState(() => _error = context.metrics.removeSourceBody);
+      return;
+    }
+    setState(
+      () => _draft = _draft.copyWith(
+        customSources: _draft.customSources
+            .where((item) => item.id != source.id)
+            .toList(),
       ),
     );
   }
 
   Widget _rows() => _page([
     _intro(context.l10n.settingLayout, context.l10n.settingLayoutDescription),
+    _displayOrder(),
     _anchor(
       'default-rows',
       _card(
@@ -1534,7 +1679,7 @@ class _SettingsPageState extends State<SettingsPage> {
               child: DisplayRowView(
                 row: _draft.displayRows[i],
                 config: _draft,
-                quotes: widget.controller.data.quotes,
+                quotes: widget.controller.displayQuotes,
                 rates: widget.controller.data.exchangeRates,
                 showFreshness: false,
               ),
@@ -1551,12 +1696,76 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _draft = _draft.copyWith(displayRows: rows));
   }
 
+  Widget _displayOrder() {
+    final items = buildDisplayTexts(
+      _draft,
+      widget.controller.displayQuotes,
+      widget.controller.metrics.snapshot,
+      rates: widget.controller.data.exchangeRates,
+    );
+    void move(int oldIndex, int newIndex) {
+      final order = items.map((item) => item.id).toList();
+      order.insert(newIndex, order.removeAt(oldIndex));
+      setState(() => _draft = _draft.copyWith(displayOrder: order));
+    }
+
+    return _card(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.l10n.settingCatalogOrder,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          ReorderableListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            buildDefaultDragHandles: false,
+            itemCount: items.length,
+            onReorderItem: move,
+            itemBuilder: (context, index) => Row(
+              key: ValueKey('display-order-${items[index].id}'),
+              children: [
+                ReorderableDragStartListener(
+                  index: index,
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.drag_indicator, size: 18),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    items[index].text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  tooltip: context.metrics.up,
+                  onPressed: index == 0 ? null : () => move(index, index - 1),
+                  icon: const Icon(Icons.arrow_upward, size: 17),
+                ),
+                IconButton(
+                  tooltip: context.metrics.down,
+                  onPressed: index == items.length - 1
+                      ? null
+                      : () => move(index, index + 1),
+                  icon: const Icon(Icons.arrow_downward, size: 17),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _editRow(DisplayRow? row) async {
     final result = await showDialog<DisplayRow>(
       context: context,
       builder: (context) => RowEditor(
         config: _draft,
-        quotes: widget.controller.data.quotes,
+        quotes: widget.controller.displayQuotes,
         rates: widget.controller.data.exchangeRates,
         row: row,
       ),
@@ -1604,19 +1813,20 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     ),
-    _anchor(
-      'opacity',
-      _card(
-        _slider(
-          context.l10n.settingOpacity,
-          1 - _draft.opacity,
-          0,
-          0.6,
-          '${((1 - _draft.opacity) * 100).round()}%',
-          (value) => _draft = _draft.copyWith(opacity: 1 - value),
+    if (_target == DisplayTarget.floating)
+      _anchor(
+        'opacity',
+        _card(
+          _slider(
+            context.l10n.settingOpacity,
+            1 - _draft.opacity,
+            0,
+            0.6,
+            '${((1 - _draft.opacity) * 100).round()}%',
+            (value) => _draft = _draft.copyWith(opacity: 1 - value),
+          ),
         ),
       ),
-    ),
     _anchor(
       'themes',
       _card(SettingsThemePicker(config: _draft, onChanged: _preview)),
@@ -1713,11 +1923,21 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     ),
-    _anchor('header', _headerOptions()),
+    if (_target == DisplayTarget.floating) _anchor('header', _headerOptions()),
   ]);
 
   Widget _window() => _page([
     _intro(context.l10n.settingWindow, context.l10n.settingWindowDescription),
+    _card(
+      SwitchListTile(
+        contentPadding: EdgeInsets.zero,
+        title: Text(context.metrics.showFloating),
+        value: _rootDraft.floatingEnabled,
+        onChanged: (value) => setState(
+          () => _rootDraft = _rootDraft.copyWith(floatingEnabled: value),
+        ),
+      ),
+    ),
     _anchor(
       'window',
       _card(
@@ -2355,7 +2575,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ? _draft.copyWith(numberFontFamily: font)
             : _draft.copyWith(fontFamily: font),
       );
-      widget.controller.previewAppearance(_draft);
+      widget.controller.previewAppearance(_rootDraft);
     }
   }
 }

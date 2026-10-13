@@ -412,7 +412,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editRepoName => 'Repository name';
 
   @override
-  String get editRepoNameHint => 'For example: CryptoFloat';
+  String get editRepoNameHint => 'For example: MetricPerch';
 
   @override
   String editHeaderMissingSecret(String name) {
@@ -1081,7 +1081,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingReturnToPanel => 'Return to panel';
 
   @override
-  String get settingTitle => 'CryptoFloat Settings';
+  String get settingTitle => 'MetricPerch Settings';
 
   @override
   String get settingSaving => 'Saving…';

@@ -69,15 +69,47 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
   bool _settings = false;
   int _settingsSection = 0;
   StreamSubscription<String>? _traySubscription;
+  StreamSubscription<String>? _taskbarSubscription;
 
   @override
   void initState() {
     super.initState();
+    _taskbarSubscription = widget.controller.taskbar.actions.listen((
+      action,
+    ) async {
+      switch (action) {
+        case 'settings':
+          await widget.controller.tray.show();
+          if (!_settings) await _showSettings(true);
+        case 'show':
+          await widget.controller.tray.show();
+        case 'refresh':
+          unawaited(widget.controller.data.refresh(force: true));
+          unawaited(widget.controller.metrics.refresh());
+        case 'disable':
+          final config = widget.controller.config;
+          try {
+            await widget.controller.apply(
+              config.copyWith(taskbar: config.taskbar.copyWith(enabled: false)),
+            );
+          } catch (_) {
+            if (!_settings) await _showSettings(true);
+          }
+        case 'exit':
+          await widget.controller.close();
+      }
+    });
+    if (!widget.controller.config.floatingEnabled) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => widget.controller.hideToTray(),
+      );
+    }
     _traySubscription = widget.controller.tray.actions.listen((action) {
       switch (action) {
         case 'settings':
           if (!_settings) unawaited(_showSettings(true));
         case 'refresh':
+          unawaited(widget.controller.metrics.refresh());
           unawaited(widget.controller.data.refresh(force: true));
         case 'exit':
           unawaited(widget.controller.close());
@@ -91,6 +123,7 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
   Future<void> _showSettings(bool value, [int section = 0]) async {
     if (value) await widget.controller.rememberBounds();
     widget.controller.settingsOpen = value;
+    unawaited(widget.controller.configureMonitoring());
     try {
       await widget.controller.host.setSettingsMode(value);
     } catch (_) {
@@ -101,12 +134,16 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
         _settings = value;
         _settingsSection = section;
       });
+      if (!value && !widget.controller.config.floatingEnabled) {
+        unawaited(widget.controller.hideToTray());
+      }
     }
   }
 
   @override
   void dispose() {
     unawaited(_traySubscription?.cancel());
+    unawaited(_taskbarSubscription?.cancel());
     widget.controller.dispose();
     super.dispose();
   }
@@ -117,7 +154,7 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
     builder: (context, child) {
       final config = widget.controller.appearanceConfig;
       return MaterialApp(
-        title: 'CryptoFloat',
+        title: 'MetricPerch · 数栖',
         debugShowCheckedModeBanner: false,
         locale: config.language == 'system' ? null : Locale(config.language),
         supportedLocales: AppLocalizations.supportedLocales,

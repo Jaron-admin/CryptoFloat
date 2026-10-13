@@ -128,7 +128,7 @@
   "editRepoOwner": "Repository owner",
   "editRepoOwnerHint": "For example: flutter",
   "editRepoName": "Repository name",
-  "editRepoNameHint": "For example: CryptoFloat",
+  "editRepoNameHint": "For example: MetricPerch",
   "editHeaderMissingSecret": "Enter the secret for {name}.",
   "@editHeaderMissingSecret": {
     "placeholders": {
@@ -475,7 +475,7 @@
   "settingSaveAndReturn": "Save and return",
   "settingActionFailed": "Unable to complete the action",
   "settingReturnToPanel": "Return to panel",
-  "settingTitle": "CryptoFloat Settings",
+  "settingTitle": "MetricPerch Settings",
   "settingSaving": "Saving…",
   "settingUnsaved": "Unsaved",
   "settingSaved": "Saved",

@@ -142,6 +142,11 @@ AppConfig importLegacyConfig(Map<String, dynamic> legacy) {
         .toList(),
     customSources: importedSources,
     displayRows: legacyRows is List ? rows : parsed.displayRows,
+    selectedCustomFieldIds: legacyCustomFieldSelection(
+      importedSources,
+      legacyRows is List ? rows : parsed.displayRows,
+      showDefaultRows: parsed.showDefaultRows,
+    ),
     windowBounds: bounds,
   );
 }

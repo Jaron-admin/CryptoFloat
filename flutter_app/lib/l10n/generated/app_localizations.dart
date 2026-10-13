@@ -869,7 +869,7 @@ abstract class AppLocalizations {
   /// No description provided for @editRepoNameHint.
   ///
   /// In en, this message translates to:
-  /// **'For example: CryptoFloat'**
+  /// **'For example: MetricPerch'**
   String get editRepoNameHint;
 
   /// No description provided for @editHeaderMissingSecret.
@@ -1949,7 +1949,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingTitle.
   ///
   /// In en, this message translates to:
-  /// **'CryptoFloat Settings'**
+  /// **'MetricPerch Settings'**
   String get settingTitle;
 
   /// No description provided for @settingSaving.

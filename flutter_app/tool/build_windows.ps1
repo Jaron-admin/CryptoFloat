@@ -1,4 +1,4 @@
-param([string]$Flutter = 'flutter', [string]$PackageName = 'CryptoFloat-Windows-x64')
+param([string]$Flutter = 'flutter', [string]$PackageName = 'MetricPerch-Windows-x64-1.3.0')
 $ErrorActionPreference = 'Stop'
 $appRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $repoRoot = [System.IO.Directory]::GetParent($appRoot).FullName
@@ -59,7 +59,8 @@ try {
     # locally and contain personal user_data. Add future runtime assets here
     # deliberately rather than widening these lists to all files or directories.
     foreach ($relativePath in @(
-        'cryptofloat.exe',
+        'metricperch.exe',
+        'metricperch_taskbar.exe',
         'flutter_windows.dll',
         'file_selector_windows_plugin.dll',
         'data\app.so',
@@ -82,7 +83,7 @@ try {
     $englishUsage = [System.IO.File]::ReadAllText((Join-Path $appRoot 'README.en.md'))
     $englishUsage = $englishUsage.Replace('(README.md)', '(使用说明.md)').Replace('(../LICENSE)', '(LICENSE)').Replace('(../THIRD_PARTY_NOTICES.md)', '(THIRD_PARTY_NOTICES.md)')
     [System.IO.File]::WriteAllText((Join-Path $stagePackage 'USAGE.en.md'), $englishUsage, $utf8)
-    foreach ($documentName in @('LICENSE', 'THIRD_PARTY_NOTICES.md', 'licenses\MaterialIcons.txt')) {
+    foreach ($documentName in @('LICENSE', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md', 'licenses\MaterialIcons.txt')) {
         $documentTarget = Join-Path $stagePackage $documentName
         [System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($documentTarget)) | Out-Null
         Copy-Item -LiteralPath (Join-Path $repoRoot $documentName) -Destination $documentTarget

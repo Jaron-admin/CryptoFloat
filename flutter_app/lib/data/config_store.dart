@@ -17,6 +17,8 @@ class ConfigStore {
   String? resourcePath(String reference) =>
       portableResourcePath(directory, reference);
   String? loadWarning;
+  String? _saveBlockedReason;
+  bool get canSave => _saveBlockedReason == null;
   Future<void> _writeQueue = Future<void>.value();
   static const _maxConfigBytes = 2 * 1024 * 1024;
 
@@ -44,17 +46,24 @@ class ConfigStore {
 
   Future<AppConfig> load() async {
     loadWarning = null;
+    _saveBlockedReason = null;
     final file = File(configPath);
     if (!await file.exists()) return AppConfig.defaults;
     try {
       return await _read(file);
-    } on Object {
+    } on Object catch (error) {
+      if (error is FormatException && error.message == 'config_future_schema') {
+        _saveBlockedReason = 'config_future_schema';
+        loadWarning = '设置文件版本比本应用更新，已保留原文件并禁止覆盖。';
+      }
       try {
         final config = await _read(File('$configPath.bak'));
-        loadWarning = '设置文件无法读取，已恢复上次备份。原文件保留。';
+        loadWarning ??= '设置文件无法读取，已恢复上次备份。原文件保留。';
         return config;
       } on Object {
-        loadWarning = '设置文件无法读取，已使用默认设置。原文件保留。';
+        loadWarning ??= _saveBlockedReason != null
+            ? '设置文件版本比本应用更新，已保留原文件并禁止覆盖。'
+            : '设置文件无法读取，已使用默认设置。原文件保留。';
         return AppConfig.defaults;
       }
     }
@@ -69,10 +78,20 @@ class ConfigStore {
       throw const FormatException('设置文件需要 JSON 对象。');
     }
     final version = decoded['schemaVersion'];
-    if (version is num && version > 1) {
-      throw const FormatException('设置文件版本比本应用更新。');
+    final numericVersion = version is num
+        ? version
+        : int.tryParse('$version') ?? 1;
+    if (numericVersion > 2) {
+      _saveBlockedReason = 'config_future_schema';
+      throw const FormatException('config_future_schema');
     }
-    return AppConfig.fromJson(decoded);
+    final config = AppConfig.fromJson(decoded);
+    // Keep the exact original across later rolling backups and repeated launches.
+    if (numericVersion < 2) {
+      final original = File('$configPath.schema1.bak');
+      if (!await original.exists()) await file.copy(original.path);
+    }
+    return config;
   }
 
   /// Serializes concurrent saves; each replacement is renamed on the same disk.
@@ -92,6 +111,21 @@ class ConfigStore {
   }
 
   Future<void> _save(AppConfig config) async {
+    if (_saveBlockedReason != null || config.schemaVersion > 2) {
+      throw const FormatException('config_future_schema');
+    }
+    final target = File(configPath);
+    // Recheck disk state so a future file appearing after load stays protected.
+    if (await target.exists()) {
+      try {
+        await _read(target);
+      } on FormatException catch (error) {
+        if (error.message == 'config_future_schema') {
+          _saveBlockedReason = 'config_future_schema';
+          rethrow;
+        }
+      }
+    }
     for (final source in config.customSources) {
       validateSource(source);
     }
@@ -99,7 +133,6 @@ class ConfigStore {
     if (utf8.encode(encoded).length > _maxConfigBytes) {
       throw const FormatException('设置内容超过 2 MB。');
     }
-    final target = File(configPath);
     await target.parent.create(recursive: true);
     final suffix = '${pid}_${DateTime.now().microsecondsSinceEpoch}';
     final temporary = File('$configPath.$suffix.tmp');
@@ -112,7 +145,8 @@ class ConfigStore {
           await _read(target);
           await target.copy(temporaryBackup.path);
           await temporaryBackup.rename('$configPath.bak');
-        } on FormatException {
+        } on FormatException catch (error) {
+          if (error.message == 'config_future_schema') rethrow;
           await target.copy('$configPath.corrupt.$suffix');
         }
       }

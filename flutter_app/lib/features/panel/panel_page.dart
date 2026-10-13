@@ -7,6 +7,9 @@ import '../../app/theme_presets.dart';
 import '../../domain/display_formatter.dart';
 import '../../domain/models.dart';
 import '../../domain/refresh_status.dart';
+import '../../domain/system_metric.dart';
+import '../../domain/display_snapshot.dart';
+import '../../l10n/metrics_strings.dart';
 import '../../domain/unit_conversion.dart';
 import '../../platform/system_fonts.dart';
 import 'display_row_view.dart';
@@ -82,6 +85,7 @@ class PanelPage extends StatelessWidget {
           ),
         );
       case 'refresh':
+        await controller.metrics.refresh();
         await controller.data.refresh(force: true);
       case 'exit':
         await controller.close();
@@ -91,7 +95,7 @@ class PanelPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final config = controller.config;
-    final quotes = controller.data.quotes;
+    final quotes = controller.displayQuotes;
     final rates = controller.data.exchangeRates;
     final priceStyle = TextStyle(
       fontFamily: SystemFonts.family(config.numberFontFamily),
@@ -109,10 +113,52 @@ class PanelPage extends StatelessWidget {
         (source) => source.enabled,
       ))
         for (final field in source.fields)
-          if (!referenced.contains('custom:${source.id}|${field.id}'))
+          if (config.selectedCustomFieldIds.contains(
+                customFieldKey(source.id, field.id),
+              ) &&
+              !referenced.contains('custom:${source.id}|${field.id}'))
             (source, field),
     ];
-    final status = controller.data.refreshStatus;
+    final status = controller.refreshStatusFor(config);
+    final content = <String, Widget>{
+      if (config.showDefaultRows)
+        for (final asset in config.assets)
+          'asset:${asset.id}': _AssetRow(
+            asset: asset,
+            quote: quotes[asset.id],
+            style: priceStyle,
+            spacing: config.rowSpacing,
+            config: config,
+            rates: rates,
+          ),
+      for (final id in config.selectedMetricIds)
+        'metric:$id': _MetricRow(
+          id: id,
+          config: config,
+          snapshot: controller.metrics.snapshot,
+          style: priceStyle,
+        ),
+      for (final pair in automaticFields)
+        'field:${customFieldKey(pair.$1.id, pair.$2.id)}': _CustomFieldRow(
+          source: pair.$1,
+          field: pair.$2,
+          quote: quotes['custom:${pair.$1.id}'],
+          style: priceStyle,
+          spacing: config.rowSpacing,
+          config: config,
+          rates: rates,
+        ),
+      for (final row in config.displayRows)
+        'row:${row.id}': Padding(
+          padding: EdgeInsets.symmetric(vertical: config.rowSpacing / 2 + 3),
+          child: DisplayRowView(
+            row: row,
+            config: config,
+            quotes: quotes,
+            rates: rates,
+          ),
+        ),
+    };
     final l10n = context.l10n;
     final intervalText = status.intervalsSeconds.isEmpty
         ? ''
@@ -189,6 +235,7 @@ class PanelPage extends StatelessWidget {
                           Expanded(
                             child: Text(
                               config.headerName,
+                              key: const ValueKey('panel-title'),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -219,41 +266,17 @@ class PanelPage extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(12, 5, 12, 8),
                   children: [
-                    if (config.showDefaultRows)
-                      for (final asset in config.assets)
-                        _AssetRow(
-                          asset: asset,
-                          quote: quotes[asset.id],
-                          style: priceStyle,
-                          spacing: config.rowSpacing,
-                          config: config,
-                          rates: rates,
-                        ),
-                    for (final pair in automaticFields)
-                      _CustomFieldRow(
-                        source: pair.$1,
-                        field: pair.$2,
-                        quote: quotes['custom:${pair.$1.id}'],
-                        style: priceStyle,
-                        spacing: config.rowSpacing,
-                        config: config,
-                        rates: rates,
+                    for (final id in buildDisplayTexts(
+                      config,
+                      quotes,
+                      controller.metrics.snapshot,
+                      rates: rates,
+                    ).map((entry) => entry.id))
+                      KeyedSubtree(
+                        key: ValueKey('panel-$id'),
+                        child: content[id]!,
                       ),
-                    for (final row in config.displayRows)
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          vertical: config.rowSpacing / 2 + 3,
-                        ),
-                        child: DisplayRowView(
-                          row: row,
-                          config: config,
-                          quotes: quotes,
-                          rates: rates,
-                        ),
-                      ),
-                    if ((!config.showDefaultRows || config.assets.isEmpty) &&
-                        automaticFields.isEmpty &&
-                        config.displayRows.isEmpty)
+                    if (content.isEmpty)
                       _EmptyPanel(onSettings: () => onSettings(0)),
                   ],
                 ),
@@ -296,6 +319,61 @@ class PanelPage extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetricRow extends StatelessWidget {
+  const _MetricRow({
+    required this.id,
+    required this.config,
+    required this.snapshot,
+    required this.style,
+  });
+  final String id;
+  final AppConfig config;
+  final SystemMetricSnapshot snapshot;
+  final TextStyle style;
+  @override
+  Widget build(BuildContext context) {
+    final metric = systemMetricCatalog
+        .where((entry) => entry.id == id)
+        .firstOrNull;
+    if (metric == null) return const SizedBox.shrink();
+    final reading = snapshot.reading(
+      id,
+      intervalSeconds: config.systemMonitor.intervalSeconds,
+    );
+    final text = metricTextFor(id, reading, config);
+    final device = id.startsWith('gpu.')
+        ? snapshot.gpuName
+        : id.startsWith('network.')
+        ? snapshot.networkName
+        : id.startsWith('disk.')
+        ? snapshot.diskName
+        : '';
+    return Tooltip(
+      message:
+          '${metric.name(context.metrics.chinese)}${device.isEmpty ? '' : '\n$device'}${reading?.valid == true ? '' : '\n${context.metrics.unavailable}'}',
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: config.rowSpacing / 2 + 3),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                metric.name(context.metrics.chinese),
+                style: TextStyle(
+                  fontFamily: SystemFonts.family(config.fontFamily),
+                  fontSize: config.fontSize,
+                ),
+              ),
+            ),
+            Flexible(
+              child: Text(text.text, style: style, textAlign: TextAlign.right),
+            ),
+          ],
         ),
       ),
     );
@@ -481,11 +559,11 @@ class _CustomFieldRow extends StatelessWidget {
     final unit = displayUnitLabel(converted?.unit ?? field.unit, config);
     return Tooltip(
       message:
-          '${source.name}\n${quote?.error != null
-              ? localizeAppError(context, quote!.error)
+          '${source.name}\n${(quote?.fieldErrors[field.id] ?? quote?.error) != null
+              ? localizeAppError(context, quote!.fieldErrors[field.id] ?? quote!.error)
               : quote == null
               ? context.l10n.panelWaiting
-              : context.l10n.panelUpdated(localizedValue(quote!.updatedAt, context.l10n))}${converted?.error == null ? '' : '\n${localizeAppError(context, converted!.error)}'}',
+              : context.l10n.panelUpdated(localizedValue((quote!.fieldUpdatedAt[field.id] ?? quote!.updatedAt), context.l10n))}${converted?.error == null ? '' : '\n${localizeAppError(context, converted!.error)}'}',
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: spacing / 2 + 3),
         child: Row(
@@ -519,7 +597,8 @@ class _CustomFieldRow extends StatelessWidget {
                   ),
                 ),
               ),
-            if (quote?.isStale == true || converted?.error != null)
+            if (quote?.isFieldStale(field.id) == true ||
+                converted?.error != null)
               Padding(
                 padding: EdgeInsets.only(left: 4),
                 child: Icon(

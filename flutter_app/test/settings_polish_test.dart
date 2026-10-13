@@ -14,7 +14,7 @@ import 'support/settings_fakes.dart';
 
 Future<void> openSettings(WidgetTester tester) async {
   await tester.tap(
-    find.text('CryptoFloat'),
+    find.byKey(const ValueKey('panel-title')),
     buttons: kSecondaryMouseButton,
     kind: PointerDeviceKind.mouse,
   );
@@ -293,7 +293,7 @@ void main() {
       await tester.tap(find.text('保存并返回'));
       await tester.pumpAndSettle();
       expect(store.saved?.headerImagePath, '');
-      expect(store.saved?.headerName, 'CryptoFloat');
+      expect(store.saved?.headerName, AppConfig.defaults.headerName);
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
@@ -365,7 +365,7 @@ void main() {
     await tester.pumpWidget(CryptoFloatApp(controller: controller));
     await tester.pumpAndSettle();
     await openSettings(tester);
-    await tester.drag(find.text('CryptoFloat 设置'), const Offset(40, 0));
+    await tester.drag(find.text('MetricPerch 设置'), const Offset(40, 0));
     await tester.pumpAndSettle();
     expect(host.drags, 1);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -526,7 +526,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('保存并返回'));
     await tester.pumpAndSettle();
-    expect(find.text('CryptoFloat'), findsOneWidget);
+    expect(find.byKey(const ValueKey('panel-title')), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -554,7 +554,7 @@ void main() {
     await tester.tap(find.text('保存并返回'));
     await tester.pumpAndSettle();
     expect(controller.config.fontFamily, 'Consolas');
-    expect(find.text('CryptoFloat'), findsOneWidget);
+    expect(find.byKey(const ValueKey('panel-title')), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });

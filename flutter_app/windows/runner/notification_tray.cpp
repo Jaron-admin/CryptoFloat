@@ -38,7 +38,7 @@ bool NotificationTray::EnsureIcon() {
   data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP;
   data.uCallbackMessage = kTrayMessage;
   data.hIcon = icon_;
-  wcscpy_s(data.szTip, L"CryptoFloat");
+  wcscpy_s(data.szTip, L"MetricPerch");
   if (registered_ && Shell_NotifyIconW(NIM_MODIFY, &data)) return true;
   registered_ = Shell_NotifyIconW(NIM_ADD, &data) != FALSE;
   if (!registered_) return false;

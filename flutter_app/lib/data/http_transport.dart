@@ -128,7 +128,7 @@ class HttpTransport {
     final client = HttpClient()
       ..connectionTimeout = timeout
       ..idleTimeout = const Duration(seconds: 5)
-      ..userAgent = 'CryptoFloat/1.2.0'
+      ..userAgent = 'MetricPerch/1.3.0'
       ..findProxy = (_) => proxy;
     _clients.add(client);
     try {

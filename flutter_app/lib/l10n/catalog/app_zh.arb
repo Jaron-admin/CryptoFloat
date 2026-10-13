@@ -128,7 +128,7 @@
   "editRepoOwner": "仓库拥有者",
   "editRepoOwnerHint": "例如 flutter",
   "editRepoName": "仓库名称",
-  "editRepoNameHint": "例如 CryptoFloat",
+  "editRepoNameHint": "例如 MetricPerch",
   "editHeaderMissingSecret": "请填写 {name} 的密钥。",
   "@editHeaderMissingSecret": {
     "placeholders": {
@@ -461,7 +461,7 @@
   "settingSaveAndReturn": "保存并返回",
   "settingActionFailed": "未能完成操作",
   "settingReturnToPanel": "返回悬浮窗",
-  "settingTitle": "CryptoFloat 设置",
+  "settingTitle": "MetricPerch 设置",
   "settingSaving": "保存中…",
   "settingUnsaved": "未保存",
   "settingSaved": "已保存",

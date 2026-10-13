@@ -1,6 +1,6 @@
 # Third-party notices
 
-The root `LICENSE` applies to CryptoFloat's own source code and original project assets. Third-party code, fonts, and other resources retain their respective copyright notices and license terms.
+The root `LICENSE` applies to MetricPerch's own source code and original project assets. Third-party code, fonts, and other resources retain their respective copyright notices and license terms.
 
 ## Software dependencies
 
@@ -19,7 +19,7 @@ This table is an overview, not a replacement for the full terms. Flutter collect
 
 Flutter supplies **Material Icons**, copyright © 2019 Google LLC. All rights reserved. The Flutter SDK used for this release supplies the font with the [Creative Commons Attribution 4.0 International license](licenses/MaterialIcons.txt); that exact license text is included in `licenses/MaterialIcons.txt` in the source and release packages. The release build may subset the font to include only glyphs used by the app. See the [Material Icons project](https://github.com/google/material-design-icons) for the upstream resource.
 
-System text fonts selected by name are provided by the operating system and are not copied into CryptoFloat's source repository.
+System text fonts selected by name are provided by the operating system and are not copied into MetricPerch's source repository.
 
 ## Design references and external data
 

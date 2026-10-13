@@ -17,10 +17,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     const bool chinese = PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_CHINESE;
     MessageBoxW(
         nullptr,
-        chinese ? L"无法启动或唤回 CryptoFloat。请先退出已运行的 CryptoFloat，再重试。"
-                : L"CryptoFloat could not start or activate the running app. "
-                  L"Close any running CryptoFloat instance and try again.",
-        L"CryptoFloat", MB_OK | MB_ICONERROR);
+        chinese ? L"无法启动或唤回数栖。请先退出已运行的 MetricPerch，再重试。"
+                : L"MetricPerch could not start or activate the running app. "
+                  L"Close any running MetricPerch instance and try again.",
+        L"MetricPerch · 数栖", MB_OK | MB_ICONERROR);
     return EXIT_FAILURE;
   }
 
@@ -45,7 +45,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project, single_instance);
   Win32Window::Point origin(40, 40);
   Win32Window::Size size(460, 360);
-  if (!window.Create(L"CryptoFloat", origin, size)) {
+  if (!window.Create(L"MetricPerch · 数栖", origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

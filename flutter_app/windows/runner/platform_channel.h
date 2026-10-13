@@ -12,6 +12,8 @@
 class NotificationTray;
 class SystemProxy;
 class ContextMenu;
+class SystemMetrics;
+class TaskbarHost;
 
 // The only boundary between portable Dart code and Windows desktop services.
 class PlatformChannel {
@@ -33,6 +35,8 @@ class PlatformChannel {
   std::unique_ptr<NotificationTray> tray_;
   std::unique_ptr<SystemProxy> system_proxy_;
   std::shared_ptr<ContextMenu> context_menu_;
+  std::unique_ptr<SystemMetrics> metrics_;
+  std::unique_ptr<TaskbarHost> taskbar_;
 };
 
 #endif  // RUNNER_PLATFORM_CHANNEL_H_

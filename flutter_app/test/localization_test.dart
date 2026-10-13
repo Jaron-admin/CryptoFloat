@@ -363,7 +363,7 @@ AppConfig _baseConfig() => AppConfig.defaults.copyWith(
 
 Future<void> _openAppearance(WidgetTester tester, String language) async {
   await tester.tap(
-    find.text('CryptoFloat'),
+    find.byKey(const ValueKey('panel-title')),
     buttons: kSecondaryMouseButton,
     kind: PointerDeviceKind.mouse,
   );
