@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fluent_ui/fluent_ui.dart' as f;
 
 import '../../l10n/l10n.dart';
 
@@ -19,12 +18,12 @@ class SettingsCategory {
 }
 
 const settingsCategories = [
-  SettingsCategory('watchlist', f.FluentIcons.favorite_star),
-  SettingsCategory('sources', f.FluentIcons.database),
-  SettingsCategory('layout', f.FluentIcons.view_list),
-  SettingsCategory('appearance', f.FluentIcons.color),
-  SettingsCategory('units', f.FluentIcons.money),
-  SettingsCategory('window', f.FluentIcons.chrome_restore),
+  SettingsCategory('watchlist', Icons.star_outline_rounded),
+  SettingsCategory('sources', Icons.api_rounded),
+  SettingsCategory('layout', Icons.view_agenda_outlined),
+  SettingsCategory('appearance', Icons.palette_outlined),
+  SettingsCategory('units', Icons.currency_exchange_rounded),
+  SettingsCategory('window', Icons.desktop_windows_outlined),
 ];
 
 class SettingLocation {
@@ -174,15 +173,13 @@ class SettingRow extends StatelessWidget {
         final label = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: f.FluentTheme.of(context).typography.body),
+            Text(title, style: Theme.of(context).textTheme.bodyMedium),
             if (description != null) ...[
               const SizedBox(height: 3),
               Text(
                 description!,
                 style: TextStyle(
-                  color: f.FluentTheme.of(context)
-                      .resources
-                      .textFillColorSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 12,
                   height: 1.4,
                 ),

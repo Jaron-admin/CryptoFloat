@@ -4,17 +4,43 @@ import 'dart:io';
 import '../domain/models.dart';
 import 'legacy_importer.dart';
 import 'source_security.dart';
+import 'portable_paths.dart';
 
-/// Settings for the Flutter edition live apart from the frozen Python edition.
+/// Each portable folder has its own settings; legacy profile data stays untouched.
 class ConfigStore {
   ConfigStore({String? directory})
     : configPath =
-          '${directory ?? _userDirectory()}${Platform.pathSeparator}settings.json';
+          '${directory ?? portableDataDirectory()}${Platform.pathSeparator}settings.json';
 
   final String configPath;
+  String get directory => File(configPath).parent.path;
+  String? resourcePath(String reference) =>
+      portableResourcePath(directory, reference);
   String? loadWarning;
   Future<void> _writeQueue = Future<void>.value();
   static const _maxConfigBytes = 2 * 1024 * 1024;
+
+  Future<void> prepare() async {
+    final folder = Directory(directory);
+    File? probe;
+    try {
+      await folder.create(recursive: true);
+      probe = File(
+        '$directory${Platform.pathSeparator}.write-check-${pid}_${DateTime.now().microsecondsSinceEpoch}',
+      );
+      await probe.writeAsString('', flush: true);
+    } on FileSystemException {
+      throw const FormatException('portable_directory_unwritable');
+    } finally {
+      if (probe != null && await probe.exists()) {
+        try {
+          await probe.delete();
+        } on FileSystemException {
+          /* Report on save. */
+        }
+      }
+    }
+  }
 
   Future<AppConfig> load() async {
     loadWarning = null;
@@ -51,7 +77,13 @@ class ConfigStore {
 
   /// Serializes concurrent saves; each replacement is renamed on the same disk.
   Future<void> save(AppConfig config) {
-    final operation = _writeQueue.then((_) => _save(config));
+    final operation = _writeQueue.then((_) async {
+      try {
+        await _save(config);
+      } on FileSystemException {
+        throw const FormatException('portable_directory_unwritable');
+      }
+    });
     _writeQueue = operation.then<void>(
       (_) {},
       onError: (Object _, StackTrace _) {},
@@ -108,21 +140,5 @@ class ConfigStore {
       // Parser errors can contain an input excerpt; never surface that excerpt.
       throw const FormatException('旧版设置文件不是有效的 JSON 设置对象。');
     }
-  }
-
-  static String _userDirectory() {
-    final env = Platform.environment;
-    final homeDirectory =
-        env['HOME'] ?? env['USERPROFILE'] ?? Directory.current.path;
-    if (Platform.isWindows) {
-      final root =
-          env['APPDATA'] ??
-          '${env['USERPROFILE'] ?? homeDirectory}\\AppData\\Roaming';
-      return '$root\\CryptoFloatFlutter';
-    }
-    if (Platform.isMacOS) {
-      return '$homeDirectory/Library/Application Support/CryptoFloatFlutter';
-    }
-    return '${env['XDG_CONFIG_HOME'] ?? '$homeDirectory/.config'}/cryptofloat_flutter';
   }
 }

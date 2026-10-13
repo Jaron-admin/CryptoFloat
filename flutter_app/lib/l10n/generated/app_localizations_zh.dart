@@ -843,6 +843,10 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get errorPortableDirectory =>
+      '无法写入程序旁的 user_data。请将软件放在有写入权限且空间充足的文件夹中。';
+
+  @override
   String get appMoutai => '贵州茅台';
 
   @override
@@ -1486,4 +1490,22 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingCatalogTray => '隐藏与托盘恢复';
+
+  @override
+  String get theme120Saturation => '饱和度';
+
+  @override
+  String get theme120Spectrum => '饱和度与亮度';
+
+  @override
+  String get theme120SpectrumHint => '使用方向键调整饱和度和亮度，按住 Shift 可加大调整幅度。';
+
+  @override
+  String get theme120InvalidHex => '请输入六位十六进制颜色。';
+
+  @override
+  String get theme120InvalidRgb => '请输入 0 到 255 的整数。';
+
+  @override
+  String get theme120ColorValue => '当前颜色';
 }

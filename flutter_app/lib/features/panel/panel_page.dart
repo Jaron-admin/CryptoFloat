@@ -177,7 +177,12 @@ class PanelPage extends StatelessWidget {
                     child: Row(
                       children: [
                         if (config.showHeaderIcon) ...[
-                          _HeaderIcon(config: config),
+                          _HeaderIcon(
+                            config: config,
+                            imagePath: controller.store.resourcePath(
+                              config.headerImagePath,
+                            ),
+                          ),
                           const SizedBox(width: 7),
                         ],
                         if (config.showHeaderName)
@@ -298,8 +303,9 @@ class PanelPage extends StatelessWidget {
 }
 
 class _HeaderIcon extends StatelessWidget {
-  const _HeaderIcon({required this.config});
+  const _HeaderIcon({required this.config, required this.imagePath});
   final AppConfig config;
+  final String? imagePath;
   @override
   Widget build(BuildContext context) {
     final icon = switch (config.headerIcon) {
@@ -317,11 +323,11 @@ class _HeaderIcon extends StatelessWidget {
             style: const TextStyle(fontSize: 17),
           )
         : Icon(icon, size: 17, color: Theme.of(context).colorScheme.primary);
-    if (config.headerImagePath.isEmpty) {
+    if (imagePath == null) {
       return SizedBox(width: 20, height: 20, child: FittedBox(child: fallback));
     }
     return Image.file(
-      File(config.headerImagePath),
+      File(imagePath!),
       width: 20,
       height: 20,
       fit: BoxFit.contain,

@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
-import 'package:fluent_ui/fluent_ui.dart' as f;
 
 import 'fluent_controls.dart';
 
@@ -53,6 +52,8 @@ class _SettingsPageState extends State<SettingsPage> {
   final _settingsSearch = TextEditingController();
   final _assetSearch = TextEditingController();
   final Map<String, GlobalKey> _anchors = {};
+  final Map<String, GlobalKey> _catalogRowKeys = {};
+  final Map<String, Asset> _catalogSnapshot = {};
   String _settingsQuery = '';
   String? _highlightedAnchor;
   bool _storageExpanded = false;
@@ -78,6 +79,8 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _draft = widget.controller.config;
+    _resetCatalogOrder();
+    widget.controller.catalog.addListener(_catalogChanged);
     _exitGuard = () => _requestLeave(exitApp: true);
     widget.controller.beforeExit = _exitGuard;
     _section = widget.initialSection.clamp(0, settingsCategories.length - 1);
@@ -98,6 +101,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    widget.controller.catalog.removeListener(_catalogChanged);
     if (widget.controller.beforeExit == _exitGuard) {
       widget.controller.beforeExit = null;
     }
@@ -127,7 +131,7 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _closing = true);
     try {
       if (_dirty) {
-        final action = await f.showDialog<String>(
+        final action = await showDialog<String>(
           context: context,
           builder: (context) => FAlertDialog(
             title: Text(context.l10n.settingUnsavedChanges),
@@ -231,136 +235,267 @@ class _SettingsPageState extends State<SettingsPage> {
     onPopInvokedWithResult: (didPop, result) {
       if (!didPop) _close();
     },
-    child: DefaultTextStyle(
-      style: f.FluentTheme.of(context).typography.body!,
-      child: ColoredBox(
-        color: f.FluentTheme.of(context).scaffoldBackgroundColor,
-        child: AbsorbPointer(
-          absorbing: _saving || _closing,
-          child: Column(
-            children: [
-              if (_error != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                  child: f.InfoBar(
-                    title: Text(context.l10n.settingActionFailed),
-                    content: Text(_error!),
-                    severity: f.InfoBarSeverity.error,
-                  ),
-                ),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final body = _settingsQuery.trim().isEmpty
-                        ? _sectionBody()
-                        : _searchResults();
-                    return f.NavigationView(
-                      titleBar: f.TitleBar(
-                        height: 38,
-                        isBackButtonVisible: true,
-                        onDragStarted: () => widget.controller.host.beginDrag(),
-                        backButton: FIconButton(
-                          onPressed: _saving || _pickingImage || _closing
-                              ? null
-                              : _close,
-                          tooltip: context.l10n.settingReturnToPanel,
-                          icon: const Icon(f.FluentIcons.back, size: 16),
-                        ),
-                        title: Text(
-                          context.l10n.settingTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        captionControls: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
-                          ),
-                          child: FFilledButton(
-                            onPressed:
-                                _saving || _pickingImage || _closing || !_dirty
-                                ? null
-                                : _save,
-                            child: Text(
-                              _saving
-                                  ? context.l10n.settingSaving
-                                  : context.l10n.settingSaveAndReturn,
-                            ),
-                          ),
-                        ),
-                      ),
-                      pane: f.NavigationPane(
-                        acrylicDisabled: true,
-                        selected: _section,
-                        onChanged: (index) => _selectSection(index),
-                        displayMode: constraints.maxWidth >= 680
-                            ? f.PaneDisplayMode.expanded
-                            : f.PaneDisplayMode.minimal,
-                        size: const f.NavigationPaneSize(openWidth: 196),
-                        autoSuggestBox: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: _searchField(),
-                        ),
-                        items: [
-                          for (var i = 0; i < settingsCategories.length; i++)
-                            f.PaneItem(
-                              icon: Icon(settingsCategories[i].icon, size: 18),
-                              title: Text(
-                                settingsCategories[i].title(context.l10n),
-                              ),
-                              body: i == _section
-                                  ? body
-                                  : const SizedBox.shrink(),
-                            ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
+    child: Material(
+      color: Theme.of(context).colorScheme.surface,
+      child: AbsorbPointer(
+        absorbing: _saving || _closing,
+        child: Column(
+          children: [
+            _settingsHeader(),
+            if (_error != null)
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 8,
-                ),
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(
-                      color: f.FluentTheme.of(context)
-                          .resources
-                          .dividerStrokeColorDefault,
-                    ),
-                  ),
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(
-                      _dirty ? f.FluentIcons.edit : f.FluentIcons.check_mark,
-                      size: 12,
-                      color: f.FluentTheme.of(context)
-                          .resources
-                          .textFillColorSecondary,
+                      Icons.error_outline_rounded,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        _dirty
-                            ? context.l10n.settingUnsaved
-                            : context.l10n.settingSaved,
-                        style: f.FluentTheme.of(context).typography.caption,
+                        _error!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onErrorContainer,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final wide = constraints.maxWidth >= 760;
+                  final narrow = constraints.maxWidth < 560;
+                  final body = _settingsQuery.trim().isEmpty
+                      ? _sectionBody()
+                      : _searchResults();
+                  if (narrow) {
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _searchField(),
+                        ),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                          child: Row(
+                            children: [
+                              for (
+                                var i = 0;
+                                i < settingsCategories.length;
+                                i++
+                              )
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: ChoiceChip(
+                                    label: Text(
+                                      settingsCategories[i].title(context.l10n),
+                                    ),
+                                    selected:
+                                        i == _section && _settingsQuery.isEmpty,
+                                    onSelected: (_) => _selectSection(i),
+                                    showCheckmark: false,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Expanded(child: body),
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _navigationPane(extended: wide),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            if (!wide)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  0,
+                                  20,
+                                  12,
+                                ),
+                                child: _searchField(),
+                              ),
+                            Expanded(child: body),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            _settingsFooter(),
+          ],
         ),
       ),
+    ),
+  );
+
+  Widget _settingsHeader() => SizedBox(
+    height: 56,
+    child: Row(
+      children: [
+        const SizedBox(width: 8),
+        FIconButton(
+          onPressed: _saving || _pickingImage || _closing ? null : _close,
+          tooltip: context.l10n.settingReturnToPanel,
+          icon: const Icon(Icons.arrow_back_rounded, size: 20),
+        ),
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanStart: (_) => widget.controller.host.beginDrag(),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 4),
+                child: Text(
+                  context.l10n.settingTitle,
+                  style: Theme.of(context).textTheme.titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _navigationPane({required bool extended}) {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: extended ? 196 : 68,
+      margin: const EdgeInsets.only(left: 8, bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          if (extended) ...[_searchField(), const SizedBox(height: 16)],
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                for (var i = 0; i < settingsCategories.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Tooltip(
+                      message: extended
+                          ? ''
+                          : settingsCategories[i].title(context.l10n),
+                      child: Material(
+                        color: i == _section && _settingsQuery.isEmpty
+                            ? colors.primaryContainer
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        child: InkWell(
+                          onTap: () => _selectSection(i),
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(
+                            height: 42,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: extended ? 12 : 0,
+                              ),
+                              child: Row(
+                                mainAxisAlignment: extended
+                                    ? MainAxisAlignment.start
+                                    : MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    settingsCategories[i].icon,
+                                    size: 20,
+                                    color: i == _section
+                                        ? colors.onPrimaryContainer
+                                        : colors.onSurfaceVariant,
+                                  ),
+                                  if (extended) ...[
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        settingsCategories[i].title(
+                                          context.l10n,
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: i == _section
+                                              ? FontWeight.w600
+                                              : FontWeight.w400,
+                                          color: i == _section
+                                              ? colors.onPrimaryContainer
+                                              : colors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _settingsFooter() => Container(
+    padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+    child: Row(
+      children: [
+        Icon(
+          _dirty ? Icons.edit_outlined : Icons.check_circle_outline_rounded,
+          size: 16,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            _dirty ? context.l10n.settingUnsaved : context.l10n.settingSaved,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        TextButton(
+          onPressed: _saving || _pickingImage || _closing ? null : _close,
+          child: Text(context.l10n.settingReturnToPanel),
+        ),
+        const SizedBox(width: 8),
+        FilledButton(
+          onPressed: _saving || _pickingImage || _closing || !_dirty
+              ? null
+              : _save,
+          child: Text(
+            _saving
+                ? context.l10n.settingSaving
+                : context.l10n.settingSaveAndReturn,
+          ),
+        ),
+      ],
     ),
   );
 
@@ -405,6 +540,10 @@ class _SettingsPageState extends State<SettingsPage> {
     FocusManager.instance.primaryFocus?.unfocus();
     _settingsSearch.clear();
     setState(() {
+      if (section == 0 && (_section != 0 || _settingsQuery.isNotEmpty)) {
+        _resetCatalogOrder();
+        _assetPage = 0;
+      }
       _section = section;
       _settingsQuery = '';
       _highlightedAnchor = anchor;
@@ -474,7 +613,7 @@ class _SettingsPageState extends State<SettingsPage> {
         interactive: true,
         child: SingleChildScrollView(
           controller: _scrollController,
-          padding: const EdgeInsets.fromLTRB(18, 4, 18, 18),
+          padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
           child: Align(
             alignment: Alignment.topLeft,
             child: ConstrainedBox(
@@ -527,7 +666,7 @@ class _SettingsPageState extends State<SettingsPage> {
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 5),
         Text(
@@ -543,57 +682,34 @@ class _SettingsPageState extends State<SettingsPage> {
   );
 
   Widget _card(Widget child) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
-    child: f.Card(
-      padding: EdgeInsets.zero,
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Card(
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: child,
       ),
     ),
   );
   Widget _assets() {
     final directory = widget.controller.catalog;
-    final catalog = {
-      for (final asset in [
-        ...directory.assets,
-        ...Asset.popular,
-        ..._draft.customAssets,
-      ])
-        asset.id: asset,
-    };
+    final catalog = _catalogSnapshot;
     final terms = _search.toLowerCase().trim().split(RegExp(r'\s+'));
-    final selectedOrder = {
-      for (var i = 0; i < _draft.selectedAssetIds.length; i++)
-        _draft.selectedAssetIds[i]: i,
-    };
-    final popularOrder = {
-      for (var i = 0; i < Asset.popular.length; i++) Asset.popular[i].id: i,
-    };
-    int rank(Asset asset) =>
-        selectedOrder[asset.id] ??
-        (selectedOrder.length +
-            (popularOrder[asset.id] ?? Asset.popular.length));
-    final filtered =
-        catalog.values
-            .where(
-              (asset) =>
-                  (_kind == 'all' ||
-                      (_kind == 'crypto'
-                          ? asset.kind == MarketKind.crypto
-                          : asset.kind == MarketKind.equity)) &&
-                  (_provider == 'all' || asset.provider == _provider) &&
-                  terms.every(
-                    '${asset.name} ${localizedAssetName(asset, context.l10n)} ${asset.symbol} ${asset.symbol.replaceAll('-', ' ')} ${asset.provider} ${asset.currency}'
-                        .toLowerCase()
-                        .contains,
-                  ),
-            )
-            .toList()
-          ..sort((a, b) {
-            final priority = rank(a).compareTo(rank(b));
-            return priority == 0 ? a.id.compareTo(b.id) : priority;
-          });
+    final filtered = catalog.values
+        .where(
+          (asset) =>
+              (_kind == 'all' ||
+                  (_kind == 'crypto'
+                      ? asset.kind == MarketKind.crypto
+                      : asset.kind == MarketKind.equity)) &&
+              (_provider == 'all' || asset.provider == _provider) &&
+              terms.every(
+                '${asset.name} ${localizedAssetName(asset, context.l10n)} ${asset.symbol} ${asset.symbol.replaceAll('-', ' ')} ${asset.provider} ${asset.currency}'
+                    .toLowerCase()
+                    .contains,
+              ),
+        )
+        .toList();
     const pageSize = 100;
     final pageCount = ((filtered.length + pageSize - 1) ~/ pageSize).clamp(
       1,
@@ -713,7 +829,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ? const SizedBox(
                     width: 14,
                     height: 14,
-                    child: f.ProgressRing(strokeWidth: 2),
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.refresh, size: 16),
             label: Text(
@@ -739,9 +855,12 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       for (final asset in page)
         Padding(
+          key: _catalogRowKeys.putIfAbsent(asset.id, GlobalKey.new),
           padding: const EdgeInsets.only(bottom: 6),
-          child: f.Card(
+          child: Card(
+            margin: EdgeInsets.zero,
             child: FCheckboxListTile(
+              key: ValueKey('catalog-${asset.id}'),
               dense: true,
               visualDensity: const VisualDensity(vertical: -1),
               value: _draft.selectedAssetIds.contains(asset.id),
@@ -755,7 +874,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              onChanged: (value) => _toggleAsset(asset, value == true),
+              onChanged: (value) =>
+                  _toggleAsset(asset, value == true, keepCatalogPosition: true),
             ),
           ),
         ),
@@ -822,7 +942,7 @@ class _SettingsPageState extends State<SettingsPage> {
           else
             SizedBox(
               height: (assets.length * 60.0).clamp(60.0, 300.0),
-              child: f.Scrollbar(
+              child: Scrollbar(
                 controller: _watchlistScrollController,
                 thumbVisibility: true,
                 child: ReorderableListView.builder(
@@ -833,7 +953,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   itemCount: assets.length,
                   onReorderItem: _reorderAsset,
                   proxyDecorator: (child, index, animation) => Material(
-                    color: f.FluentTheme.of(context).cardColor,
+                    color: Theme.of(context).colorScheme.surfaceContainerLow,
                     elevation: 4,
                     borderRadius: BorderRadius.circular(4),
                     child: child,
@@ -847,9 +967,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             ? null
                             : Border(
                                 bottom: BorderSide(
-                                  color: f.FluentTheme.of(context)
-                                      .resources
-                                      .dividerStrokeColorDefault,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .outlineVariant,
                                 ),
                               ),
                       ),
@@ -861,7 +981,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               index: i,
                               child: MouseRegion(
                                 cursor: SystemMouseCursors.grab,
-                                child: f.Tooltip(
+                                child: Tooltip(
                                   message: context.l10n.settingDragToReorder,
                                   child: Semantics(
                                     label: context.l10n.settingDragAsset(
@@ -870,7 +990,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                     child: const Padding(
                                       padding: EdgeInsets.all(8),
                                       child: Icon(
-                                        f.FluentIcons.gripper_dots_vertical,
+                                        Icons.drag_indicator_rounded,
                                         size: 16,
                                       ),
                                     ),
@@ -892,9 +1012,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                     '${asset.symbol} · ${asset.provider}',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: f.FluentTheme.of(context)
-                                        .typography
-                                        .caption,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
                                   ),
                                 ],
                               ),
@@ -903,7 +1023,10 @@ class _SettingsPageState extends State<SettingsPage> {
                               tooltip: context.l10n.settingMoveAssetUp(
                                 localizedAssetName(asset, context.l10n),
                               ),
-                              icon: const Icon(f.FluentIcons.up, size: 14),
+                              icon: const Icon(
+                                Icons.keyboard_arrow_up_rounded,
+                                size: 14,
+                              ),
                               onPressed: i == 0
                                   ? null
                                   : () => _moveAsset(i, -1),
@@ -912,7 +1035,10 @@ class _SettingsPageState extends State<SettingsPage> {
                               tooltip: context.l10n.settingMoveAssetDown(
                                 localizedAssetName(asset, context.l10n),
                               ),
-                              icon: const Icon(f.FluentIcons.down, size: 14),
+                              icon: const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 14,
+                              ),
                               onPressed: i == assets.length - 1
                                   ? null
                                   : () => _moveAsset(i, 1),
@@ -921,7 +1047,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               tooltip: context.l10n.settingUnfollowAsset(
                                 localizedAssetName(asset, context.l10n),
                               ),
-                              icon: const Icon(f.FluentIcons.cancel, size: 12),
+                              icon: const Icon(Icons.close_rounded, size: 12),
                               onPressed: () => _toggleAsset(asset, false),
                             ),
                           ],
@@ -952,8 +1078,60 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() => _draft = _draft.copyWith(selectedAssetIds: ordered));
   }
 
+  Map<String, Asset> _availableCatalog() => {
+    for (final asset in [
+      ...widget.controller.catalog.assets,
+      ...Asset.popular,
+      ..._draft.customAssets,
+    ])
+      asset.id: asset,
+  };
+
+  void _resetCatalogOrder() {
+    final selectedOrder = {
+      for (var i = 0; i < _draft.selectedAssetIds.length; i++)
+        _draft.selectedAssetIds[i]: i,
+    };
+    final popularOrder = {
+      for (var i = 0; i < Asset.popular.length; i++) Asset.popular[i].id: i,
+    };
+    int rank(Asset asset) =>
+        selectedOrder[asset.id] ??
+        (selectedOrder.length +
+            (popularOrder[asset.id] ?? Asset.popular.length));
+    final assets = _availableCatalog().values.toList()
+      ..sort((a, b) {
+        final priority = rank(a).compareTo(rank(b));
+        return priority == 0 ? a.id.compareTo(b.id) : priority;
+      });
+    _catalogSnapshot
+      ..clear()
+      ..addEntries(assets.map((asset) => MapEntry(asset.id, asset)));
+  }
+
+  void _appendCatalogUpdates() {
+    final assets = _availableCatalog().values.toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
+    // Updating an existing map entry preserves its position. New exchange
+    // results append, so asynchronous directory loads cannot move visible rows.
+    for (final asset in assets) {
+      _catalogSnapshot[asset.id] = asset;
+    }
+  }
+
+  void _catalogChanged() {
+    if (mounted) setState(_appendCatalogUpdates);
+  }
+
   void _loadCatalog({bool force = false}) {
     if (_catalogRequested && !force) return;
+    if (force) {
+      setState(() {
+        _resetCatalogOrder();
+        _assetPage = 0;
+      });
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    }
     _catalogRequested = true;
     unawaited(
       widget.controller.catalog.refresh(force: force).catchError((
@@ -964,7 +1142,22 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _toggleAsset(Asset asset, bool selected) {
+  double? _catalogRowTop(String id) {
+    final row = _catalogRowKeys[id]?.currentContext?.findRenderObject();
+    return row is RenderBox && row.attached && row.hasSize
+        ? row.localToGlobal(Offset.zero).dy
+        : null;
+  }
+
+  void _toggleAsset(
+    Asset asset,
+    bool selected, {
+    bool keepCatalogPosition = false,
+  }) {
+    final previousTop = keepCatalogPosition ? _catalogRowTop(asset.id) : null;
+    final previousOffset = _scrollController.hasClients
+        ? _scrollController.offset
+        : null;
     setState(
       () => _draft = _draft.copyWith(
         customAssets: selected
@@ -978,6 +1171,24 @@ class _SettingsPageState extends State<SettingsPage> {
             : _draft.selectedAssetIds.where((id) => id != asset.id).toList(),
       ),
     );
+    if (previousTop != null && previousOffset != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollController.hasClients) return;
+        // The watchlist above the catalog can grow or shrink. Keep the clicked
+        // row at the same screen position, without overriding a later scroll.
+        if ((_scrollController.offset - previousOffset).abs() > 0.5) return;
+        final nextTop = _catalogRowTop(asset.id);
+        if (nextTop == null) return;
+        final position = _scrollController.position;
+        final offset = (previousOffset + nextTop - previousTop).clamp(
+          position.minScrollExtent,
+          position.maxScrollExtent,
+        );
+        if ((offset - previousOffset).abs() > 0.5) {
+          _scrollController.jumpTo(offset);
+        }
+      });
+    }
   }
 
   void _changeAssetPage(int page) {
@@ -997,25 +1208,26 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _addAsset() async {
-    final asset = await f.showDialog<Asset>(
+    final asset = await showDialog<Asset>(
       context: context,
       builder: (context) => const _AssetDialog(),
     );
     if (asset == null || !mounted) return;
-    setState(
-      () => _draft = _draft.copyWith(
+    setState(() {
+      _draft = _draft.copyWith(
         customAssets: [
           ..._draft.customAssets.where((item) => item.id != asset.id),
           asset,
         ],
         selectedAssetIds: {..._draft.selectedAssetIds, asset.id}.toList(),
-      ),
-    );
+      );
+      _appendCatalogUpdates();
+    });
   }
 
   Future<void> _importLegacy() async {
     final input = TextEditingController();
-    final path = await f.showDialog<String>(
+    final path = await showDialog<String>(
       context: context,
       builder: (context) => FAlertDialog(
         title: Text(context.l10n.settingImportLegacy),
@@ -1052,7 +1264,13 @@ class _SettingsPageState extends State<SettingsPage> {
     if (path == null || !mounted) return;
     try {
       final imported = await widget.controller.store.importLegacy(path);
-      if (mounted) _preview(imported);
+      if (mounted) {
+        _preview(imported);
+        setState(() {
+          _resetCatalogOrder();
+          _assetPage = 0;
+        });
+      }
     } catch (error) {
       if (mounted) {
         setState(
@@ -1110,7 +1328,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: Text(
                     source.name,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1174,7 +1392,7 @@ class _SettingsPageState extends State<SettingsPage> {
   ]);
 
   Future<void> _editSource(CustomApiSource? source) async {
-    final result = await f.showDialog<SourceEditResult>(
+    final result = await showDialog<SourceEditResult>(
       context: context,
       barrierDismissible: false,
       builder: (context) =>
@@ -1334,7 +1552,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _editRow(DisplayRow? row) async {
-    final result = await f.showDialog<DisplayRow>(
+    final result = await showDialog<DisplayRow>(
       context: context,
       builder: (context) => RowEditor(
         config: _draft,
@@ -1571,7 +1789,10 @@ class _SettingsPageState extends State<SettingsPage> {
       child: _draft.headerImagePath.isEmpty
           ? FittedBox(child: fallback)
           : Image.file(
-              File(_draft.headerImagePath),
+              File(
+                widget.controller.store.resourcePath(_draft.headerImagePath) ??
+                    '',
+              ),
               fit: BoxFit.contain,
               errorBuilder: (_, _, _) => fallback,
             ),
@@ -1704,7 +1925,12 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             if (_draft.headerImagePath.isNotEmpty)
               Image.file(
-                File(_draft.headerImagePath),
+                File(
+                  widget.controller.store.resourcePath(
+                        _draft.headerImagePath,
+                      ) ??
+                      '',
+                ),
                 width: 28,
                 height: 28,
                 fit: BoxFit.contain,
@@ -1719,7 +1945,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   ? const SizedBox(
                       width: 14,
                       height: 14,
-                      child: f.ProgressRing(strokeWidth: 2),
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.image_outlined),
               label: Text(context.l10n.settingChooseImage),
@@ -1905,7 +2131,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _addUnitLabel() async {
     var source = '', label = '';
     String? error;
-    final result = await f.showDialog<MapEntry<String, String>>(
+    final result = await showDialog<MapEntry<String, String>>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, refresh) => FAlertDialog(
@@ -1980,7 +2206,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _addUnitRule() async {
     var source = '', target = '', multiplier = '';
     String? error;
-    final result = await f.showDialog<UnitConversionRule>(
+    final result = await showDialog<UnitConversionRule>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, refresh) => FAlertDialog(
@@ -2107,7 +2333,7 @@ class _SettingsPageState extends State<SettingsPage> {
     ],
   );
   Future<void> _pickFont(bool numbers) async {
-    final font = await f.showDialog<String>(
+    final font = await showDialog<String>(
       context: context,
       builder: (context) => _FontDialog(
         fonts: _fonts,
@@ -2140,7 +2366,11 @@ class _SettingTag extends StatelessWidget {
   final Widget? avatar;
 
   @override
-  Widget build(BuildContext context) => f.Card(
+  Widget build(BuildContext context) => Container(
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(6),
+    ),
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     child: Row(
       mainAxisSize: MainAxisSize.min,
@@ -2148,7 +2378,7 @@ class _SettingTag extends StatelessWidget {
         if (avatar != null) ...[avatar!, const SizedBox(width: 6)],
         Flexible(
           child: DefaultTextStyle(
-            style: f.FluentTheme.of(context).typography.caption!,
+            style: Theme.of(context).textTheme.bodySmall!,
             child: label,
           ),
         ),

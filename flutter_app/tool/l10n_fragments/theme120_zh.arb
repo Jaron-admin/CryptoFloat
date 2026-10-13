@@ -1,0 +1,9 @@
+{
+  "@@locale": "zh",
+  "theme120Saturation": "饱和度",
+  "theme120Spectrum": "饱和度与亮度",
+  "theme120SpectrumHint": "使用方向键调整饱和度和亮度，按住 Shift 可加大调整幅度。",
+  "theme120InvalidHex": "请输入六位十六进制颜色。",
+  "theme120InvalidRgb": "请输入 0 到 255 的整数。",
+  "theme120ColorValue": "当前颜色"
+}

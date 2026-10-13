@@ -1,4 +1,4 @@
-# CryptoFloat 1.1.0 · Flutter desktop app
+# CryptoFloat 1.2.0 · Portable Flutter desktop app
 
 [简体中文](README.md) · **English**
 
@@ -10,11 +10,13 @@ The current release supports Windows x64. macOS and Linux project scaffolds are 
 
 Extract the entire release archive and run `cryptofloat.exe`. Keep the libraries and `data` folder beside it. The Windows build starts as a graphical application without a command window.
 
+Extract to a writable directory. Personal data lives in `user_data` beside the EXE; an unwritable folder produces an error instead of silently saving in the Windows profile. Only one instance runs for the current Windows user in the current login session, including launches from different portable folders. Launching again brings the existing window forward and restores it if hidden in the tray. Exit v1.1 or earlier before upgrading, as those versions do not have this mechanism.
+
 - Drag the title area to move the panel; use the bottom-right corner to resize it.
 - Right-click the panel for its context menu. The native popup can extend beyond a small panel's edges.
 - Double-click the panel to hide it to the system tray. Click its tray icon to restore it. Windows may place the icon under the tray's hidden-icons arrow.
 - The tray context menu also provides refresh, settings, and exit actions.
-- Drag the settings title bar to move the settings window. On a narrow window, use the navigation button to reveal the categories.
+- Drag the settings title bar to move the settings window. Narrow windows use an icon sidebar or horizontal category navigation.
 - Settings are edited as a draft. Save applies the changes and returns to the active panel. Returning with unsaved edits offers save, discard, or continue editing.
 
 Context menus support arrow keys, Enter, and Esc. Clicking outside a popup closes it, including clicks elsewhere within the panel.
@@ -32,6 +34,8 @@ Search and select symbols from the OKX, Binance, and KuCoin spot trading-pair ca
 Catalogs are cached, refreshed every 24 hours, and can be refreshed manually. If an exchange request fails, its last catalog is retained. Common stock and ETF entries are also available, and additional stock symbols can be added manually.
 
 The watched items appear at the top of the page. Drag the handle on the left or use the move-up and move-down buttons on the right to reorder them. Long lists scroll. Saving applies the same order to the panel.
+
+Selecting or deselecting an item in the trading-pair catalog keeps it at its current list position. When you reopen the Watchlist page, selected items move to the top of the catalog.
 
 ## Custom content and display rows
 
@@ -53,7 +57,7 @@ Save the current colors as a new named theme to keep multiple presets. Each pres
 
 Choose a built-in icon, emoji, or local image. The picker previews the icon. Imported images are limited to 1 MB and stored as a private PNG copy without changing the original. The panel name and icon can be hidden separately.
 
-The settings interface uses the community-maintained [fluent_ui](https://pub.dev/packages/fluent_ui) package. Native windows, the tray, and cross-window context menus are handled by the platform layer. Color palettes refer to [Microsoft Fluent](https://fluent2.microsoft.design/color), [Catppuccin](https://catppuccin.com/palette/), [Nord](https://www.nordtheme.com/docs/colors-and-palettes/), and [Solarized](https://ethanschoonover.com/solarized/), with some accent and price-change colors adjusted for small-text contrast.
+The settings interface uses Flutter Material 3. Native windows, the tray, and cross-window context menus are handled by the platform layer. Color palettes refer to [Microsoft Fluent](https://fluent2.microsoft.design/color), [Catppuccin](https://catppuccin.com/palette/), [Nord](https://www.nordtheme.com/docs/colors-and-palettes/), and [Solarized](https://ethanschoonover.com/solarized/), with some accent and price-change colors adjusted for small-text contrast.
 
 ## Data sources, units, and refresh
 
@@ -75,7 +79,11 @@ The weather template uses [Open-Meteo](https://open-meteo.com/en/docs), subject 
 
 ## Settings, storage, and import
 
-Windows settings are stored at `%APPDATA%\CryptoFloatFlutter\settings.json`. Saving retains a `.bak` copy, and the app attempts to recover it if the main file is damaged. Protected secret files are under `%LOCALAPPDATA%\CryptoFloat\secrets`.
+All personal data lives in `user_data` beside `cryptofloat.exe`. Settings use `user_data/settings.json`; saving retains a `.bak` copy, which the app tries to recover if the main file is damaged. Catalog caches, imported icons, and protected secret files also live in this directory. Keep the whole directory when moving or backing up the app.
+
+Without `user_data`, the app starts with default settings. It does not automatically read, copy, or migrate the old Windows profile data. The old `%APPDATA%\CryptoFloatFlutter` and `%LOCALAPPDATA%\CryptoFloat\secrets` remain unchanged. Windows DPAPI still binds secrets to the current user and computer; enter API keys again after moving to another account or computer.
+
+Release ZIPs contain no personal data. To share the app, use the original release ZIP or remove `user_data` from a separate sharing copy of your app folder.
 
 The import section on the Watchlist page accepts a legacy `crypto_config.json`. Import creates a settings draft; Save applies it. The old file is not modified. Compatible watchlists, ordering, fonts, and display rows can be migrated. Old API secrets must be entered again.
 
@@ -103,10 +111,10 @@ flutter build windows --release
 Create a distributable folder and ZIP:
 
 ```powershell
-./tool/build_windows.ps1 -PackageName CryptoFloat-Windows-x64-1.1.0
+./tool/build_windows.ps1 -PackageName CryptoFloat-Windows-x64-1.2.0
 ```
 
-Output is written under `dist/`. The package contains the application, Chinese and English usage guides, the project license, and third-party license texts. Debugging information is kept in a separate directory; distribute the generated ZIP. If Flutter is not on PATH, pass its command path with `-Flutter`.
+Output is written under `dist/`. The package contains the application, Chinese and English usage guides, the project license, and third-party license texts. Packaging starts in a new staging directory and copies only allowlisted executables, libraries, and Flutter resources; it never copies `user_data`. An existing target directory or ZIP causes an error: choose a new `-PackageName` instead. Existing app directories are never overwritten or emptied. Debugging information is kept in a separate directory; distribute the generated ZIP. If Flutter is not on PATH, pass its command path with `-Flutter`.
 
 If Windows symbolic-link permissions are unavailable, the script creates plugin directory junctions within generated project folders. Building for macOS or Linux requires the corresponding platform's toolchain and completion of window, protected-storage, and font-resource integration.
 
@@ -114,4 +122,4 @@ If Windows symbolic-link permissions are unavailable, the script creates plugin 
 
 CryptoFloat's own source code uses the [MIT License](../LICENSE). Use, modification, distribution, and commercial use are permitted while retaining the license and copyright notice.
 
-Dependencies, icon fonts, and external data remain subject to their own licenses and service terms. See [Third-party notices](../THIRD_PARTY_NOTICES.md). Windows release packages keep Flutter's `data/flutter_assets/NOTICES.Z` and include its uncompressed contents as `THIRD_PARTY_LICENSES.txt`. Microsoft icon fonts are not covered by CryptoFloat's MIT license and must not be carried over into non-Windows releases without suitable rights.
+Dependencies, icon fonts, and external data remain subject to their own licenses and service terms. See [Third-party notices](../THIRD_PARTY_NOTICES.md). Windows release packages keep Flutter's `data/flutter_assets/NOTICES.Z` and include its uncompressed contents as `THIRD_PARTY_LICENSES.txt`.

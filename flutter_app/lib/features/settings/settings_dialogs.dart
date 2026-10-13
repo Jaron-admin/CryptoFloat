@@ -178,7 +178,9 @@ class _FontDialogState extends State<_FontDialog> {
                               : const SizedBox(
                                   width: 14,
                                   height: 14,
-                                  child: f.ProgressRing(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 ),
                           onTap:
                               snapshot.connectionState !=

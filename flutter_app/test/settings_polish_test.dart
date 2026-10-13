@@ -1,3 +1,6 @@
+import 'package:cryptofloat/app/app_controller.dart';
+import 'package:cryptofloat/features/settings/settings_page.dart';
+import 'package:cryptofloat/features/settings/fluent_controls.dart';
 import 'package:cryptofloat/main.dart';
 import 'package:cryptofloat/domain/models.dart';
 import 'package:cryptofloat/domain/unit_conversion.dart';
@@ -20,19 +23,39 @@ Future<void> openSettings(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+AppController _controller(
+  SettingsStore store,
+  SettingsHost host, {
+  AppConfig? config,
+}) => settingsController(
+  store,
+  host,
+  config:
+      (config ??
+              AppConfig.defaults.copyWith(
+                selectedAssetIds: [],
+                proxyEnabled: false,
+              ))
+          .copyWith(language: 'zh'),
+);
+
+ThemeData _theme(WidgetTester tester) => Theme.of(
+  tester.element(
+    find.byType(SettingsPage).evaluate().isNotEmpty
+        ? find.byType(SettingsPage)
+        : find.byType(Scaffold).first,
+  ),
+);
+
 Future<void> category(WidgetTester tester, String title) async {
-  final dropdown = find.byType(DropdownButtonFormField<int>);
-  if (dropdown.evaluate().isNotEmpty) {
-    await tester.tap(dropdown);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(title).last);
-  } else {
-    await tester.tap(find.widgetWithText(ListTile, title));
-  }
+  final chip = find.widgetWithText(ChoiceChip, title);
+  final target = chip.evaluate().isNotEmpty ? chip : find.text(title).first;
+  await tester.ensureVisible(target);
+  await tester.tap(target);
   await tester.pumpAndSettle();
 }
 
-Future<void> appearance(WidgetTester tester) => category(tester, '外观与字体');
+Future<void> appearance(WidgetTester tester) => category(tester, '外观');
 
 Future<void> reveal(
   WidgetTester tester,
@@ -65,7 +88,7 @@ void main() {
     tester,
   ) async {
     final store = SettingsStore();
-    final controller = settingsController(
+    final controller = _controller(
       store,
       SettingsHost(),
       config: AppConfig.defaults.copyWith(
@@ -86,7 +109,7 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('label-text')), '新美元标签');
     await tester.tap(find.text('保存标签'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('保存并返回悬浮窗'));
+    await tester.tap(find.text('保存并返回'));
     await tester.pumpAndSettle();
     expect(displayUnitLabel(' USD ', store.saved!), '新美元标签');
     expect(store.saved?.unitLabels.length, 2);
@@ -98,7 +121,7 @@ void main() {
     'a new multiplier replaces the same source unit regardless of input case',
     (tester) async {
       final store = SettingsStore();
-      final controller = settingsController(
+      final controller = _controller(
         store,
         SettingsHost(),
         config: AppConfig.defaults.copyWith(
@@ -133,7 +156,7 @@ void main() {
       );
       await tester.tap(find.text('保存规则'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存并返回悬浮窗'));
+      await tester.tap(find.text('保存并返回'));
       await tester.pumpAndSettle();
       final converted = convertUnitValue(2, ' oz ', store.saved!, {});
       expect(converted.value, 60);
@@ -147,7 +170,7 @@ void main() {
     'templates append to the draft and cancel without changing existing rows',
     (tester) async {
       final store = SettingsStore();
-      final controller = settingsController(
+      final controller = _controller(
         store,
         SettingsHost(),
         config: AppConfig.defaults.copyWith(
@@ -180,7 +203,7 @@ void main() {
       await tester.tap(find.text('加入显示'));
       await tester.pumpAndSettle();
       expect(store.saved, isNull);
-      await tester.tap(find.text('保存并返回悬浮窗'));
+      await tester.tap(find.text('保存并返回'));
       await tester.pumpAndSettle();
       expect(store.saved?.displayRows.length, 2);
       expect(store.saved?.displayRows.first.id, 'existing');
@@ -193,7 +216,7 @@ void main() {
     tester,
   ) async {
     final store = SettingsStore();
-    final controller = settingsController(
+    final controller = _controller(
       store,
       SettingsHost(),
       config: AppConfig.defaults.copyWith(
@@ -214,7 +237,7 @@ void main() {
     expect(find.text('显示默认行情'), findsOneWidget);
     await tester.tap(find.text('显示默认行情'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('保存并返回悬浮窗'));
+    await tester.tap(find.text('保存并返回'));
     await tester.pumpAndSettle();
     expect(store.saved?.showDefaultRows, false);
     expect(store.saved?.displayRows.single.id, 'note');
@@ -225,7 +248,7 @@ void main() {
     tester,
   ) async {
     final store = SettingsStore();
-    final controller = settingsController(store, SettingsHost());
+    final controller = _controller(store, SettingsHost());
     await tester.pumpWidget(CryptoFloatApp(controller: controller));
     await tester.pumpAndSettle();
     await openSettings(tester);
@@ -239,7 +262,7 @@ void main() {
     await reveal(tester, iconToggle);
     await tester.tap(iconToggle);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('保存并返回悬浮窗'));
+    await tester.tap(find.text('保存并返回'));
     await tester.pumpAndSettle();
     expect(store.saved?.headerName, '我的行情');
     expect(store.saved?.showHeaderName, true);
@@ -251,7 +274,7 @@ void main() {
     'a selected header image can be cleared without changing the header name',
     (tester) async {
       final store = SettingsStore();
-      final controller = settingsController(
+      final controller = _controller(
         store,
         SettingsHost(),
         config: AppConfig.defaults.copyWith(
@@ -267,7 +290,7 @@ void main() {
       await reveal(tester, find.text('清除图片图标'));
       await tester.tap(find.text('清除图片图标'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存并返回悬浮窗'));
+      await tester.tap(find.text('保存并返回'));
       await tester.pumpAndSettle();
       expect(store.saved?.headerImagePath, '');
       expect(store.saved?.headerName, 'CryptoFloat');
@@ -279,7 +302,7 @@ void main() {
     'unit preferences retain target currency labels and conversion rules',
     (tester) async {
       final store = SettingsStore();
-      final controller = settingsController(store, SettingsHost());
+      final controller = _controller(store, SettingsHost());
       await tester.pumpWidget(CryptoFloatApp(controller: controller));
       await tester.pumpAndSettle();
       await openSettings(tester);
@@ -327,7 +350,7 @@ void main() {
       );
       await tester.tap(find.text('保存规则'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存并返回悬浮窗'));
+      await tester.tap(find.text('保存并返回'));
       await tester.pumpAndSettle();
       expect(store.saved?.unitLabelMode, 'custom');
       expect(store.saved?.displayCurrency, 'CNY');
@@ -338,11 +361,11 @@ void main() {
   );
   testWidgets('settings title starts host movement', (tester) async {
     final host = SettingsHost();
-    final controller = settingsController(SettingsStore(), host);
+    final controller = _controller(SettingsStore(), host);
     await tester.pumpWidget(CryptoFloatApp(controller: controller));
     await tester.pumpAndSettle();
     await openSettings(tester);
-    await tester.drag(find.text('设置'), const Offset(40, 0));
+    await tester.drag(find.text('CryptoFloat 设置'), const Offset(40, 0));
     await tester.pumpAndSettle();
     expect(host.drags, 1);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -363,11 +386,12 @@ void main() {
       });
       final store = SettingsStore();
       final host = SettingsHost()..fonts = ['Broken Font Face'];
-      final controller = settingsController(store, host);
+      final controller = _controller(store, host);
       await tester.pumpWidget(CryptoFloatApp(controller: controller));
       await tester.pumpAndSettle();
       await openSettings(tester);
       await appearance(tester);
+      await reveal(tester, find.text('选择系统字体').first);
       await tester.tap(find.text('选择系统字体').first);
       await tester.pumpAndSettle();
       expect(find.text('字体无法加载，请选择其他字体'), findsOneWidget);
@@ -386,10 +410,10 @@ void main() {
     'draft background reaches surfaces and dialogs and cancels cleanly',
     (tester) async {
       final store = SettingsStore();
-      final controller = settingsController(store, SettingsHost());
+      final controller = _controller(store, SettingsHost());
       await tester.pumpWidget(CryptoFloatApp(controller: controller));
       await tester.pumpAndSettle();
-      final beforeTheme = Theme.of(tester.element(find.byType(Scaffold)));
+      final beforeTheme = _theme(tester);
       final before = beforeTheme.colorScheme.surface;
       await openSettings(tester);
       await appearance(tester);
@@ -399,15 +423,23 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('深色').last);
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('自定义').last);
-      await tester.tap(find.text('自定义').last);
+      final darkPalette = find.byKey(
+        const ValueKey('theme-palette-true-fluent'),
+      );
+      await reveal(tester, darkPalette);
+      await tester.tap(darkPalette);
       await tester.pumpAndSettle();
-      final swatch = find.byTooltip('深绿');
-      await tester.ensureVisible(swatch);
+      await tester.tap(find.text('自定义背景').last);
       await tester.pumpAndSettle();
-      await tester.tap(swatch);
+      await reveal(tester, find.text('选择颜色'));
+      await tester.tap(find.text('选择颜色'));
       await tester.pumpAndSettle();
-      final theme = Theme.of(tester.element(find.byType(Scaffold)));
+      final hex = find.byKey(const ValueKey('theme-hex'));
+      await reveal(tester, hex);
+      await tester.enterText(hex, '14251F');
+      await tester.tap(find.byKey(const ValueKey('theme-save')));
+      await tester.pumpAndSettle();
+      final theme = _theme(tester);
       expect(theme.scaffoldBackgroundColor, const Color(0xFF14251F));
       expect(theme.colorScheme.surface, isNot(before));
       expect(
@@ -420,6 +452,7 @@ void main() {
         isNot(const Color(0xFF10161F)),
       );
       await reveal(tester, find.text('文字字体'), delta: -250);
+      await reveal(tester, find.text('选择系统字体').first);
       await tester.tap(find.text('选择系统字体').first);
       await tester.pumpAndSettle();
       expect(
@@ -433,10 +466,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('放弃更改'));
       await tester.pumpAndSettle();
-      expect(
-        Theme.of(tester.element(find.byType(Scaffold))).colorScheme.surface,
-        before,
-      );
+      expect(_theme(tester).colorScheme.surface, before);
       expect(store.saved, isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },
@@ -445,22 +475,17 @@ void main() {
   testWidgets('draft font changes settings text and preview includes Chinese', (
     tester,
   ) async {
-    final controller = settingsController(SettingsStore(), SettingsHost());
+    final controller = _controller(SettingsStore(), SettingsHost());
     await tester.pumpWidget(CryptoFloatApp(controller: controller));
     await tester.pumpAndSettle();
     await openSettings(tester);
     await appearance(tester);
+    await reveal(tester, find.text('选择系统字体').first);
     await tester.tap(find.text('选择系统字体').first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Consolas'));
     await tester.pumpAndSettle();
-    expect(
-      Theme.of(tester.element(find.byType(Scaffold)))
-          .textTheme
-          .bodyMedium
-          ?.fontFamily,
-      'Consolas',
-    );
+    expect(_theme(tester).textTheme.bodyMedium?.fontFamily, 'Consolas');
     final samples = tester
         .widgetList<Text>(find.byType(Text))
         .map((text) => text.data ?? text.textSpan?.toPlainText() ?? '')
@@ -470,13 +495,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('放弃更改'));
     await tester.pumpAndSettle();
-    expect(
-      Theme.of(tester.element(find.byType(Scaffold)))
-          .textTheme
-          .bodyMedium
-          ?.fontFamily,
-      'Segoe UI',
-    );
+    expect(_theme(tester).textTheme.bodyMedium?.fontFamily, 'Segoe UI');
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -487,7 +506,7 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final controller = settingsController(SettingsStore(), SettingsHost());
+    final controller = _controller(SettingsStore(), SettingsHost());
     await tester.pumpWidget(CryptoFloatApp(controller: controller));
     await tester.pumpAndSettle();
     await openSettings(tester);
@@ -501,11 +520,11 @@ void main() {
     await tester.tap(find.text('股票 / ETF'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
-    final firstAsset = find.byType(CheckboxListTile).first;
+    final firstAsset = find.byType(FCheckboxListTile).first;
     await reveal(tester, firstAsset);
     await tester.tap(firstAsset);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存并返回'));
     await tester.pumpAndSettle();
     expect(find.text('CryptoFloat'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -518,7 +537,7 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
-    final controller = settingsController(SettingsStore(), SettingsHost());
+    final controller = _controller(SettingsStore(), SettingsHost());
     await tester.pumpWidget(CryptoFloatApp(controller: controller));
     await tester.pumpAndSettle();
     await openSettings(tester);
@@ -526,12 +545,13 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.ensureVisible(find.text('选择系统字体').first);
     await tester.pumpAndSettle();
+    await reveal(tester, find.text('选择系统字体').first);
     await tester.tap(find.text('选择系统字体').first);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Consolas'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('保存'));
+    await tester.tap(find.text('保存并返回'));
     await tester.pumpAndSettle();
     expect(controller.config.fontFamily, 'Consolas');
     expect(find.text('CryptoFloat'), findsOneWidget);

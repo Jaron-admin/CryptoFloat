@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:fluent_ui/fluent_ui.dart' as f;
 import 'package:flutter/material.dart';
 
 import '../../domain/models.dart';
@@ -11,7 +10,7 @@ import '../../domain/template_presets.dart';
 Future<AppConfig?> showTemplatePicker(
   BuildContext context, {
   required AppConfig config,
-}) => f.showDialog<AppConfig>(
+}) => showDialog<AppConfig>(
   context: context,
   builder: (_) => _TemplateDialog(config: config),
 );
@@ -218,7 +217,7 @@ class _TemplateDialogState extends State<_TemplateDialog> {
               ),
             ),
           ),
-          const f.Divider(),
+          const Divider(),
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(

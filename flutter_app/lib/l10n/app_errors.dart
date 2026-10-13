@@ -26,6 +26,7 @@ String localizeAppError(BuildContext context, Object? error) {
     if (size != null) return l10n.errorResponseLimit(size);
   }
   return switch (message) {
+    'portable_directory_unwritable' => l10n.errorPortableDirectory,
     "设置文件无法读取，已使用默认布局。原文件仍保留。" ||
     "The settings file could not be read. The default layout is in use and the original file has been kept." =>
       l10n.errorStartupDefaultLayout,

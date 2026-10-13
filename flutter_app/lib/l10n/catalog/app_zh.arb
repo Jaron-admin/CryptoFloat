@@ -339,6 +339,7 @@
   "errorUnknown": "未能完成操作，请检查设置后重试。",
   "errorHttpStatus": "数据源返回 HTTP {status}。",
   "errorResponseLimit": "数据源响应超过 {size} MB 上限。",
+  "errorPortableDirectory": "无法写入程序旁的 user_data。请将软件放在有写入权限且空间充足的文件夹中。",
   "appMoutai": "贵州茅台",
   "appPingAn": "平安银行",
   "appCatl": "宁德时代",
@@ -618,5 +619,11 @@
   "settingCatalogHeader": "窗口标题与图标",
   "settingCatalogUnits": "单位与显示货币",
   "settingCatalogWindow": "窗口置顶",
-  "settingCatalogTray": "隐藏与托盘恢复"
+  "settingCatalogTray": "隐藏与托盘恢复",
+  "theme120Saturation": "饱和度",
+  "theme120Spectrum": "饱和度与亮度",
+  "theme120SpectrumHint": "使用方向键调整饱和度和亮度，按住 Shift 可加大调整幅度。",
+  "theme120InvalidHex": "请输入六位十六进制颜色。",
+  "theme120InvalidRgb": "请输入 0 到 255 的整数。",
+  "theme120ColorValue": "当前颜色"
 }

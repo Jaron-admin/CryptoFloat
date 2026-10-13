@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:fluent_ui/fluent_ui.dart' as f;
 import 'package:flutter/material.dart';
 
 import '../../domain/models.dart';
@@ -72,7 +71,7 @@ class _RowEditorState extends State<RowEditor> {
     final input = TextEditingController(
       text: index == null ? '' : _segments[index].text,
     );
-    final result = await f.showDialog<String>(
+    final result = await showEditorDialog<String>(
       context: context,
       builder: (context) => FAlertDialog(
         title: Text(context.l10n.editDisplayText),
@@ -112,7 +111,7 @@ class _RowEditorState extends State<RowEditor> {
   }
 
   Future<void> _field([int? index]) async {
-    final result = await f.showDialog<DisplaySegment>(
+    final result = await showDialog<DisplaySegment>(
       context: context,
       builder: (context) => _FieldDialog(
         config: widget.config,
@@ -222,7 +221,7 @@ class _RowEditorState extends State<RowEditor> {
               ],
             ),
           ),
-          const f.Divider(),
+          const Divider(),
           Padding(
             padding: const EdgeInsets.all(18),
             child: Row(
@@ -249,8 +248,7 @@ class _RowEditorState extends State<RowEditor> {
 
   Widget _segmentCard(int index) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: f.Card(
-      padding: EdgeInsets.zero,
+    child: Card(
       child: LayoutBuilder(
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < 440;

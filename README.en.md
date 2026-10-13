@@ -2,17 +2,25 @@
 
 [简体中文](README.md) · **English**
 
-A customizable floating desktop panel for market quotes, JSON APIs, and text. Built with Flutter and Fluent UI settings, with English and Simplified Chinese interfaces.
+A customizable floating desktop panel for market quotes, JSON APIs, and text. Built with Flutter and Material 3, with English and Simplified Chinese interfaces.
 
 ![Example CryptoFloat floating panel](docs/images/panel-preview.png)
 
-Example appearance: customize the name, fonts, colors, transparency, and displayed content.
+Example appearance from v1.1: customize the name, fonts, colors, transparency, and displayed content. The settings interface has changed in the current version.
+
+### Settings in v1.2
+
+![Material 3 appearance settings](docs/images/settings-en.png)
+
+Compact navigation, searchable settings, and grouped forms. This preview uses sample data. Watchlist selections stay in place while editing; selected items move to the top when reopening the page or refreshing the catalog.
 
 ## Download and run
 
-Download **CryptoFloat-Windows-x64-1.1.0.zip** from [Releases](https://github.com/Jaron-admin/CryptoFloat/releases).
+Download **CryptoFloat-Windows-x64-1.2.0.zip** from [Releases](https://github.com/Jaron-admin/CryptoFloat/releases).
 
 Extract the entire archive and run `cryptofloat.exe`. Keep the accompanying libraries and `data` folder beside the executable.
+
+This is a portable app: settings, caches, imported icons, and protected secrets live in `user_data` beside the executable. Use a writable folder and move the whole folder together. Only one instance runs for the current Windows user in the current login session; launching again brings the existing window forward. Exit v1.1 or earlier before upgrading.
 
 The current release provides a **Windows x64** build. macOS and Linux project scaffolds are included, but their native window and protected storage integrations are incomplete. Android and iOS releases are not available.
 
@@ -31,7 +39,9 @@ Right-click the floating panel to open Settings. Select **Settings → Appearanc
 
 ## Data and settings
 
-The first launch uses a general watchlist with no custom API or text entries. Settings are stored in the current user's profile. Secret request headers are protected with Windows credentials for that user. Connections follow the Windows system network settings.
+Without `user_data`, the app starts with default settings. It does not automatically read or migrate old data from the Windows user profile, and leaves those files unchanged. Subsequent launches reuse this portable copy's `user_data`. To share the app, use the release ZIP or remove `user_data` from your sharing copy first.
+
+Secret request headers are protected using Windows DPAPI for the current user. Enter those secrets again after moving to another computer or Windows account. Connections follow the Windows system network settings.
 
 Public data may be delayed, rate-limited, or temporarily unavailable. “Live” means the app fetched data successfully within the configured interval; it does not guarantee zero market-data latency. Prices and exchange rates are for reference.
 
@@ -51,7 +61,7 @@ flutter build windows --release
 To create a release folder and ZIP containing the usage guides and licenses:
 
 ```powershell
-./tool/build_windows.ps1 -PackageName CryptoFloat-Windows-x64-1.1.0
+./tool/build_windows.ps1 -PackageName CryptoFloat-Windows-x64-1.2.0
 ```
 
 ## License

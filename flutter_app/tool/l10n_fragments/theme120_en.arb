@@ -1,0 +1,9 @@
+{
+  "@@locale": "en",
+  "theme120Saturation": "Saturation",
+  "theme120Spectrum": "Saturation and brightness",
+  "theme120SpectrumHint": "Use arrow keys to adjust saturation and brightness. Hold Shift for larger steps.",
+  "theme120InvalidHex": "Enter six hexadecimal digits.",
+  "theme120InvalidRgb": "Use a number from 0 to 255.",
+  "theme120ColorValue": "Selected color"
+}

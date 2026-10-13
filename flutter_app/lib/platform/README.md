@@ -24,8 +24,20 @@ The secret methods are `secret.write`, `secret.read`, and `secret.delete`. Each
 accepts a `key`; write also accepts a `value`. Keys are credential references,
 hashed with SHA-256 for filenames. DPAPI protects each value for the current
 Windows user, and only encrypted bytes are written under
-`%LOCALAPPDATA%\CryptoFloat\secrets`. Writes replace the protected file atomically.
+`user_data/secrets` beside the executable. Writes replace the protected file atomically.
 The store never logs credential values and rejects invalid or oversized inputs.
+
+Portable data paths derive from the executable directory, not the process working
+directory or Windows profile. `user_data` contains settings, cached catalogs,
+imported icons, and protected secrets. Startup does not import the old profile
+directories and does not fall back to them when the portable folder is unwritable.
+DPAPI secrets still require the original Windows account and computer; portable
+settings and icons do not make credentials transferable to another machine.
+
+The Windows runner allows a single instance per user in the current login
+session, independent of the executable directory. A repeated launch activates
+the existing window, restoring it from the tray as needed. This contract applies
+from version 1.2 onward; older instances must be exited before upgrading.
 
 On macOS, Linux, and web, window calls are harmless no-ops and font discovery
 returns common fallback families. Secret reads return null and deletes are

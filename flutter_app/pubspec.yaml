@@ -1,14 +1,14 @@
 name: cryptofloat
 description: "Customizable market and API floating panel for desktop."
 publish_to: 'none'
-version: 1.1.0+7
+version: 1.2.0+8
 
 environment:
   sdk: ^3.13.4
 
 dependencies:
   intl: ^0.20.2
-  fluent_ui: ^4.16.1
+  path: ^1.9.1
   file_selector: ^1.1.0
   flutter:
     sdk: flutter

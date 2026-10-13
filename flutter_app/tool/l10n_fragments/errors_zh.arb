@@ -97,5 +97,6 @@
   "errorPriceMissing": "数据源没有有效的最新价格。",
   "errorUnknown": "未能完成操作，请检查设置后重试。",
   "errorHttpStatus": "数据源返回 HTTP {status}。",
-  "errorResponseLimit": "数据源响应超过 {size} MB 上限。"
+  "errorResponseLimit": "数据源响应超过 {size} MB 上限。",
+  "errorPortableDirectory": "无法写入程序旁的 user_data。请将软件放在有写入权限且空间充足的文件夹中。"
 }

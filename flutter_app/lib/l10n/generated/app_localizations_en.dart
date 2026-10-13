@@ -938,6 +938,10 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get errorPortableDirectory =>
+      'Cannot write user_data beside the app. Move the app to a writable folder with enough free space.';
+
+  @override
   String get appMoutai => 'Kweichow Moutai';
 
   @override
@@ -1609,4 +1613,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingCatalogTray => 'Hide & restore from tray';
+
+  @override
+  String get theme120Saturation => 'Saturation';
+
+  @override
+  String get theme120Spectrum => 'Saturation and brightness';
+
+  @override
+  String get theme120SpectrumHint =>
+      'Use arrow keys to adjust saturation and brightness. Hold Shift for larger steps.';
+
+  @override
+  String get theme120InvalidHex => 'Enter six hexadecimal digits.';
+
+  @override
+  String get theme120InvalidRgb => 'Use a number from 0 to 255.';
+
+  @override
+  String get theme120ColorValue => 'Selected color';
 }

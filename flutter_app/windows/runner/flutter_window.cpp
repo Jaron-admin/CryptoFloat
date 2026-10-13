@@ -3,11 +3,17 @@
 #include <optional>
 
 #include "flutter/generated_plugin_registrant.h"
+#include "single_instance.h"
 
-FlutterWindow::FlutterWindow(const flutter::DartProject& project)
-    : project_(project) {}
+FlutterWindow::FlutterWindow(const flutter::DartProject& project,
+                             SingleInstance& single_instance)
+    : project_(project), single_instance_(single_instance) {}
 
-FlutterWindow::~FlutterWindow() {}
+FlutterWindow::~FlutterWindow() {
+  // The Win32Window base destructor runs after these members are destroyed.
+  // Detach the native activation callback while this derived object is alive.
+  single_instance_.DetachWindow();
+}
 
 bool FlutterWindow::OnCreate() {
   if (!Win32Window::OnCreate()) {
@@ -38,10 +44,11 @@ bool FlutterWindow::OnCreate() {
   // window is shown. It is a no-op if the first frame hasn't completed yet.
   flutter_controller_->ForceRedraw();
 
-  return true;
+  return single_instance_.AttachWindow(GetHandle());
 }
 
 void FlutterWindow::OnDestroy() {
+  single_instance_.DetachWindow();
   platform_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
@@ -54,6 +61,14 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  if (message == SingleInstance::ActivationMessage()) {
+    // Restore the current view, including an unsaved settings draft. This mirrors
+    // the tray's restore path without depending on a Dart event subscription.
+    ClampToVisibleWorkArea();
+    ::ShowWindow(hwnd, IsIconic(hwnd) ? SW_RESTORE : SW_SHOW);
+    SetForegroundWindow(hwnd);
+    return 0;
+  }
   LRESULT native_result = 0;
   if (platform_channel_ &&
       platform_channel_->HandleWindowMessage(message, wparam, lparam, &native_result)) {

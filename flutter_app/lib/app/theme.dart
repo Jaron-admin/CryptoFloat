@@ -49,11 +49,24 @@ ThemeData buildAppTheme(AppConfig config, {Brightness? brightness}) {
         surfaceContainerHighest: raised(0.09),
       );
   final buttonStyle = ButtonStyle(
-    minimumSize: const WidgetStatePropertyAll(Size(0, 32)),
+    minimumSize: const WidgetStatePropertyAll(Size(0, 34)),
     padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12)),
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     shape: WidgetStatePropertyAll(
-      RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
+      RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    ),
+    textStyle: WidgetStatePropertyAll(
+      TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        fontFamily: SystemFonts.family(config.fontFamily),
+        fontFamilyFallback: const [
+          'Microsoft YaHei',
+          'PingFang SC',
+          'Noto Sans CJK SC',
+          'sans-serif',
+        ],
+      ),
     ),
   );
   return ThemeData(
@@ -70,6 +83,17 @@ ThemeData buildAppTheme(AppConfig config, {Brightness? brightness}) {
       'Noto Sans CJK SC',
       'sans-serif',
     ],
+    textTheme: const TextTheme(
+      bodySmall: TextStyle(fontSize: 12, height: 1.35),
+      bodyMedium: TextStyle(fontSize: 13, height: 1.4),
+      bodyLarge: TextStyle(fontSize: 14, height: 1.4),
+      labelSmall: TextStyle(fontSize: 11, height: 1.2),
+      labelMedium: TextStyle(fontSize: 12, height: 1.2),
+      labelLarge: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+      titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+    ),
     visualDensity: VisualDensity.compact,
     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     appBarTheme: AppBarTheme(
@@ -83,12 +107,16 @@ ThemeData buildAppTheme(AppConfig config, {Brightness? brightness}) {
       fillColor: raised(0.025),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: BorderSide(color: colors.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(5),
-        borderSide: BorderSide(color: colors.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: colors.primary, width: 1.5),
       ),
     ),
     cardTheme: CardThemeData(
@@ -96,18 +124,23 @@ ThemeData buildAppTheme(AppConfig config, {Brightness? brightness}) {
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: colors.outlineVariant),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: palette.surface,
       surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
     popupMenuTheme: PopupMenuThemeData(
       color: palette.surface,
       surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ),
+    iconButtonTheme: IconButtonThemeData(
+      style: IconButton.styleFrom(iconSize: 18),
+    ),
+    checkboxTheme: CheckboxThemeData(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
     ),
     listTileTheme: const ListTileThemeData(
       dense: true,

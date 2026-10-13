@@ -1712,6 +1712,12 @@ abstract class AppLocalizations {
   /// **'The data source response exceeds the {size} MB limit.'**
   String errorResponseLimit(int size);
 
+  /// No description provided for @errorPortableDirectory.
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot write user_data beside the app. Move the app to a writable folder with enough free space.'**
+  String get errorPortableDirectory;
+
   /// No description provided for @appMoutai.
   ///
   /// In en, this message translates to:
@@ -2893,6 +2899,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Hide & restore from tray'**
   String get settingCatalogTray;
+
+  /// No description provided for @theme120Saturation.
+  ///
+  /// In en, this message translates to:
+  /// **'Saturation'**
+  String get theme120Saturation;
+
+  /// No description provided for @theme120Spectrum.
+  ///
+  /// In en, this message translates to:
+  /// **'Saturation and brightness'**
+  String get theme120Spectrum;
+
+  /// No description provided for @theme120SpectrumHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Use arrow keys to adjust saturation and brightness. Hold Shift for larger steps.'**
+  String get theme120SpectrumHint;
+
+  /// No description provided for @theme120InvalidHex.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter six hexadecimal digits.'**
+  String get theme120InvalidHex;
+
+  /// No description provided for @theme120InvalidRgb.
+  ///
+  /// In en, this message translates to:
+  /// **'Use a number from 0 to 255.'**
+  String get theme120InvalidRgb;
+
+  /// No description provided for @theme120ColorValue.
+  ///
+  /// In en, this message translates to:
+  /// **'Selected color'**
+  String get theme120ColorValue;
 }
 
 class _AppLocalizationsDelegate

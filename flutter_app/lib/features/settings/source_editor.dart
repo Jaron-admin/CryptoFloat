@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:fluent_ui/fluent_ui.dart' as f;
 import 'package:flutter/material.dart';
 
 import '../../app/app_controller.dart';
@@ -194,7 +193,7 @@ class _SourceEditorState extends State<SourceEditor> {
     );
     final unit = TextEditingController(text: field?.unit ?? '');
     final fieldPath = TextEditingController(text: chosenPath);
-    final result = await f.showDialog<CustomField>(
+    final result = await showEditorDialog<CustomField>(
       context: context,
       builder: (context) => FAlertDialog(
         title: Text(
@@ -439,7 +438,7 @@ class _SourceEditorState extends State<SourceEditor> {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: f.ProgressRing(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : const Icon(Icons.download_rounded),
                     label: Text(context.l10n.editReadFields),
@@ -557,7 +556,7 @@ class _SourceEditorState extends State<SourceEditor> {
                 ],
               ),
             ),
-            const f.Divider(),
+            const Divider(),
             Padding(
               padding: const EdgeInsets.all(18),
               child: Row(

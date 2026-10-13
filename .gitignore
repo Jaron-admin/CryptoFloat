@@ -14,5 +14,6 @@
 settings.json
 crypto_config.json
 secrets/
+user_data/
 .vscode/
 .idea/

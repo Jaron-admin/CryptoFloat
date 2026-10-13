@@ -46,16 +46,19 @@ class HeaderImageStore {
         '${File(store.configPath).parent.path}${Platform.pathSeparator}icons',
       );
       await directory.create(recursive: true);
+      final filename = 'icon_${DateTime.now().microsecondsSinceEpoch}.png';
       final destination = File(
-        '${directory.path}${Platform.pathSeparator}icon_${DateTime.now().microsecondsSinceEpoch}.png',
+        '${directory.path}${Platform.pathSeparator}$filename',
       );
       await destination.writeAsBytes(
         png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes),
         flush: true,
       );
-      return destination.path;
+      return 'icons/$filename';
     } on FormatException {
       rethrow;
+    } on FileSystemException {
+      throw const FormatException('portable_directory_unwritable');
     } on Object {
       throw const FormatException('图片无法读取，请选择 PNG、JPEG、GIF、WebP、BMP 或 ICO 图片。');
     } finally {

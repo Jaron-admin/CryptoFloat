@@ -1,12 +1,27 @@
 import 'dart:math' as math;
 
-import 'package:fluent_ui/fluent_ui.dart' as f;
 import 'package:flutter/material.dart' as m;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
-// These adapters retain the editors' field metadata while the actual controls,
-// keyboard interaction, focus visuals and popup surfaces come from Fluent UI.
+// Shared compact Material controls preserve drafts across live theme and locale changes.
+
+/// Wait for the route to unmount before callers dispose editor controllers.
+Future<T?> showEditorDialog<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+}) async {
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final route = m.DialogRoute<T>(
+    context: context,
+    builder: builder,
+    themes: InheritedTheme.capture(from: context, to: navigator.context),
+  );
+  final result = await navigator.push(route);
+  await route.completed;
+  return result;
+}
+
 class FTextField extends StatelessWidget {
   const FTextField({
     super.key,
@@ -44,31 +59,22 @@ class FTextField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
 
   @override
-  Widget build(BuildContext context) => _FieldLabel(
+  Widget build(BuildContext context) => m.TextField(
     decoration: decoration,
-    child: f.TextBox(
-      controller: controller,
-      autofocus: autofocus,
-      maxLines: maxLines,
-      minLines: minLines,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      onChanged: onChanged,
-      onSubmitted: onSubmitted,
-      onEditingComplete: onEditingComplete,
-      readOnly: readOnly,
-      style: style,
-      maxLength: maxLength,
-      enabled: enabled ?? decoration.enabled,
-      inputFormatters: inputFormatters,
-      placeholder: decoration.hintText,
-      placeholderStyle: decoration.hintStyle,
-      prefix: _inputAdornment(decoration, prefix: true),
-      suffix: _inputAdornment(decoration, prefix: false),
-      padding: decoration.contentPadding ?? f.kTextBoxPadding,
-      highlightColor: _errorColor(context, decoration),
-      unfocusedColor: _errorColor(context, decoration),
-    ),
+    controller: controller,
+    autofocus: autofocus,
+    maxLines: maxLines,
+    minLines: minLines,
+    obscureText: obscureText,
+    keyboardType: keyboardType,
+    onChanged: onChanged,
+    onSubmitted: onSubmitted,
+    onEditingComplete: onEditingComplete,
+    readOnly: readOnly,
+    style: style,
+    maxLength: maxLength,
+    enabled: enabled ?? decoration.enabled,
+    inputFormatters: inputFormatters,
   );
 }
 
@@ -159,106 +165,26 @@ class _FTextFormFieldState extends State<FTextFormField> {
   }
 
   @override
-  Widget build(BuildContext context) => _FieldLabel(
+  Widget build(BuildContext context) => m.TextFormField(
     decoration: widget.decoration,
-    child: f.TextFormBox(
-      controller: _controller,
-      autofocus: widget.autofocus,
-      maxLines: widget.maxLines,
-      minLines: widget.minLines,
-      obscureText: widget.obscureText,
-      keyboardType: widget.keyboardType,
-      onChanged: widget.onChanged,
-      onFieldSubmitted: widget.onSubmitted,
-      onEditingComplete: widget.onEditingComplete,
-      readOnly: widget.readOnly,
-      style: widget.style,
-      maxLength: widget.maxLength,
-      enabled: widget.enabled ?? widget.decoration.enabled,
-      inputFormatters: widget.inputFormatters,
-      placeholder: widget.decoration.hintText,
-      placeholderStyle: widget.decoration.hintStyle,
-      prefix: _inputAdornment(widget.decoration, prefix: true),
-      suffix: _inputAdornment(widget.decoration, prefix: false),
-      padding: widget.decoration.contentPadding ?? f.kTextBoxPadding,
-      highlightColor: _errorColor(context, widget.decoration),
-      unfocusedColor: _errorColor(context, widget.decoration),
-    ),
+    controller: _controller,
+    autofocus: widget.autofocus,
+    maxLines: widget.maxLines,
+    minLines: widget.minLines,
+    obscureText: widget.obscureText,
+    keyboardType: widget.keyboardType,
+    onChanged: widget.onChanged,
+    onFieldSubmitted: widget.onSubmitted,
+    onEditingComplete: widget.onEditingComplete,
+    readOnly: widget.readOnly,
+    style: widget.style,
+    maxLength: widget.maxLength,
+    enabled: widget.enabled ?? widget.decoration.enabled,
+    inputFormatters: widget.inputFormatters,
   );
 }
 
-Color? _errorColor(BuildContext context, m.InputDecoration decoration) =>
-    decoration.errorText != null || decoration.error != null
-    ? f.Colors.red.defaultBrushFor(f.FluentTheme.of(context).brightness)
-    : null;
-
-Widget? _inputAdornment(m.InputDecoration decoration, {required bool prefix}) {
-  final icon = prefix ? decoration.prefixIcon : decoration.suffixIcon;
-  final child = prefix ? decoration.prefix : decoration.suffix;
-  final text = prefix ? decoration.prefixText : decoration.suffixText;
-  final content = icon ?? child ?? (text == null ? null : Text(text));
-  if (content == null) return null;
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 8),
-    child: content,
-  );
-}
-
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel({required this.decoration, required this.child});
-  final m.InputDecoration decoration;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = f.FluentTheme.of(context);
-    final error =
-        decoration.error ??
-        (decoration.errorText == null ? null : Text(decoration.errorText!));
-    final helper =
-        decoration.helper ??
-        (decoration.helperText == null ? null : Text(decoration.helperText!));
-    Widget field = child;
-    if (error != null || helper != null) {
-      field = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          child,
-          const SizedBox(height: 4),
-          Semantics(
-            liveRegion: error != null,
-            child: DefaultTextStyle.merge(
-              style: error != null
-                  ? (decoration.errorStyle ??
-                        theme.typography.caption?.copyWith(
-                          color: _errorColor(context, decoration),
-                        ))
-                  : decoration.helperStyle ?? theme.typography.caption,
-              child: error ?? helper!,
-            ),
-          ),
-        ],
-      );
-    }
-    if (decoration.label != null) {
-      return f.InfoLabel.rich(
-        label: WidgetSpan(child: decoration.label!),
-        child: field,
-      );
-    }
-    if (decoration.labelText?.isNotEmpty == true) {
-      return f.InfoLabel(
-        label: decoration.labelText!,
-        labelStyle: decoration.labelStyle,
-        child: field,
-      );
-    }
-    return field;
-  }
-}
-
-class FDropdownItem<T> extends f.ComboBoxItem<T> {
+class FDropdownItem<T> extends m.DropdownMenuItem<T> {
   const FDropdownItem({super.key, required super.value, required super.child});
 }
 
@@ -299,29 +225,27 @@ class _FDropdownState<T> extends State<FDropdown<T>> {
   }
 
   @override
-  Widget build(BuildContext context) => _FieldLabel(
+  Widget build(BuildContext context) => m.DropdownButtonFormField<T>(
+    initialValue: _value,
+    items: widget.items,
+    isExpanded: widget.isExpanded,
+    isDense: true,
     decoration: widget.decoration,
-    child: f.ComboBox<T>(
-      value: _value,
-      items: widget.items,
-      isExpanded: widget.isExpanded,
-      placeholder: widget.decoration.hintText == null
-          ? null
-          : Text(widget.decoration.hintText!),
-      onChanged: widget.onChanged == null || !widget.decoration.enabled
-          ? null
-          : (value) {
-              setState(() => _value = value);
-              widget.onChanged!(value);
-            },
-    ),
+    borderRadius: BorderRadius.circular(10),
+    menuMaxHeight: 360,
+    onChanged: widget.onChanged == null || !widget.decoration.enabled
+        ? null
+        : (value) {
+            setState(() => _value = value);
+            widget.onChanged!(value);
+          },
   );
 }
 
 enum _ButtonKind { normal, filled, text }
 
-abstract class _FluentButton extends StatelessWidget {
-  const _FluentButton({
+abstract class _CompactButton extends StatelessWidget {
+  const _CompactButton({
     super.key,
     required this.onPressed,
     required this.child,
@@ -346,20 +270,20 @@ abstract class _FluentButton extends StatelessWidget {
             ],
           );
     return switch (kind) {
-      _ButtonKind.normal => f.Button(onPressed: onPressed, child: content),
-      _ButtonKind.filled => f.FilledButton(
+      _ButtonKind.normal => m.OutlinedButton(
         onPressed: onPressed,
         child: content,
       ),
-      _ButtonKind.text => f.HyperlinkButton(
+      _ButtonKind.filled => m.FilledButton(
         onPressed: onPressed,
         child: content,
       ),
+      _ButtonKind.text => m.TextButton(onPressed: onPressed, child: content),
     };
   }
 }
 
-class FButton extends _FluentButton {
+class FButton extends _CompactButton {
   const FButton({super.key, required super.onPressed, required super.child})
     : super(kind: _ButtonKind.normal);
   const FButton.icon({
@@ -370,7 +294,7 @@ class FButton extends _FluentButton {
   }) : super(kind: _ButtonKind.normal, child: label, leading: icon);
 }
 
-class FFilledButton extends _FluentButton {
+class FFilledButton extends _CompactButton {
   const FFilledButton({
     super.key,
     required super.onPressed,
@@ -384,7 +308,7 @@ class FFilledButton extends _FluentButton {
   }) : super(kind: _ButtonKind.filled, child: label, leading: icon);
 }
 
-class FTextButton extends _FluentButton {
+class FTextButton extends _CompactButton {
   const FTextButton({super.key, required super.onPressed, required super.child})
     : super(kind: _ButtonKind.text);
   const FTextButton.icon({
@@ -420,25 +344,25 @@ class FIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = (visualDensity?.vertical ?? 0) < 0;
-    final button = _outlined
-        ? f.OutlinedButton(
-            onPressed: onPressed,
-            style: f.ButtonStyle(
-              padding: WidgetStatePropertyAll(EdgeInsets.all(compact ? 5 : 8)),
-            ),
-            child: icon,
-          )
-        : f.IconButton(
+    final style = m.IconButton.styleFrom(
+      minimumSize: const Size(32, 32),
+      padding: const EdgeInsets.all(6),
+      visualDensity: visualDensity ?? m.VisualDensity.compact,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    );
+    return _outlined
+        ? m.IconButton.outlined(
             onPressed: onPressed,
             icon: icon,
-            iconButtonMode: compact
-                ? f.IconButtonMode.small
-                : f.IconButtonMode.large,
+            tooltip: tooltip,
+            style: style,
+          )
+        : m.IconButton(
+            onPressed: onPressed,
+            icon: icon,
+            tooltip: tooltip,
+            style: style,
           );
-    return tooltip == null
-        ? button
-        : f.Tooltip(message: tooltip!, child: button);
   }
 }
 
@@ -448,7 +372,7 @@ class FSwitch extends StatelessWidget {
   final ValueChanged<bool>? onChanged;
   @override
   Widget build(BuildContext context) =>
-      f.ToggleSwitch(checked: value, onChanged: onChanged);
+      m.Switch(value: value, onChanged: onChanged);
 }
 
 class FSlider extends StatelessWidget {
@@ -468,7 +392,7 @@ class FSlider extends StatelessWidget {
   final int? divisions;
   final String? label;
   @override
-  Widget build(BuildContext context) => f.Slider(
+  Widget build(BuildContext context) => m.Slider(
     value: value,
     min: min,
     max: max,
@@ -493,7 +417,8 @@ class FAlertDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _DialogViewport(
-    builder: (context, constraints) => f.ContentDialog(
+    builder: (context, constraints) => m.AlertDialog(
+      insetPadding: EdgeInsets.zero,
       constraints: BoxConstraints(
         maxWidth: math.min(560, constraints.maxWidth),
         maxHeight: constraints.maxHeight,
@@ -515,16 +440,14 @@ class FDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _DialogViewport(
-    builder: (context, constraints) => f.ContentDialog(
+    builder: (context, constraints) => m.Dialog(
+      insetPadding: EdgeInsets.zero,
+      clipBehavior: Clip.antiAlias,
       constraints: BoxConstraints(
         maxWidth: constraints.maxWidth,
         maxHeight: constraints.maxHeight,
       ),
-      style: const f.ContentDialogThemeData(
-        padding: EdgeInsets.zero,
-        bodyPadding: EdgeInsets.zero,
-      ),
-      content: child,
+      child: child,
     ),
   );
 }
@@ -577,17 +500,22 @@ class FListTile extends StatelessWidget {
       (dense ? 5.0 : 9.0) + (visualDensity?.vertical ?? 0) * 2,
     );
     final horizontal = math.max(0.0, 12 + (visualDensity?.horizontal ?? 0) * 2);
-    return f.ListTile.selectable(
+    return m.ListTile(
       title: title,
       subtitle: subtitle,
       leading: leading,
       trailing: trailing,
-      onPressed: onTap,
+      onTap: onTap,
       selected: selected,
       contentPadding:
           contentPadding ??
           EdgeInsets.symmetric(horizontal: horizontal, vertical: vertical),
-      margin: EdgeInsets.zero,
+      dense: dense,
+      visualDensity: visualDensity,
+      minTileHeight: 44,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      selectedTileColor: m.Theme.of(context).colorScheme.primaryContainer
+          .withValues(alpha: 0.45),
     );
   }
 }
@@ -622,7 +550,11 @@ class FCheckboxListTile extends StatelessWidget {
     dense: dense,
     visualDensity: visualDensity,
     onTap: onChanged == null ? null : () => onChanged!(value != true),
-    trailing: f.Checkbox(checked: value, onChanged: onChanged),
+    trailing: m.Checkbox(
+      value: value,
+      tristate: value == null,
+      onChanged: onChanged,
+    ),
   );
 }
 
@@ -653,7 +585,7 @@ class FSwitchListTile extends StatelessWidget {
     contentPadding: contentPadding,
     dense: dense,
     onTap: onChanged == null ? null : () => onChanged!(!value),
-    trailing: f.ToggleSwitch(checked: value, onChanged: onChanged),
+    trailing: m.Switch(value: value, onChanged: onChanged),
   );
 }
 
@@ -668,8 +600,12 @@ class FChoiceChip extends StatelessWidget {
   final bool selected;
   final ValueChanged<bool>? onSelected;
   @override
-  Widget build(BuildContext context) =>
-      f.ToggleButton(checked: selected, onChanged: onSelected, child: label);
+  Widget build(BuildContext context) => m.ChoiceChip(
+    selected: selected,
+    onSelected: onSelected,
+    label: label,
+    showCheckmark: false,
+  );
 }
 
 class FExpansionTile extends StatelessWidget {
@@ -692,31 +628,15 @@ class FExpansionTile extends StatelessWidget {
   final EdgeInsetsGeometry childrenPadding;
 
   @override
-  Widget build(BuildContext context) => f.Expander(
+  Widget build(BuildContext context) => m.ExpansionTile(
     initiallyExpanded: initiallyExpanded,
-    onStateChanged: onExpansionChanged,
-    header: Padding(
-      padding: tilePadding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          title,
-          if (subtitle != null) ...[
-            const SizedBox(height: 3),
-            DefaultTextStyle.merge(
-              style: f.FluentTheme.of(context).typography.caption,
-              child: subtitle!,
-            ),
-          ],
-        ],
-      ),
-    ),
-    contentPadding: childrenPadding,
-    content: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: children,
-    ),
+    onExpansionChanged: onExpansionChanged,
+    tilePadding: tilePadding,
+    childrenPadding: childrenPadding,
+    title: title,
+    subtitle: subtitle,
+    shape: const Border(),
+    collapsedShape: const Border(),
+    children: children,
   );
 }

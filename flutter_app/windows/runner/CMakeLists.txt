@@ -12,6 +12,7 @@ add_executable(${BINARY_NAME} WIN32
   "main.cpp"
   "notification_tray.cpp"
   "platform_channel.cpp"
+  "single_instance.cpp"
   "system_proxy.cpp"
   "utils.cpp"
   "win32_window.cpp"

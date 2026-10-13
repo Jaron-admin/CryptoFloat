@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:cryptofloat/app/fluent_theme.dart';
+import 'package:cryptofloat/app/theme.dart';
 import 'package:cryptofloat/domain/models.dart';
 import 'package:cryptofloat/features/settings/fluent_controls.dart';
 import 'package:cryptofloat/features/settings/settings_page.dart';
@@ -8,7 +8,6 @@ import 'package:cryptofloat/features/settings/template_picker.dart';
 import 'package:cryptofloat/l10n/l10n.dart';
 import 'package:cryptofloat/main.dart';
 import 'package:cryptofloat/platform/context_menu_host.dart';
-import 'package:fluent_ui/fluent_ui.dart' as f;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -309,14 +308,8 @@ void main() {
           MaterialApp(
             locale: Locale(language),
             supportedLocales: AppLocalizations.supportedLocales,
-            localizationsDelegates: const [
-              ...AppLocalizations.localizationsDelegates,
-              f.FluentLocalizations.delegate,
-            ],
-            builder: (context, child) => f.FluentTheme(
-              data: buildFluentTheme(original, brightness: Brightness.light),
-              child: child!,
-            ),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            theme: buildAppTheme(original, brightness: Brightness.light),
             home: Builder(
               builder: (context) => Scaffold(
                 body: TextButton(

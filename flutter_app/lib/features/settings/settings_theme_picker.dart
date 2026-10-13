@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart';
 
 import '../../app/theme_presets.dart';
 import '../../domain/models.dart';
@@ -28,22 +28,29 @@ class SettingsThemePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final type = FluentTheme.of(context).typography;
+    final type = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingRow(
           title: context.l10n.editThemeMode,
-          control: ComboBox<String>(
-            value: config.themeMode,
+          control: DropdownButtonFormField<String>(
+            key: ValueKey('theme-mode-${config.themeMode}'),
+            initialValue: config.themeMode,
             isExpanded: true,
             items: [
-              ComboBoxItem(
+              DropdownMenuItem(
                 value: 'system',
                 child: Text(context.l10n.editSystem),
               ),
-              ComboBoxItem(value: 'light', child: Text(context.l10n.editLight)),
-              ComboBoxItem(value: 'dark', child: Text(context.l10n.editDark)),
+              DropdownMenuItem(
+                value: 'light',
+                child: Text(context.l10n.editLight),
+              ),
+              DropdownMenuItem(
+                value: 'dark',
+                child: Text(context.l10n.editDark),
+              ),
             ],
             onChanged: (value) {
               if (value != null) onChanged(config.copyWith(themeMode: value));
@@ -85,8 +92,8 @@ class SettingsThemePicker extends StatelessWidget {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            Text(context.l10n.editMyThemes, style: type.bodyStrong),
-            Button(
+            Text(context.l10n.editMyThemes, style: type.titleSmall),
+            OutlinedButton(
               onPressed: () => _create(context),
               child: Text(context.l10n.editSaveThemeAs),
             ),
@@ -95,7 +102,7 @@ class SettingsThemePicker extends StatelessWidget {
         if (config.customThemes.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: Text(context.l10n.editThemesHelp, style: type.caption),
+            child: Text(context.l10n.editThemesHelp, style: type.bodySmall),
           ),
         for (final theme in config.customThemes) ...[
           const SizedBox(height: 8),
@@ -121,12 +128,13 @@ class SettingsThemePicker extends StatelessWidget {
       title: dark
           ? context.l10n.editDarkPalette
           : context.l10n.editLightPalette,
-      control: ComboBox<String>(
-        value: value,
+      control: DropdownButtonFormField<String>(
+        key: ValueKey('theme-palette-$dark-$value'),
+        initialValue: value,
         isExpanded: true,
         items: [
           for (final choice in choices)
-            ComboBoxItem(
+            DropdownMenuItem(
               value: choice.$1,
               child: Text(
                 choice.$2,
@@ -156,7 +164,7 @@ class SettingsThemePicker extends StatelessWidget {
       title: dark
           ? context.l10n.editDarkBackground
           : context.l10n.editLightBackground,
-      control: Button(
+      control: OutlinedButton(
         onPressed: () => _editBackground(context, brightness),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -168,9 +176,7 @@ class SettingsThemePicker extends StatelessWidget {
                 color: color,
                 borderRadius: BorderRadius.circular(3),
                 border: Border.all(
-                  color: FluentTheme.of(context)
-                      .resources
-                      .controlStrongStrokeColorDefault,
+                  color: Theme.of(context).colorScheme.outlineVariant,
                 ),
               ),
             ),
@@ -240,21 +246,21 @@ class SettingsThemePicker extends StatelessWidget {
       Tooltip(
         message: context.l10n.editThemeEditNamed(theme.name),
         child: IconButton(
-          icon: const Icon(FluentIcons.edit, size: 14),
+          icon: const Icon(Icons.edit_outlined, size: 14),
           onPressed: () => _edit(context, theme),
         ),
       ),
       Tooltip(
         message: context.l10n.editThemeCopyNamed(theme.name),
         child: IconButton(
-          icon: const Icon(FluentIcons.copy, size: 14),
+          icon: const Icon(Icons.copy_outlined, size: 14),
           onPressed: () => _create(context, source: theme),
         ),
       ),
       Tooltip(
         message: context.l10n.editThemeDeleteNamed(theme.name),
         child: IconButton(
-          icon: const Icon(FluentIcons.delete, size: 14),
+          icon: const Icon(Icons.delete_outline, size: 14),
           onPressed: () => _delete(context, theme),
         ),
       ),
@@ -310,11 +316,11 @@ class SettingsThemePicker extends StatelessWidget {
   Future<void> _delete(BuildContext context, UserThemePreset theme) async {
     final remove = await showDialog<bool>(
       context: context,
-      builder: (context) => ContentDialog(
+      builder: (context) => AlertDialog(
         title: Text(context.l10n.editDeleteTheme),
         content: Text(context.l10n.editThemeDeleteConfirm(theme.name)),
         actions: [
-          Button(
+          TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(context.l10n.editCancel),
           ),

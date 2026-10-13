@@ -2,17 +2,25 @@
 
 **简体中文** · [English](README.en.md)
 
-可自定义的桌面行情与 API 悬浮窗。使用 Flutter 构建，设置界面采用 Fluent UI，支持简体中文和 English。
+可自定义的桌面行情与 API 悬浮窗。使用 Flutter 和 Material 3 构建，支持简体中文和 English。
 
 ![CryptoFloat 悬浮窗外观示例](docs/images/panel-preview.png)
 
-外观示例：名称、字体、配色、透明度和显示内容均可自定义。
+v1.1 外观示例：名称、字体、配色、透明度和显示内容均可自定义；新版设置界面有所调整。
+
+### v1.2 设置界面
+
+![Material 3 关注行情设置](docs/images/settings-zh.png)
+
+紧凑分类、设置搜索与分组表单。上图使用示例数据；勾选时列表保留原位置，重新进入页面或刷新目录后再把已选项目排到前面。
 
 ## 下载与启动
 
-前往 [Releases](https://github.com/Jaron-admin/CryptoFloat/releases) 下载 **CryptoFloat-Windows-x64-1.1.0.zip**。
+前往 [Releases](https://github.com/Jaron-admin/CryptoFloat/releases) 下载 **CryptoFloat-Windows-x64-1.2.0.zip**。
 
 解压整个压缩包，双击 `cryptofloat.exe` 启动。请保留同目录的运行库和 `data` 文件夹，不能只复制 EXE。
+
+这是便携版：设置、缓存、导入图标和受保护的密钥保存在程序旁的 `user_data` 文件夹。解压到可写目录；移动程序时带上整个目录。同一 Windows 用户的当前登录会话只运行一个实例，再次启动会唤回已有窗口。升级前请先退出 v1.1 或更早版本。
 
 当前发行版支持 **Windows x64**。macOS/Linux 已有项目骨架，尚未完成原生窗口和受保护存储适配；Android/iOS 暂无可用发行版。
 
@@ -30,7 +38,9 @@
 
 ## 数据与配置
 
-程序首次运行使用通用行情列表，自定义接口与文本均为空。个人设置保存在用户目录；API 请求头密钥由 Windows 当前用户凭据保护。网络自动跟随 Windows 系统网络设置。
+没有 `user_data` 时使用默认配置，不会自动读取或迁移旧版 C 盘数据，旧文件保持原样。已使用过的便携版下次启动继续读取自己的 `user_data`。分享程序请使用发行 ZIP，或先移除自己副本中的 `user_data`，避免分享个人配置。
+
+API 请求头密钥由 Windows 当前用户的 DPAPI 保护；换电脑或 Windows 账户后需要重新输入密钥。网络自动跟随 Windows 系统网络设置。
 
 公开行情可能延迟、限流或暂时不可用；“实时”表示应用在设定周期内成功获取数据。价格与汇率仅供展示参考。
 
@@ -50,7 +60,7 @@ flutter build windows --release
 工具链安装步骤见 [Flutter Windows 配置文档](https://docs.flutter.dev/platform-integration/windows/setup)。生成包含使用说明与许可证的发布目录和 ZIP：
 
 ```powershell
-./tool/build_windows.ps1 -PackageName CryptoFloat-Windows-x64-1.1.0
+./tool/build_windows.ps1 -PackageName CryptoFloat-Windows-x64-1.2.0
 ```
 
 ## 开源协议

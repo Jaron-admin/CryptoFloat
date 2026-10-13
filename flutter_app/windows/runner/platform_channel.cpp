@@ -380,13 +380,14 @@ bool CredentialFile(const std::string& key, std::wstring* path) {
   if (provider) CryptReleaseContext(provider, 0);
   if (!success) return false;
 
-  PWSTR local_data = nullptr;
-  if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &local_data))) {
-    return false;
-  }
-  std::wstring directory(local_data);
-  CoTaskMemFree(local_data);
-  directory += L"\\CryptoFloat";
+  std::vector<wchar_t> module(32768);
+  const DWORD length = GetModuleFileNameW(nullptr, module.data(),
+                                         static_cast<DWORD>(module.size()));
+  if (length == 0 || length >= module.size()) return false;
+  const std::wstring executable(module.data(), length);
+  const auto separator = executable.find_last_of(L"\\/");
+  if (separator == std::wstring::npos) return false;
+  std::wstring directory = executable.substr(0, separator) + L"\\user_data";
   if (!CreateDirectoryW(directory.c_str(), nullptr) &&
       GetLastError() != ERROR_ALREADY_EXISTS) return false;
   directory += L"\\secrets";

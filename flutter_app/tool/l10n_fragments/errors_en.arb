@@ -111,5 +111,6 @@
         "type": "int"
       }
     }
-  }
+  },
+  "errorPortableDirectory": "Cannot write user_data beside the app. Move the app to a writable folder with enough free space."
 }

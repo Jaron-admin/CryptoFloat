@@ -2,11 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:fluent_ui/fluent_ui.dart' as f;
 
 import 'app/app_controller.dart';
 import 'app/theme.dart';
-import 'app/fluent_theme.dart';
 import 'data/config_store.dart';
 import 'domain/models.dart';
 import 'features/panel/panel_page.dart';
@@ -26,6 +24,11 @@ Future<void> main() async {
     startupMessage = store.loadWarning;
   } catch (_) {
     startupMessage = '设置文件无法读取，已使用默认布局。原文件仍保留。';
+  }
+  try {
+    await store.prepare();
+  } catch (_) {
+    startupMessage = 'portable_directory_unwritable';
   }
   final host = FloatingWindowHost();
   try {
@@ -120,7 +123,6 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [
           AppLocalizations.delegate,
-          f.FluentLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
@@ -141,17 +143,7 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
               );
             }
           });
-          return f.FluentTheme(
-            data: buildFluentTheme(
-              config,
-              brightness: switch (config.themeMode) {
-                'light' => Brightness.light,
-                'dark' => Brightness.dark,
-                _ => MediaQuery.platformBrightnessOf(context),
-              },
-            ),
-            child: child ?? const SizedBox.shrink(),
-          );
+          return child ?? const SizedBox.shrink();
         },
         home: _settings
             ? SettingsPage(

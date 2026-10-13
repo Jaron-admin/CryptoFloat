@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 AppController _controller(AppConfig config) => AppController(
-  config: config.copyWith(proxyEnabled: false),
+  config: config.copyWith(proxyEnabled: false, language: 'zh'),
   store: _Store(),
   host: _Host(),
   secrets: _Secrets(),
