@@ -1,4 +1,4 @@
-# MetricPerch · 数栖 1.4.0 · Portable Windows app
+# MetricPerch · 数栖 1.4.1 · Portable Windows app
 
 [简体中文](README.md) · **English**
 
@@ -17,13 +17,14 @@ Extract to a writable directory. Personal data lives in `user_data` beside the E
 - Double-click the panel to hide it to the system tray. Click its tray icon to restore it. Windows may place the icon under the tray's hidden-icons arrow.
 - The tray context menu also provides refresh, settings, and exit actions.
 - Drag the settings title bar to move the settings window. Narrow windows use an icon sidebar or horizontal category navigation.
-- Settings are edited as a draft and saved automatically when clicking outside or returning to the panel. Failed saves keep the draft open. Alt+Tab and color, font, and file pickers do not close Settings. Use Discard changes to restore the saved settings.
+- **Save** commits the draft and keeps the current Settings page open. Clicking outside or returning to the panel still saves automatically. A close request during a save waits for the current operation; failed saves keep the draft for retry. Alt+Tab and color, font, and file pickers do not close Settings.
+- Only Settings has an application taskbar button. Closing Settings, including Alt+F4 or the taskbar close command, saves and returns to the panel. Closing the floating panel hides it to the tray; choose **Exit** to end the app.
 
-Saving changed settings shows a brief confirmation. Windows draws the panel and tray menus' fonts, colors, spacing, and checkmarks. Context menus support arrow keys, Enter, and Esc. Clicking outside a popup closes it, including clicks elsewhere within the panel.
+Manual saving updates the page's saved status; automatic saving when leaving Settings shows a brief confirmation. Windows draws the panel and tray menus' fonts, colors, spacing, and checkmarks. Context menus support arrow keys, Enter, and Esc. Clicking outside a popup closes it, including clicks elsewhere within the panel.
 
 ## Language
 
-Open **Settings → Appearance → Language** and choose **English**, **Simplified Chinese**, or **System**. Settings previews the language immediately and saves it automatically when closing. The interface, messages, floating panel, and tray menus use the selected language, which is retained across restarts.
+Open **Settings → Appearance → Language** and choose **English**, **Simplified Chinese**, or **System**. Settings previews the language immediately; Save or leaving Settings retains the choice. The interface, messages, floating panel, and tray menus use the selected language, which is retained across restarts.
 
 User-defined names, display text, and API response content are preserved as entered. Switching the interface language does not translate that content.
 
@@ -65,7 +66,11 @@ The floating market panel and taskbar monitoring are enabled by default. The tas
 
 **Display layout** supports 1–8 floating columns, with horizontal or vertical entries. When the columns exceed the available width, scroll horizontally. Hide the 24h percentage to color the price by its change direction, using custom theme colors, red-up/green-down, or green-up/red-down.
 
-**Taskbar layout** has its own enable switch, width, and one or two rows. Floating transparency applies only to the floating panel; the taskbar uses its own palette. Preview draft changes in Settings; closing saves and applies them together. A failed save retains the draft. Before deleting shared sources or fields, remove references in both displays, including a disabled display.
+**Taskbar layout** has its own enable switch, maximum width, one/two rows, transparent background, and item spacing. The background is transparent by default, or can use the taskbar's palette. Floating transparency does not affect the taskbar. Maximum width is a limit: short content uses its actual text width, two rows share the wider entry's column width, and long text is shortened when space is limited.
+
+**Labels** offers short or full labels. Automatic cryptocurrency labels remove a recognized quote-currency suffix, such as BTC-USDT → BTC. **Custom labels** lets you name individual quotes, metrics, API fields, and display rows in the taskbar; leave a label blank to restore its automatic name. These labels preserve source names, field identifiers, and data. Tooltips retain original names and values.
+
+Preview draft changes in Settings, then save manually or leave Settings to apply them. A failed save retains the draft. Before deleting shared sources or fields, remove references in both displays, including a disabled display.
 
 Taskbar integration targets the standard primary Windows taskbar using a separate native text helper. Secondary taskbars and third-party replacements are outside the current scope. Windows 11 has no supported reserved slot for third-party content. The helper attempts to display only when a usable region is confirmed, without moving shell controls. Insufficient space or an unknown layout pauses it and retains settings. Settings shows the helper's reported disabled, displaying, waiting, no-space, unsupported, or error state; “Displaying” alone does not verify visible content. v1.4 fixes the reproduced Windows 11 composition issue that hid taskbar content, with visible metrics confirmed on one real desktop setup. Other Windows versions and desktop layouts still need compatibility testing.
 
@@ -112,9 +117,11 @@ Without `user_data`, the app starts with default settings. It does not automatic
 
 Release ZIPs contain no personal data. To share the app, use the original release ZIP or remove `user_data` from a separate sharing copy of your app folder.
 
-The import section on the Watchlist page accepts a legacy `crypto_config.json`. Import creates a settings draft; closing Settings saves and applies it. The old file is not modified. Compatible watchlists, ordering, fonts, and display rows can be migrated. Old API secrets must be entered again.
+The import section on the Watchlist page accepts a legacy `crypto_config.json`. Import creates a settings draft; Save or leaving Settings commits and applies it. The old file is not modified. Compatible watchlists, ordering, fonts, and display rows can be migrated. Old API secrets must be entered again.
 
 The app saves window size and position. The Windows runner uses PerMonitorV2 DPI awareness. If the saved monitor is disconnected or the window is completely offscreen, it returns to a visible area on the primary monitor. Behavior across mixed-DPI displays also depends on the monitor and operating-system configuration.
+
+v1.4.1 corrects a transition in which the old monitor's minimum size constrained the new-DPI rectangle; its native regression passes. A momentary black flash was still reported in the diagnostic probe. The complete font-size and presentation issue has not been verified as resolved; see the [DPI investigation](https://github.com/Jaron-admin/MetricPerch/blob/main/docs/verification/dpi-investigation.md).
 
 ## Build from source
 
@@ -138,7 +145,7 @@ flutter build windows --release
 Create a distributable folder and ZIP:
 
 ```powershell
-./tool/build_windows.ps1 -PackageName MetricPerch-Windows-x64-1.4.0
+./tool/build_windows.ps1 -PackageName MetricPerch-Windows-x64-1.4.1
 ```
 
 Output is written under `dist/`. The package contains `metricperch.exe`, `metricperch_taskbar.exe`, Chinese and English usage guides, the changelog, the project license, and third-party license texts. Packaging starts in a new staging directory and copies only allowlisted executables, libraries, and Flutter resources; it excludes `user_data`, logs, and temporary test files. A missing required helper fails packaging. An existing target directory or ZIP causes an error: choose a new `-PackageName` instead. Existing app directories are never overwritten or emptied. Debugging information is kept in a separate directory; distribute the generated ZIP. If Flutter is not on PATH, pass its command path with `-Flutter`.

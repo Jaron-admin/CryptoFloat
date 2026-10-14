@@ -88,7 +88,7 @@ bool ValidateFrame(const TaskbarFrame& f) {
   if (f.width < 64 || f.width > 1600 || (f.line_count != 1 && f.line_count != 2) ||
       !std::isfinite(f.font_size) || f.font_size < 6 || f.font_size > 32 ||
       !TextValid(f.font_family, 128, false) || !TextValid(f.number_font_family, 128, false) ||
-      f.cells.size() > 32) return false;
+      f.cells.size() > 32 || f.item_gap < 0 || f.item_gap > 24) return false;
   size_t size = 64 + 2 * (f.font_family.size() + f.number_font_family.size());
   for (const auto& cell : f.cells) {
     if (!TextValid(cell.text, 2048) || !TextValid(cell.tooltip, 4096)) return false;
@@ -106,6 +106,7 @@ bool EncodeFrame(const TaskbarFrame& f, std::vector<uint8_t>* out) {
   PutText(out, f.font_family); PutText(out, f.number_font_family);
   Put(out, static_cast<uint32_t>(f.cells.size()));
   for (const auto& cell : f.cells) { Put(out, cell.color); PutText(out, cell.text); PutText(out, cell.tooltip); }
+  Put(out, f.transparent_background ? 1 : 0); Put(out, static_cast<uint32_t>(f.item_gap));
   return true;
 }
 bool DecodeFrame(const std::vector<uint8_t>& bytes, TaskbarFrame* out) {
@@ -124,6 +125,12 @@ bool DecodeFrame(const std::vector<uint8_t>& bytes, TaskbarFrame* out) {
     TaskbarCell cell;
     if (!r.Number(&cell.color) || !r.Text(&cell.text, 2048) || !r.Text(&cell.tooltip, 4096)) return false;
     f.cells.push_back(std::move(cell));
+  }
+  // Legacy frames omit this fixed extension and receive the current defaults.
+  if (r.pos != bytes.size()) {
+    uint32_t transparent, gap;
+    if (!r.Number(&transparent) || transparent > 1 || !r.Number(&gap) || gap > 24) return false;
+    f.transparent_background = transparent == 1; f.item_gap = static_cast<int>(gap);
   }
   if (r.pos != bytes.size() || !ValidateFrame(f)) return false;
   *out = std::move(f); return true;

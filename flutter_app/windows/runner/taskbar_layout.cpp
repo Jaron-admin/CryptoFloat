@@ -18,7 +18,7 @@ struct AutomationWalk {
   ComPtr<IUIAutomationTreeWalker> walker;
   HWND own = nullptr; RECT bounds{};
   std::vector<RECT> occupied;
-  int nodes = 0, controls = 0;
+  int nodes = 0, controls = 0, ignored_own = 0;
   HRESULT error = S_OK;
   const char* reason = "ready";
   bool RecordBounds(BOOL offscreen, BOOL control, const RECT& r,
@@ -41,8 +41,14 @@ struct AutomationWalk {
     if (depth > 20 || ++nodes > 512) { reason = "automationLimit"; return false; }
     UIA_HWND native = nullptr;
     reason = "automationProperties";
+    int process = 0;
+    if (FAILED(error = element->get_CurrentProcessId(&process))) return false;
+    if (process > 0 && IsOwnProcess(static_cast<DWORD>(process))) { ++ignored_own; return true; }
     if (FAILED(error = element->get_CurrentNativeWindowHandle(&native))) return false;
     if (native == own && own) return true;
+    DWORD native_process = 0;
+    if (native) GetWindowThreadProcessId(static_cast<HWND>(native), &native_process);
+    if (IsOwnProcess(native_process)) { ++ignored_own; return true; }
     BOOL offscreen = FALSE, control = FALSE; RECT r{}; CONTROLTYPEID type = 0;
     if (FAILED(error = element->get_CurrentIsOffscreen(&offscreen)) ||
         FAILED(error = element->get_CurrentBoundingRectangle(&r)) ||
@@ -62,9 +68,11 @@ struct AutomationWalk {
     reason = "ready"; return true;
   }
 };
-struct NativeWalk { HWND own; RECT bounds; std::vector<RECT>* occupied; bool complete = true; };
+struct NativeWalk { HWND own; RECT bounds; std::vector<RECT>* occupied; bool complete = true; int ignored_own = 0; };
 BOOL CALLBACK CollectNative(HWND child, LPARAM context) {
   auto& state = *reinterpret_cast<NativeWalk*>(context);
+  DWORD process = 0; GetWindowThreadProcessId(child, &process);
+  if (IsOwnProcess(process)) { ++state.ignored_own; return TRUE; }
   if (child == state.own || !IsWindowVisible(child)) return TRUE;
   wchar_t name[128]{}; RECT r{};
   if (!GetClassNameW(child, name, 128) || !GetWindowRect(child, &r)) { state.complete = false; return FALSE; }
@@ -77,7 +85,30 @@ BOOL CALLBACK CollectNative(HWND child, LPARAM context) {
   return TRUE;
 }
 }
-LayoutResult FitFreeRegion(const LayoutSnapshot& s, int width, int height) {
+bool IsOwnProcess(DWORD process) { return process != 0 && process == GetCurrentProcessId(); }
+std::vector<int> CompactColumns(const std::vector<int>& desired, int available, int gap, int minimum) {
+  if (desired.empty() || available <= 0 || gap < 0 || minimum <= 0) return {};
+  size_t count = desired.size();
+  while (count > 1 && static_cast<int>(count) * minimum + static_cast<int>(count - 1) * gap > available) --count;
+  const int room = (std::max)(0, available - static_cast<int>(count - 1) * gap);
+  std::vector<int> widths(desired.begin(), desired.begin() + count);
+  int total = 0, high = 0;
+  for (auto& width : widths) { width = (std::max)(1, width); total += width; high = (std::max)(high, width); }
+  if (total <= room) return widths;
+  int low = 0;
+  while (low < high) {
+    const int cap = low + (high - low + 1) / 2;
+    int used = 0; for (int width : widths) used += (std::min)(width, cap);
+    if (used <= room) low = cap; else high = cap - 1;
+  }
+  total = 0;
+  for (auto& width : widths) { width = (std::min)(width, low); total += width; }
+  for (size_t i = 0; i < count && total < room; ++i) {
+    if (widths[i] < desired[i]) { ++widths[i]; ++total; }
+  }
+  return widths;
+}
+LayoutResult FitFreeRegion(const LayoutSnapshot& s, int width, int height, int minimum_width) {
   LayoutResult result;
   if (!ValidRect(s.bounds) || s.bounds.bottom - s.bounds.top > s.bounds.right - s.bounds.left) {
     result.status = Status::unsupported; return result;
@@ -85,6 +116,7 @@ LayoutResult FitFreeRegion(const LayoutSnapshot& s, int width, int height) {
   if (!s.complete || !s.visible || s.occupied.empty() || s.dpi < 48 || s.dpi > 768) return result;
   if (width < 64 || width > 1600 || height < 8 || height > 128) { result.status = Status::error; return result; }
   const int w = MulDiv(width, static_cast<int>(s.dpi), 96);
+  const int minimum = minimum_width == 0 ? w : MulDiv((std::clamp)(minimum_width, 1, width), static_cast<int>(s.dpi), 96);
   const int h = MulDiv(height, static_cast<int>(s.dpi), 96);
   const int padding = MulDiv(8, static_cast<int>(s.dpi), 96);
   if (h > s.bounds.bottom - s.bounds.top - 2) { result.status = Status::noSpace; return result; }
@@ -95,15 +127,20 @@ LayoutResult FitFreeRegion(const LayoutSnapshot& s, int width, int height) {
                                                 (std::min)(s.bounds.right, r.right + padding));
   }
   std::sort(blocks.begin(), blocks.end());
-  LONG start = s.bounds.left + padding, selected = 0; bool found = false;
+  LONG start = s.bounds.left + padding, selected = 0, selected_width = 0; bool found = false;
   blocks.emplace_back(s.bounds.right - padding, s.bounds.right);
   for (const auto& block : blocks) {
-    if (block.first - start >= w) { selected = block.first - w; found = true; }
+    if (block.first - start >= minimum) {
+      const LONG candidate = (std::min)(static_cast<LONG>(w), block.first - start);
+      if (!found || candidate >= selected_width) {
+        selected_width = candidate; selected = block.first - selected_width; found = true;
+      }
+    }
     start = (std::max)(start, block.second);
   }
   if (!found) { result.status = Status::noSpace; return result; }
   const LONG top = s.bounds.top + (s.bounds.bottom - s.bounds.top - h) / 2;
-  result.rect = {selected, top, selected + w, top + h}; result.status = Status::displaying;
+  result.rect = {selected, top, selected + selected_width, top + h}; result.status = Status::displaying;
   return result;
 }
 LayoutSnapshot DiscoverTaskbar(HWND bar, HWND own) {
@@ -138,13 +175,14 @@ LayoutSnapshot DiscoverTaskbar(HWND bar, HWND own) {
   error = automation->get_RawViewWalker(&walk.walker);
   if (FAILED(error)) { result.error = static_cast<uint32_t>(error); return result; }
   const bool traversed = walk.Visit(root.Get(), 0);
-  result.nodes = walk.nodes; result.controls = walk.controls;
+  result.nodes = walk.nodes; result.controls = walk.controls; result.ignored_own = walk.ignored_own;
   if (!traversed) { result.reason = walk.reason; result.error = static_cast<uint32_t>(walk.error); return result; }
   result.reason = "insufficientControls";
   if (walk.controls < 2) return result;
   result.occupied = std::move(walk.occupied);
   NativeWalk native{own, result.bounds, &result.occupied};
   EnumChildWindows(bar, CollectNative, reinterpret_cast<LPARAM>(&native));
+  result.ignored_own += native.ignored_own;
   // Require recognizable occupied evidence on both sides. An empty provider tree
   // or a partial task list cannot turn the whole taskbar into an alleged free slot.
   bool left = false, right = false;

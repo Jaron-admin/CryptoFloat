@@ -1,4 +1,4 @@
-param([string]$Flutter = 'flutter', [string]$PackageName = 'MetricPerch-Windows-x64-1.4.0')
+param([string]$Flutter = 'flutter', [string]$PackageName = 'MetricPerch-Windows-x64-1.4.1')
 $ErrorActionPreference = 'Stop'
 $appRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $repoRoot = [System.IO.Directory]::GetParent($appRoot).FullName

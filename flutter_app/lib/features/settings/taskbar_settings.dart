@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../app/theme_presets.dart';
@@ -54,10 +56,8 @@ class TaskbarSettingsView extends StatelessWidget {
       return change > 0 ? changeColors.positive : changeColors.negative;
     }
 
-    final cells = taskbarVisibleCells(
-      buildDisplayTexts(config, quotes, snapshot, rates: rates),
-      chinese: strings.chinese,
-    );
+    final allCells = buildDisplayTexts(config, quotes, snapshot, rates: rates);
+    final cells = taskbarVisibleCells(allCells, chinese: strings.chinese);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -92,7 +92,7 @@ class TaskbarSettingsView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        Text('${strings.width} · ${taskbar.width.round()} px'),
+        Text('${strings.maximumWidth} · ${taskbar.width.round()} px'),
         Slider(
           value: taskbar.width.clamp(120, 1200),
           min: 120,
@@ -102,81 +102,291 @@ class TaskbarSettingsView extends StatelessWidget {
             config.copyWith(taskbar: taskbar.copyWith(width: value)),
           ),
         ),
+        SwitchListTile(
+          key: const ValueKey('taskbar-transparent'),
+          contentPadding: EdgeInsets.zero,
+          title: Text(strings.transparentBackground),
+          value: taskbar.transparentBackground,
+          onChanged: (value) => onChanged(
+            config.copyWith(
+              taskbar: taskbar.copyWith(transparentBackground: value),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text('${strings.itemGap} · ${taskbar.itemGap} px'),
+        Slider(
+          key: const ValueKey('taskbar-item-gap'),
+          value: taskbar.itemGap.toDouble(),
+          min: 0,
+          max: 24,
+          divisions: 24,
+          onChanged: (value) => onChanged(
+            config.copyWith(taskbar: taskbar.copyWith(itemGap: value.round())),
+          ),
+        ),
+        Text(strings.labelStyle),
+        const SizedBox(height: 8),
+        SegmentedButton<String>(
+          showSelectedIcon: false,
+          segments: [
+            ButtonSegment(value: 'short', label: Text(strings.shortLabels)),
+            ButtonSegment(value: 'full', label: Text(strings.fullLabels)),
+          ],
+          selected: {taskbar.labelMode},
+          onSelectionChanged: (values) => onChanged(
+            config.copyWith(
+              taskbar: taskbar.copyWith(labelMode: values.single),
+            ),
+          ),
+        ),
         const SizedBox(height: 16),
         Text(strings.preview, style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
-        ClipRect(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Container(
-              width: taskbar.width,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              color: palette.background,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var row = 0; row < taskbar.lineCount; row++)
-                    Row(
-                      children: [
-                        for (
-                          var i = row;
-                          i < cells.length;
-                          i += taskbar.lineCount
-                        )
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 3,
-                              ),
-                              child: Text.rich(
-                                TextSpan(
-                                  children: [
-                                    for (final match
-                                        in RegExp(r'[0-9.,%−]+|[^0-9.,%−]+')
-                                            .allMatches(
-                                              boundedTaskbarText(
-                                                taskbarCellText(
-                                                  cells[i],
-                                                  showChangePercent:
-                                                      config.showChangePercent,
-                                                ),
-                                                200,
-                                              ),
-                                            ))
-                                      TextSpan(
-                                        text: match.group(0),
-                                        style: TextStyle(
-                                          fontFamily: SystemFonts.family(
-                                            RegExp(r'^[0-9.,%−]')
-                                                    .hasMatch(match.group(0)!)
-                                                ? config.numberFontFamily
-                                                : config.fontFamily,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: cellColor(cells[i]),
-                                  fontSize: config.fontSize,
-                                ),
-                              ),
-                            ),
-                          ),
-                        if (cells.length % taskbar.lineCount != 0 && row == 1)
-                          const Expanded(child: SizedBox.shrink()),
-                      ],
+        _TaskbarPreview(
+          config: config,
+          cells: cells,
+          chinese: strings.chinese,
+          background: palette.background,
+          foreground: palette.foreground,
+          cellColor: cellColor,
+        ),
+        const SizedBox(height: 16),
+        ExpansionTile(
+          key: const ValueKey('taskbar-aliases'),
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: const EdgeInsets.only(bottom: 8),
+          title: Text(strings.aliases),
+          children: [
+            for (final cell in allCells)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: TextFormField(
+                  key: ValueKey('taskbar-alias-${cell.id}'),
+                  initialValue: taskbar.labelAliases[cell.id] ?? '',
+                  maxLength: 64,
+                  decoration: InputDecoration(
+                    labelText: boundedTaskbarText(
+                      cell.label.isEmpty ? cell.value : cell.label,
+                      80,
                     ),
-                  if (cells.isEmpty)
-                    Text('—', style: TextStyle(color: palette.foreground)),
-                ],
+                    hintText: strings.aliasHint,
+                    counterText: '',
+                    isDense: true,
+                  ),
+                  onChanged: (value) => onChanged(
+                    config.copyWith(
+                      taskbar: taskbar.copyWith(
+                        labelAliases: {...taskbar.labelAliases, cell.id: value},
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
+          ],
         ),
       ],
     );
   }
+}
+
+class _TaskbarPreview extends StatelessWidget {
+  const _TaskbarPreview({
+    required this.config,
+    required this.cells,
+    required this.chinese,
+    required this.background,
+    required this.foreground,
+    required this.cellColor,
+  });
+
+  final AppConfig config;
+  final List<DisplayText> cells;
+  final bool chinese;
+  final Color background, foreground;
+  final Color Function(DisplayText) cellColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final taskbar = config.taskbar;
+    final rows = taskbar.lineCount == 1 ? 1 : 2;
+    final gap = taskbar.itemGap.clamp(0, 24);
+    final maxWidth = taskbar.width.isFinite
+        ? taskbar.width.clamp(120, 1200).round()
+        : 360;
+    final fontSize = config.fontSize.isFinite
+        ? config.fontSize.clamp(6, 32).toDouble()
+        : 12.0;
+    final style = DefaultTextStyle.of(context).style.copyWith(
+      fontSize: fontSize,
+      fontWeight: FontWeight.w400,
+      fontFamily: SystemFonts.family(config.fontFamily),
+      color: foreground,
+    );
+    final direction = Directionality.of(context);
+
+    TextSpan span(String text, Color color) => TextSpan(
+      style: style.copyWith(color: color),
+      children: [
+        for (final match in RegExp(r'[0-9.,%−]+|[^0-9.,%−]+').allMatches(text))
+          TextSpan(
+            text: match.group(0),
+            style: TextStyle(
+              fontFamily: SystemFonts.family(
+                RegExp(r'^[0-9.,%−]').hasMatch(match.group(0)!)
+                    ? config.numberFontFamily
+                    : config.fontFamily,
+              ),
+            ),
+          ),
+      ],
+    );
+    int measure(TextSpan text) {
+      final painter = TextPainter(
+        text: text,
+        textDirection: direction,
+        textScaler: TextScaler.noScaling,
+        maxLines: 1,
+      )..layout();
+      final width = math.max(1, painter.width.ceil());
+      painter.dispose();
+      return width;
+    }
+
+    final texts = [
+      for (final cell in cells)
+        boundedTaskbarText(
+          taskbarCellText(
+            cell,
+            config: taskbar,
+            assets: config.assets,
+            showChangePercent: config.showChangePercent,
+          ),
+          200,
+        ),
+    ];
+    final spans = [
+      for (var i = 0; i < cells.length; i++)
+        span(texts[i], cellColor(cells[i])),
+    ];
+    final desired = List<int>.filled((cells.length + rows - 1) ~/ rows, 1);
+    for (var i = 0; i < cells.length; i++) {
+      desired[i ~/ rows] = math.max(desired[i ~/ rows], measure(spans[i]));
+    }
+    // Match the native host: width is a cap, and paired rows share a column.
+    final naturalWidth =
+        8 +
+        desired.fold<int>(0, (sum, width) => sum + width) +
+        math.max(0, desired.length - 1) * gap;
+    final width = naturalWidth.clamp(64, maxWidth);
+    final columns = _compactPreviewColumns(
+      desired,
+      width - 8,
+      gap,
+      measure(span('…', foreground)),
+    );
+    final omitted = columns.length < desired.length;
+
+    Widget cell(int column, int row) {
+      final index = column * rows + row;
+      if (index >= cells.length) {
+        return SizedBox(width: columns[column].toDouble());
+      }
+      final text = omitted && column == columns.length - 1
+          ? span('${texts[index]} …', cellColor(cells[index]))
+          : spans[index];
+      return SizedBox(
+        key: ValueKey('taskbar-preview-cell-${cells[index].id}'),
+        width: columns[column].toDouble(),
+        child: Tooltip(
+          message: boundedTaskbarText(
+            taskbarCellTooltip(cells[index], chinese: chinese),
+            600,
+          ),
+          child: Text.rich(
+            text,
+            textScaler: TextScaler.noScaling,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      );
+    }
+
+    return ClipRect(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Container(
+          key: const ValueKey('taskbar-preview'),
+          width: width.toDouble(),
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          color: taskbar.transparentBackground ? null : background,
+          child: cells.isEmpty
+              ? Text('—', style: style)
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var row = 0; row < rows; row++)
+                      Row(
+                        children: [
+                          for (
+                            var column = 0;
+                            column < columns.length;
+                            column++
+                          ) ...[
+                            if (column > 0) SizedBox(width: gap.toDouble()),
+                            cell(column, row),
+                          ],
+                        ],
+                      ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+// The same fair cap used by native CompactColumns: retain short columns at
+// natural width and share the remaining room among longer columns.
+List<int> _compactPreviewColumns(
+  List<int> desired,
+  int available,
+  int gap,
+  int minimum,
+) {
+  if (desired.isEmpty || available <= 0) return [];
+  var count = desired.length;
+  while (count > 1 && count * minimum + (count - 1) * gap > available) {
+    count--;
+  }
+  final room = math.max(0, available - (count - 1) * gap);
+  final widths = desired.take(count).toList();
+  if (widths.fold<int>(0, (sum, width) => sum + width) <= room) return widths;
+  var low = 0;
+  var high = widths.reduce(math.max);
+  while (low < high) {
+    final cap = low + (high - low + 1) ~/ 2;
+    final used = widths.fold<int>(
+      0,
+      (sum, width) => sum + math.min(width, cap),
+    );
+    if (used <= room) {
+      low = cap;
+    } else {
+      high = cap - 1;
+    }
+  }
+  var used = 0;
+  for (var i = 0; i < count; i++) {
+    widths[i] = math.min(widths[i], low);
+    used += widths[i];
+  }
+  for (var i = 0; i < count && used < room; i++) {
+    if (widths[i] < desired[i]) {
+      widths[i]++;
+      used++;
+    }
+  }
+  return widths;
 }

@@ -45,7 +45,7 @@ void main() {
   );
 
   testWidgets(
-    'language preview changes the UI immediately and discard restores it',
+    'language preview changes immediately and save keeps the settings open',
     (tester) async {
       final store = _JsonSettingsStore();
       final controller = settingsController(
@@ -82,17 +82,19 @@ void main() {
         'en',
       );
 
-      await tester.tap(find.text('Discard changes'));
+      expect(find.text('Discard changes'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('settings-save')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('返回悬浮窗'));
+      expect(find.byType(SettingsPage), findsOneWidget);
+      expect(store.saved?.language, 'en');
+      await tester.tap(find.byTooltip('Return to panel'));
       await tester.pumpAndSettle();
-      expect(controller.config.language, 'zh');
-      expect(controller.appearanceConfig.language, 'zh');
-      expect(store.saved, isNull);
+      expect(controller.config.language, 'en');
+      expect(controller.appearanceConfig.language, 'en');
       expect(find.byType(SettingsPage), findsNothing);
-      await _openAppearance(tester, 'zh');
-      expect(find.text('悬浮窗透明度'), findsOneWidget);
-      expect(find.text('Language'), findsNothing);
+      await _openAppearance(tester, 'en');
+      expect(find.text('悬浮窗透明度'), findsNothing);
+      expect(find.text('Language'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );

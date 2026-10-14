@@ -48,6 +48,19 @@ int main() {
         frame.cells[0].text == L"内存 — 25%" && frame.number_font_family == L"Consolas" &&
         frame.cells[0].color == 0xFFFFFFFF, "taskbar UTF8 text fonts and unsigned color decode");
   Check(DecodeTaskbarFrame(&data, &frame) && frame.cells.size() == 1, "reused frame replaces cells rather than accumulating them");
+  data[V("transparentBackground")] = V(1);
+  Check(!DecodeTaskbarFrame(&data, &frame), "integer transparency flag rejected");
+  data = Frame(); data[V("itemGap")] = V(25);
+  Check(!DecodeTaskbarFrame(&data, &frame), "gap above maximum rejected");
+  data[V("itemGap")] = V(2.5);
+  Check(!DecodeTaskbarFrame(&data, &frame), "fractional gap rejected");
+  data = Frame();
+  data[V("transparentBackground")] = V(false); data[V("itemGap")] = V(24);
+  Check(DecodeTaskbarFrame(&data, &frame) && !frame.transparent_background && frame.item_gap == 24,
+        "transparent flag and gap decode within bounds");
+  data = Frame();
+  Check(DecodeTaskbarFrame(&data, &frame) && frame.transparent_background && frame.item_gap == 6,
+        "missing surface options use portable defaults");
   data[V("width")] = V(360.5);
   Check(!DecodeTaskbarFrame(&data, &frame), "fractional width rejected rather than truncated");
   data = Frame(); data[V("fontSize")] = V(std::numeric_limits<double>::quiet_NaN());

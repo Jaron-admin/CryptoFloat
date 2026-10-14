@@ -90,6 +90,12 @@ bool DecodeTaskbarFrame(const M* map, TaskbarFrame* output) {
       !ReadColor(Get(map, "background"), &frame.background) || !ReadColor(Get(map, "foreground"), &frame.foreground)) return false;
   frame.width = static_cast<int>(width);
   frame.line_count = static_cast<int>(lines);
+  if (Get(map, "transparentBackground") && !ReadBool(map, "transparentBackground", &frame.transparent_background)) return false;
+  if (Get(map, "itemGap")) {
+    double gap = 0;
+    if (!Numeric(Get(map, "itemGap"), &gap) || gap < 0 || gap > 24 || std::floor(gap) != gap) return false;
+    frame.item_gap = static_cast<int>(gap);
+  }
   auto list_value = Get(map, "cells");
   auto cells = list_value ? std::get_if<L>(list_value) : nullptr;
   if (!cells || cells->size() > 32) return false;

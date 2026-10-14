@@ -19,6 +19,8 @@ struct TaskbarFrame {
   uint32_t background = 0xFF202020, foreground = 0xFFF3F3F3;
   std::vector<TaskbarCell> cells;
   std::wstring number_font_family = L"Segoe UI";
+  bool transparent_background = true;
+  int item_gap = 6;  // Logical pixels, applied between content-sized columns.
 };
 class TaskbarHost {
  public:

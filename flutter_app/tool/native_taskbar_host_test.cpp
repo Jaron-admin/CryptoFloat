@@ -7,7 +7,18 @@ void Check(bool ok, const char* name) {
   if (!ok) ++failures;
 }
 int main() {
+  const auto compact = taskbar::CompactColumns({20, 100, 35}, 220, 6, 10);
+  Check(compact == std::vector<int>({20, 100, 35}), "natural compact widths do not expand short cells");
+  const auto clipped = taskbar::CompactColumns({20, 100, 35}, 100, 6, 10);
+  Check(clipped.size() == 3 && clipped[0] == 20 && clipped[1] == 34 && clipped[2] == 34 &&
+        clipped[0] + clipped[1] + clipped[2] + 12 == 100, "tight layout shrinks long columns without equal-width waste");
+  const auto tiny = taskbar::CompactColumns({20, 100, 35}, 25, 6, 10);
+  Check(tiny.size() == 1 && tiny[0] <= 25, "very narrow layout omits whole trailing columns safely");
+  Check(taskbar::IsOwnProcess(GetCurrentProcessId()) && !taskbar::IsOwnProcess(0) &&
+        !taskbar::IsOwnProcess(GetCurrentProcessId() + 1), "self-process exclusion rejects only helper elements");
   TaskbarFrame frame;
+  Check(frame.transparent_background && frame.item_gap == 6, "taskbar surface defaults to transparent compact mode");
+  frame.transparent_background = false; frame.item_gap = 13;
   frame.cells = {{L"CPU 23.5%", 0xFF00FF00, L"Processor usage"},
                  {L"内存 —", 0xFFFFFFFF, L"完整文字"}};
   Check(taskbar::ValidateFrame(frame), "valid bilingual frame accepted");
@@ -16,8 +27,15 @@ int main() {
   Check(taskbar::EncodeFrame(frame, &payload) && taskbar::DecodeFrame(payload, &decoded) &&
         decoded.cells.size() == 2 && decoded.cells[1].text == L"内存 —" &&
         decoded.cells[0].tooltip == L"Processor usage" && decoded.width == 360 &&
-        decoded.font_size == 11 && decoded.cells[0].color == 0xFF00FF00,
+        decoded.font_size == 11 && decoded.cells[0].color == 0xFF00FF00 &&
+        !decoded.transparent_background && decoded.item_gap == 13,
         "frame roundtrip preserves text and styles");
+  auto legacy = payload; legacy.resize(legacy.size() - 8);
+  Check(taskbar::DecodeFrame(legacy, &decoded) && decoded.transparent_background && decoded.item_gap == 6,
+        "legacy wire frame gets transparent compact defaults");
+  frame.item_gap = 25;
+  Check(!taskbar::ValidateFrame(frame), "wire gap is bounded");
+  frame.item_gap = 6;
   frame.font_size = std::numeric_limits<double>::quiet_NaN();
   Check(!taskbar::ValidateFrame(frame), "reject NaN font");
   frame.font_size = std::numeric_limits<double>::infinity();
@@ -65,6 +83,15 @@ int main() {
   auto fit = taskbar::FitFreeRegion(layout, 360, 32);
   Check(fit.status == taskbar::Status::displaying && fit.rect.left == 1152 &&
         fit.rect.right == 1512 && fit.rect.top == 1008, "fits padded true free region");
+  auto compact_layout = layout;
+  compact_layout.occupied = {{0, 1000, 1300, 1048}, {1520, 1000, 1920, 1048}};
+  const auto compact_fit = taskbar::FitFreeRegion(compact_layout, 360, 32, 64);
+  Check(compact_fit.status == taskbar::Status::displaying && compact_fit.rect.right - compact_fit.rect.left == 204,
+        "compact display can shrink inside a verified narrower gap");
+  compact_layout.occupied = {{0, 1000, 500, 1048}, {1000, 1000, 1380, 1048}, {1520, 1000, 1920, 1048}};
+  const auto widest_fit = taskbar::FitFreeRegion(compact_layout, 360, 32, 64);
+  Check(widest_fit.status == taskbar::Status::displaying && widest_fit.rect.right - widest_fit.rect.left == 360 && widest_fit.rect.right < 1000,
+        "full text gap is preferred to a narrow gap further right");
   layout.complete = false;
   Check(taskbar::FitFreeRegion(layout, 360, 32).status == taskbar::Status::waiting,
         "unknown layout refused");

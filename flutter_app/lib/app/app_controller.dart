@@ -151,46 +151,23 @@ class AppController extends ChangeNotifier {
         (_config.language == 'system' &&
             WidgetsBinding.instance.platformDispatcher.locale.languageCode ==
                 'zh');
-    final cells = taskbarVisibleCells(
-      buildDisplayTexts(
-        view,
-        data.quotes,
-        metrics.snapshot,
-        rates: data.exchangeRates,
-      ),
-      chinese: chinese,
+    final cells = buildDisplayTexts(
+      view,
+      data.quotes,
+      metrics.snapshot,
+      rates: data.exchangeRates,
     );
-    await taskbar.update({
-      'enabled': _config.taskbar.enabled,
-      'chinese': chinese,
-      'width': _config.taskbar.width.round(),
-      'lineCount': _config.taskbar.lineCount,
-      'fontSize': view.fontSize.clamp(6, 32),
-      'fontFamily': boundedTaskbarText(
-        view.fontFamily.isEmpty ? 'Segoe UI' : view.fontFamily,
-        128,
+    await taskbar.update(
+      buildTaskbarFrame(
+        config: _config.taskbar,
+        chinese: chinese,
+        cells: cells,
+        assets: view.assets,
+        background: palette.background.toARGB32(),
+        foreground: palette.foreground.toARGB32(),
+        colorFor: (cell) => cellColor(cell).toARGB32(),
       ),
-      'numberFontFamily': boundedTaskbarText(
-        view.numberFontFamily.isEmpty ? 'Segoe UI' : view.numberFontFamily,
-        128,
-      ),
-      'background': palette.background.toARGB32(),
-      'foreground': palette.foreground.toARGB32(),
-      'cells': [
-        for (final cell in cells)
-          {
-            'text': boundedTaskbarText(
-              taskbarCellText(cell, showChangePercent: view.showChangePercent),
-              200,
-            ),
-            'tooltip': boundedTaskbarText(
-              '${cell.text}${cell.change == null ? '' : '  ${cell.change! >= 0 ? '+' : ''}${cell.change!.toStringAsFixed(2)}%'}${cell.stale ? (chinese ? ' · 等待更新' : ' · Awaiting update') : ''}',
-              600,
-            ),
-            'color': cellColor(cell).toARGB32(),
-          },
-      ],
-    });
+    );
   }
 
   Future<void> apply(AppConfig value) async {

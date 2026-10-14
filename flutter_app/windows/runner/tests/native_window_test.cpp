@@ -18,6 +18,7 @@
 
 namespace fixture {
 UINT dpi = 96;
+UINT monitor_dpi_override = 0;
 RECT work{0, 0, 1600, 1000};
 HOOKPROC mouse_hook = nullptr;
 int hooks_started = 0;
@@ -38,7 +39,7 @@ void Expect(bool condition, const char* message) {
     std::cerr << "FAIL: " << message << '\n';
   }
 }
-UINT MonitorDpi(HMONITOR) { return dpi; }
+UINT MonitorDpi(HMONITOR) { return monitor_dpi_override ? monitor_dpi_override : dpi; }
 UINT WindowDpi(HWND) { return dpi; }
 BOOL MonitorInfo(HMONITOR, LPMONITORINFO info) {
   info->rcWork = work;
@@ -355,6 +356,73 @@ void SavedNotificationTest() {
   }
 }
 
+void DpiMinimumDuringTransitionTest() {
+  HiddenWindow window;
+  fixture::dpi = 168;
+  fixture::work = RECT{0, 0, 1920, 1080};
+  window.Create(L"Hidden DPI minimum regression", Win32Window::Point(100, 100),
+      Win32Window::Size(320, 180));
+  // During WM_DPICHANGED the window's DPI is already the destination DPI,
+  // while MonitorFromWindow may still identify its old physical rectangle.
+  fixture::monitor_dpi_override = 168;
+  DpiChange(window, 96, RECT{100, 100, 420, 280});
+  MINMAXINFO limits{};
+  window.MessageHandler(window.GetHandle(), WM_GETMINMAXINFO, 0,
+      reinterpret_cast<LPARAM>(&limits));
+  fixture::Expect(limits.ptMinTrackSize.x == 320 && limits.ptMinTrackSize.y == 180,
+      "transition minimum uses new window DPI instead of old monitor DPI");
+  const auto bounds = window.GetWindowBounds();
+  fixture::Expect(bounds.rect.right - bounds.rect.left == 320 &&
+      bounds.rect.bottom - bounds.rect.top == 180,
+      "transition work-area clamp uses destination DPI for minimum size");
+  fixture::monitor_dpi_override = 0;
+}
+
+template <typename T, typename = void>
+struct HasCloseLifecycle : std::false_type {};
+template <typename T>
+struct HasCloseLifecycle<T, std::void_t<decltype(
+    std::declval<T>().SetCloseRequestCallback(std::function<void()>{})),
+    decltype(std::declval<T>().RequestExit())>> : std::true_type {};
+
+template <typename Window = HiddenWindow>
+void TaskbarPresenceAndCloseTest() {
+  Window window;
+  fixture::dpi = 96;
+  fixture::work = RECT{0, 0, 1600, 1000};
+  window.Create(L"Hidden close regression", Win32Window::Point(100, 100),
+      Win32Window::Size(601, 301));
+  auto extended = GetWindowLongPtrW(window.GetHandle(), GWL_EXSTYLE);
+  fixture::Expect((extended & WS_EX_TOOLWINDOW) != 0 &&
+      (extended & WS_EX_APPWINDOW) == 0, "floating panel has no taskbar button");
+  window.SetSettingsMode(true);
+  extended = GetWindowLongPtrW(window.GetHandle(), GWL_EXSTYLE);
+  fixture::Expect((extended & WS_EX_TOOLWINDOW) == 0 &&
+      (extended & WS_EX_APPWINDOW) != 0, "settings has a taskbar button");
+  fixture::Expect(!IsWindowVisible(window.GetHandle()),
+      "changing taskbar presence never reveals a hidden fixture");
+  window.SetSettingsMode(false);
+  fixture::Expect((GetWindowLongPtrW(window.GetHandle(), GWL_EXSTYLE) &
+      WS_EX_TOOLWINDOW) != 0, "returning to panel removes taskbar presence");
+  if constexpr (!HasCloseLifecycle<Window>::value) {
+    fixture::Expect(false, "user close and explicit exit have separate paths");
+  } else {
+    int requests = 0;
+    window.SetCloseRequestCallback([&]() { ++requests; });
+    const HWND handle = window.GetHandle();
+    window.MessageHandler(handle, WM_CLOSE, 0, 0);
+    fixture::Expect(requests == 1 && IsWindow(handle),
+        "user close requests save or hide without terminating the host");
+    window.SetCloseRequestCallback(nullptr);
+    window.MessageHandler(handle, WM_CLOSE, 0, 0);
+    fixture::Expect(IsWindow(handle), "missing close handler keeps recovery window alive");
+    window.RequestExit();
+    fixture::Expect(IsWindow(handle), "explicit exit is queued after channel reply");
+    Pump(handle);
+    fixture::Expect(!IsWindow(handle), "explicit Exit destroys the host");
+  }
+}
+
 int main() {
   SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
   DpiGeometryTest();
@@ -362,6 +430,8 @@ int main() {
   NativeResizeAndDisplayChangeTest();
   SavedNotificationTest();
   OutsideClickTest();
+  DpiMinimumDuringTransitionTest();
+  TaskbarPresenceAndCloseTest();
   if (fixture::failures != 0) return 1;
   std::cout << "Native geometry, menu, outside click and saved notification tests passed.\n";
   return 0;

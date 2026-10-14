@@ -23,8 +23,8 @@ int CheckRenderer(HWND parent) {
   host.snapshot.visible = true; host.snapshot.complete = true;
   host.snapshot.reason = "isolatedCrossProcessFixture";
   host.snapshot_time = GetTickCount64();
-  const auto expected = taskbar::FitFreeRegion(host.snapshot, 360, 36);
   host.Tick();
+  const auto expected = taskbar::FitFreeRegion(host.snapshot, host.RequiredLogicalWidth(), 36, 64);
   RECT actual{};
   const bool created = host.status == taskbar::Status::displaying && host.display && GetParent(host.display) == parent;
   // Unaware hosts virtualize coordinates into logical integer pixels. A mapping
@@ -42,13 +42,14 @@ int CheckRenderer(HWND parent) {
       GetWindow(host.display, GW_HWNDPREV) == nullptr;
   BYTE alpha = 0; DWORD layered_flags = 0;
   const bool layered = created && (GetWindowLongPtrW(host.display, GWL_EXSTYLE) & WS_EX_LAYERED) != 0 &&
-      GetLayeredWindowAttributes(host.display, nullptr, &alpha, &layered_flags) && alpha == 255 && layered_flags == LWA_ALPHA;
+      !GetLayeredWindowAttributes(host.display, nullptr, &alpha, &layered_flags) &&
+      (GetWindowLongPtrW(host.display, GWL_EXSTYLE) & WS_EX_TRANSPARENT) == 0;
   std::printf("%s cross-process child attaches to hidden parent dpi=%u\n", created ? "PASS" : "FAIL", host.snapshot.dpi);
   std::printf("%s physical coordinate mapping matches fitted region expected=%ld,%ld,%ld,%ld actual=%ld,%ld,%ld,%ld\n",
       positioned ? "PASS" : "FAIL", expected.rect.left, expected.rect.top, expected.rect.right, expected.rect.bottom,
       actual.left, actual.top, actual.right, actual.bottom);
   std::printf("%s visible nonactivating child sits above full-width fixture sibling while parent stays hidden\n", styles ? "PASS" : "FAIL");
-  std::printf("%s GDI child has an opaque compositor surface\n", layered ? "PASS" : "FAIL");
+  std::printf("%s child uses per-pixel compositor alpha without mouse passthrough style\n", layered ? "PASS" : "FAIL");
   host.RemoveDisplay();
   if (host.text_font) DeleteObject(host.text_font);
   if (host.number_font) DeleteObject(host.number_font);

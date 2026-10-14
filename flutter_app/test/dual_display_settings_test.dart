@@ -45,7 +45,7 @@ void main() {
   });
   for (final language in ['en', 'zh']) {
     testWidgets(
-      '$language system settings fit compact width and discard taskbar draft',
+      '$language system settings fit compact width and save taskbar draft in place',
       (tester) async {
         tester.view.physicalSize = const Size(520, 640);
         tester.view.devicePixelRatio = 1;
@@ -60,7 +60,7 @@ void main() {
             language: language,
           ),
         );
-        final original = encodeJson(controller.config.toJson());
+        final originalFloating = controller.config.selectedMetricIds;
         var closed = false;
         await tester.pumpWidget(
           MaterialApp(
@@ -91,17 +91,21 @@ void main() {
         await tester.ensureVisible(checkbox);
         await tester.tap(checkbox);
         await tester.pumpAndSettle();
-        await tester.tap(
-          find.text(language == 'zh' ? '放弃更改' : 'Discard changes'),
-        );
+        await tester.tap(find.byKey(const ValueKey('settings-save')));
         await tester.pumpAndSettle();
+        expect(closed, false);
+        expect(store.saved, isNotNull);
+        expect(
+          controller.config.taskbar.profile.selectedMetricIds,
+          isNot(contains('cpu.usage')),
+        );
+        expect(controller.config.selectedMetricIds, originalFloating);
         await tester.tap(
           find.byTooltip(language == 'zh' ? '返回悬浮窗' : 'Return to panel'),
         );
         await tester.pumpAndSettle();
         expect(closed, true);
-        expect(store.saved, isNull);
-        expect(encodeJson(controller.config.toJson()), original);
+        expect(store.saved, isNotNull);
         expect(tester.takeException(), isNull);
         await tester.pumpWidget(const SizedBox.shrink());
         controller.dispose();

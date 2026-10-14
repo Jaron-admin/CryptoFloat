@@ -285,27 +285,47 @@ class TaskbarConfig {
     this.enabled = true,
     this.width = 360,
     this.lineCount = 2,
+    this.labelMode = 'short',
+    this.labelAliases = const {},
+    this.itemGap = 6,
+    this.transparentBackground = true,
     this.profile = DisplayProfile.taskbarDefaults,
   });
   final bool enabled;
   final double width;
   final int lineCount;
+  final String labelMode;
+  final Map<String, String> labelAliases;
+  final int itemGap;
+  final bool transparentBackground;
   final DisplayProfile profile;
   TaskbarConfig copyWith({
     bool? enabled,
     double? width,
     int? lineCount,
+    String? labelMode,
+    Map<String, String>? labelAliases,
+    int? itemGap,
+    bool? transparentBackground,
     DisplayProfile? profile,
   }) => TaskbarConfig(
     enabled: enabled ?? this.enabled,
     width: width ?? this.width,
     lineCount: lineCount ?? this.lineCount,
+    labelMode: (labelMode ?? this.labelMode) == 'full' ? 'full' : 'short',
+    labelAliases: _readTaskbarAliases(labelAliases ?? this.labelAliases),
+    itemGap: (itemGap ?? this.itemGap).clamp(0, 24),
+    transparentBackground: transparentBackground ?? this.transparentBackground,
     profile: profile ?? this.profile,
   );
   Map<String, Object?> toJson() => {
     'enabled': enabled,
     'width': width,
     'lineCount': lineCount,
+    'labelMode': labelMode == 'full' ? 'full' : 'short',
+    'labelAliases': _readTaskbarAliases(labelAliases),
+    'itemGap': itemGap.clamp(0, 24),
+    'transparentBackground': transparentBackground,
     'profile': profile.toJson(),
   };
   factory TaskbarConfig.fromJson(Map<String, dynamic> json) => TaskbarConfig(
@@ -314,10 +334,40 @@ class TaskbarConfig {
         ? (json['width'] as num).toDouble().clamp(120, 1200)
         : 360,
     lineCount: json['lineCount'] == 1 ? 1 : 2,
+    labelMode: json['labelMode'] == 'full' ? 'full' : 'short',
+    labelAliases: _readTaskbarAliases(json['labelAliases']),
+    itemGap: json['itemGap'] is num && (json['itemGap'] as num).isFinite
+        ? (json['itemGap'] as num).toInt().clamp(0, 24)
+        : 6,
+    transparentBackground: json['transparentBackground'] is bool
+        ? json['transparentBackground'] as bool
+        : true,
     profile: json['profile'] is Map<String, dynamic>
         ? DisplayProfile.fromJson(json['profile'] as Map<String, dynamic>)
         : DisplayProfile.taskbarDefaults,
   );
+}
+
+/// Aliases are display-only plain text; identifiers remain byte-for-byte intact.
+String normalizeTaskbarAlias(String value) => String.fromCharCodes(
+  value
+      .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim()
+      .runes
+      .take(64),
+);
+
+Map<String, String> _readTaskbarAliases(Object? value) {
+  if (value is! Map) return const {};
+  return Map.unmodifiable({
+    for (final entry in value.entries)
+      if (entry.key is String &&
+          (entry.key as String).trim().isNotEmpty &&
+          entry.value is String &&
+          normalizeTaskbarAlias(entry.value as String).isNotEmpty)
+        entry.key as String: normalizeTaskbarAlias(entry.value as String),
+  });
 }
 
 class SystemMonitorSettings {

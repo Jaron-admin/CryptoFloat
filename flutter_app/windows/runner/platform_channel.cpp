@@ -505,6 +505,9 @@ PlatformChannel::PlatformChannel(Win32Window* window,
   window_->SetSettingsOutsideClickCallback([this]() {
     channel_->InvokeMethod("window.settingsOutsideClick", nullptr);
   });
+  window_->SetCloseRequestCallback([this]() {
+    channel_->InvokeMethod("tray.action", std::make_unique<Value>("windowClose"));
+  });
   context_menu_ = std::make_shared<ContextMenu>(window_->GetHandle());
   tray_ = std::make_unique<NotificationTray>(
       window_->GetHandle(), [this](const std::string& action) {
@@ -529,6 +532,7 @@ PlatformChannel::PlatformChannel(Win32Window* window,
 }
 
 PlatformChannel::~PlatformChannel() {
+  window_->SetCloseRequestCallback(nullptr);
   window_->SetSettingsOutsideClickCallback(nullptr);
   context_menu_->Shutdown();
   channel_->SetMethodCallHandler(nullptr);
@@ -710,7 +714,7 @@ void PlatformChannel::HandleMethod(const flutter::MethodCall<Value>& call,
   } else if (method == "window.close") {
     // Reply before destroying the messenger that carries the reply.
     result->Success();
-    PostMessage(window_->GetHandle(), WM_CLOSE, 0, 0);
+    window_->RequestExit();
   } else if (method == "window.getSystemFonts") {
     result->Success(SystemFonts());
   } else if (method == "window.getFontData") {

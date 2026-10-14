@@ -1,38 +1,47 @@
-// Keep the renderer fixture in the same process: GDI DCs are process resources.
-// The included implementation's test build can attach only to its own fake bar.
+// Offscreen glyph and alpha checks; this fixture creates no visible windows.
 #define TASKBAR_ISOLATED_TEST
 #include "../windows/runner/taskbar_main.cpp"
 #include <cstdio>
 int main() {
+  int failures = 0;
+  auto check = [&failures](bool ok, const char* label) {
+    std::printf("%s %s\n", ok ? "PASS" : "FAIL", label); if (!ok) ++failures;
+  };
   Host host;
   host.frame.foreground = 0xFF00FF00;
-  host.frame.cells = {{L"CPU 25%", 0, L"Processor"}, {L"内存 —", 0xFFFFFFFF, L"Memory"}};
-  HWND parent = CreateWindowExW(WS_EX_TOOLWINDOW, L"STATIC", nullptr, WS_POPUP,
-      0, 0, 360, 48, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
-  host.display = CreateWindowExW(0, L"STATIC", nullptr, WS_CHILD, 0, 0, 360, 48,
-      parent, nullptr, GetModuleHandleW(nullptr), nullptr);
-  if (!parent || !host.display) return 2;
+  host.frame.font_size = 16;
+  host.frame.cells = {{L"CPU 25%", 0, L"Processor"}, {L"内存 42%", 0xFFFFFFFF, L"Memory"},
+                      {L"D 3K", 0xFFFF0000, L"Download speed 3 kilobytes per second"}};
   host.Fonts(96);
-  HDC dc = CreateCompatibleDC(nullptr); BITMAPINFO info{};
-  info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER); info.bmiHeader.biWidth = 360;
-  info.bmiHeader.biHeight = -48; info.bmiHeader.biPlanes = 1;
-  info.bmiHeader.biBitCount = 32; info.bmiHeader.biCompression = BI_RGB;
-  void* bits = nullptr; HBITMAP bitmap = CreateDIBSection(dc, &info, DIB_RGB_COLORS, &bits, nullptr, 0);
-  if (!bitmap) return 2;
-  auto old = SelectObject(dc, bitmap); host.Render(dc);
-  bool background = false, first_row = false, second_row = false, inherited_color = false;
-  auto pixels = static_cast<uint32_t*>(bits);
-  for (int i = 0; i < 360 * 48; ++i) {
-    auto rgb = pixels[i] & 0xFFFFFF;
-    background |= rgb == 0x202020;
-    inherited_color |= ((rgb >> 8) & 255) > ((rgb >> 16) & 255) + 20;
-    if (rgb != 0x202020) { if (i < 360 * 24) first_row = true; else second_row = true; }
+  const auto pixels = host.RenderPixels(360, 48);
+  bool edge = pixels.size() == 360 * 48, first = false, second = false, full = false, inherited = false, premultiplied = edge;
+  int last_ink = 0;
+  for (size_t i = 0; i < pixels.size(); ++i) {
+    const uint32_t pixel = pixels[i], alpha = pixel >> 24;
+    const uint32_t red = (pixel >> 16) & 255, green = (pixel >> 8) & 255, blue = pixel & 255;
+    premultiplied &= red <= alpha && green <= alpha && blue <= alpha;
+    if (i < 360 || i >= 360 * 47 || i % 360 == 0 || i % 360 == 359) edge &= pixel == 0x01000000;
+    if (alpha > 1) {
+      if (i < 360 * 24) first = true; else second = true;
+      full |= alpha == 255; inherited |= green > red + 20 && green > blue + 20;
+      last_ink = (std::max)(last_ink, static_cast<int>(i % 360));
+    }
   }
-  std::printf("%s native renderer paints opaque background and both text rows\n",
-              background && first_row && second_row ? "PASS" : "FAIL");
-  std::printf("%s cell with inherited color uses frame foreground\n", inherited_color ? "PASS" : "FAIL");
-  SelectObject(dc, old); DeleteObject(bitmap); DeleteDC(dc);
-  DestroyWindow(host.display); DestroyWindow(parent);
+  check(edge, "transparent rectangle edges retain only alpha one without a frame");
+  check(first && second && full && inherited, "both text rows retain opaque glyph interiors and inherited colors");
+  check(premultiplied, "all antialiased text pixels contain valid premultiplied alpha");
+  check(last_ink < 250 && host.RequiredLogicalWidth() < 260, "short content occupies measured width rather than equal-width cells");
+  host.frame.transparent_background = false;
+  const auto opaque = host.RenderPixels(360, 48);
+  check(opaque.size() == pixels.size() && opaque.front() == host.frame.background &&
+        std::all_of(opaque.begin(), opaque.end(), [](uint32_t p) { return (p >> 24) == 255; }),
+        "opaque background remains available with every output pixel fully opaque");
+  host.frame.transparent_background = true;
+  host.frame.cells.assign(32, {L"Very long data field 123456789", 0xFFFFFFFF, L"Full unabridged tooltip"});
+  const auto narrow = host.RenderPixels(64, 48);
+  check(narrow.size() == 64 * 48 && std::any_of(narrow.begin(), narrow.end(), [](uint32_t p) { return (p >> 24) > 1; }),
+        "narrow surface safely renders clipped text and overflow ellipsis");
+  check(host.frame.cells.back().tooltip == L"Full unabridged tooltip", "clipping never changes full tooltip data");
   DeleteObject(host.text_font); DeleteObject(host.number_font);
-  return background && first_row && second_row && inherited_color ? 0 : 1;
+  return failures ? 1 : 0;
 }

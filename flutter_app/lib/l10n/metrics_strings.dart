@@ -32,6 +32,16 @@ class MetricsStrings {
   String get showFloating => chinese ? '显示行情悬浮窗' : 'Show floating panel';
   String get taskbarLayout => chinese ? '任务栏布局' : 'Taskbar layout';
   String get width => chinese ? '宽度' : 'Width';
+  String get maximumWidth => chinese ? '最大宽度' : 'Maximum width';
+  String get transparentBackground =>
+      chinese ? '透明背景' : 'Transparent background';
+  String get itemGap => chinese ? '项目间距' : 'Item spacing';
+  String get labelStyle => chinese ? '名称显示' : 'Labels';
+  String get shortLabels => chinese ? '自动简写' : 'Short labels';
+  String get fullLabels => chinese ? '完整名称' : 'Full labels';
+  String get aliases => chinese ? '自定义简写' : 'Custom labels';
+  String get aliasHint =>
+      chinese ? '留空使用自动名称' : 'Leave blank for automatic label';
   String get layout => chinese ? '排列' : 'Layout';
   String get oneLine => chinese ? '单行' : 'One row';
   String get twoLines => chinese ? '双行' : 'Two rows';

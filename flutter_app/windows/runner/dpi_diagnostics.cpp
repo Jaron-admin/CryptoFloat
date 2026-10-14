@@ -82,6 +82,11 @@ void DpiDiagnostics::Initialize(bool enabled,
   enabled_ = false;
   file_.clear();
   sequence_ = 0;
+  render_deadline_millis_ = 0;
+  render_transition_ = 0;
+  resize_samples_remaining_ = 0;
+  child_paint_count_ = 0;
+  child_erase_count_ = 0;
   if (!enabled) return;
   try {
     std::error_code error;
@@ -167,6 +172,7 @@ void DpiDiagnostics::RecordNative(DpiNativeEvent event, HWND parent, HWND child,
   if (!enabled_) return;
   const char* name = NativeName(event);
   if (!name) return;
+  ObserveTransition(event);
   std::ostringstream text;
   text.imbue(std::locale::classic());
   text << "\"event\":\"" << name << "\",\"hostDpi\":" << host_dpi
@@ -179,6 +185,82 @@ void DpiDiagnostics::RecordNative(DpiNativeEvent event, HWND parent, HWND child,
   if (parent && GetWindowRect(parent, &parent_rect)) Rectangle(text, "parent", parent_rect);
   if (child && GetClientRect(child, &child_rect)) Rectangle(text, "child", child_rect);
   if (suggested) Rectangle(text, "suggested", *suggested);
+  AppendChildRenderCounts(text);
+  Write(text.str());
+}
+
+bool DpiDiagnostics::ObservingChildRender() const {
+  return enabled_ && render_deadline_millis_ != 0 &&
+      GetTickCount64() < render_deadline_millis_;
+}
+
+void DpiDiagnostics::ObserveTransition(DpiNativeEvent event) {
+  const bool new_transition = event == DpiNativeEvent::kEnterMove ||
+      event == DpiNativeEvent::kParentDpi;
+  const bool boundary = event == DpiNativeEvent::kChildBeforeParent ||
+      event == DpiNativeEvent::kExitMove;
+  if (new_transition || (boundary && !ObservingChildRender())) {
+    ++render_transition_;
+    render_deadline_millis_ = GetTickCount64() + 2000;
+    resize_samples_remaining_ = 16;
+    child_paint_count_ = 0;
+    child_erase_count_ = 0;
+  } else if (event == DpiNativeEvent::kExitMove) {
+    // Include naturally arriving paints after the native drag loop returns,
+    // keeping its existing counts and detail budget.
+    render_deadline_millis_ = GetTickCount64() + 2000;
+  }
+}
+
+void DpiDiagnostics::AppendChildRenderCounts(std::ostream& stream) const {
+  if (render_transition_ == 0) return;
+  stream << ",\"renderTransition\":" << render_transition_
+         << ",\"paintCount\":" << child_paint_count_
+         << ",\"eraseCount\":" << child_erase_count_;
+}
+
+void DpiDiagnostics::CountChildPaint(UINT message) {
+  if (!enabled_ || (message != WM_PAINT && message != WM_ERASEBKGND) ||
+      !ObservingChildRender()) return;
+  unsigned& count = message == WM_PAINT ? child_paint_count_ : child_erase_count_;
+  if (count < 1000000) ++count;
+}
+
+DpiDiagnostics::ChildResizeSample DpiDiagnostics::BeginChildResize(HWND child) {
+  ChildResizeSample sample;
+  if (!enabled_ || resize_samples_remaining_ == 0 ||
+      !ObservingChildRender()) return sample;
+  RECT before{};
+  if (!GetClientRect(child, &before)) return sample;
+  --resize_samples_remaining_;
+  sample.before_width = before.right - before.left;
+  sample.before_height = before.bottom - before.top;
+  sample.started_transition = render_transition_;
+  sample.started_micros = TimestampMicros();
+  return sample;
+}
+
+void DpiDiagnostics::EndChildResize(const ChildResizeSample& sample, HWND child,
+    LONG requested_width, LONG requested_height, bool success) {
+  if (!enabled_ || sample.started_micros == 0) return;
+  const auto ended_micros = TimestampMicros();
+  RECT after{};
+  const bool measured = GetClientRect(child, &after) != FALSE;
+  std::ostringstream text;
+  text.imbue(std::locale::classic());
+  text << "\"event\":\"childResize\",\"startedMicros\":" << sample.started_micros
+       << ",\"startedTransition\":" << sample.started_transition
+       << ",\"durationMicros\":" << (ended_micros >= sample.started_micros ?
+            ended_micros - sample.started_micros : 0)
+       << ",\"beforeWidth\":" << sample.before_width
+       << ",\"beforeHeight\":" << sample.before_height
+       << ",\"requestedWidth\":" << requested_width
+       << ",\"requestedHeight\":" << requested_height
+       << ",\"afterWidth\":" << after.right - after.left
+       << ",\"afterHeight\":" << after.bottom - after.top
+       << ",\"resizeSucceeded\":" << (success ? 1 : 0)
+       << ",\"afterMeasured\":" << (measured ? 1 : 0);
+  AppendChildRenderCounts(text);
   Write(text.str());
 }
 

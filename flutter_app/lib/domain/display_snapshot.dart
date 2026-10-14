@@ -24,12 +24,114 @@ class DisplayText {
           : ' $unit'}';
 }
 
-String taskbarCellText(DisplayText cell, {required bool showChangePercent}) {
+String taskbarCellLabel(
+  DisplayText cell, {
+  TaskbarConfig config = const TaskbarConfig(),
+  Iterable<Asset> assets = Asset.popular,
+}) {
+  final alias = normalizeTaskbarAlias(config.labelAliases[cell.id] ?? '');
+  if (alias.isNotEmpty) return alias;
+  if (config.labelMode == 'full' || !cell.id.startsWith('asset:')) {
+    return cell.label;
+  }
+  final asset = assets
+      .where((asset) => 'asset:${asset.id}' == cell.id)
+      .firstOrNull;
+  if (asset == null || asset.kind != MarketKind.crypto) return cell.label;
+  final symbol = asset.symbol.trim();
+  final quote = asset.currency.trim();
+  if (quote.isEmpty ||
+      symbol.length <= quote.length ||
+      !symbol.toUpperCase().endsWith(quote.toUpperCase())) {
+    return cell.label;
+  }
+  final base = symbol
+      .substring(0, symbol.length - quote.length)
+      .replaceFirst(RegExp(r'[-/_]+$'), '');
+  return base.isEmpty ? cell.label : base;
+}
+
+String taskbarCellTooltip(DisplayText cell, {required bool chinese}) {
+  final change = cell.change;
+  final percentage = change != null && change.isFinite
+      ? ' ${formatValue(change, '+.2f')}%'
+      : '';
+  final freshness = cell.stale
+      ? (chinese ? ' · 等待更新' : ' · Awaiting update')
+      : '';
+  return '${cell.text}$percentage$freshness';
+}
+
+/// Only bounded rendered text and display preferences cross the native boundary.
+Map<String, Object?> buildTaskbarFrame({
+  required TaskbarConfig config,
+  required bool chinese,
+  required List<DisplayText> cells,
+  required int background,
+  required int foreground,
+  Iterable<Asset> assets = Asset.popular,
+  int Function(DisplayText)? colorFor,
+}) {
+  final profile = config.profile;
+  return {
+    'enabled': config.enabled,
+    'chinese': chinese,
+    'width': config.width.isFinite
+        ? config.width.clamp(120, 1200).round()
+        : 360,
+    'lineCount': config.lineCount == 1 ? 1 : 2,
+    'itemGap': config.itemGap.clamp(0, 24),
+    'transparentBackground': config.transparentBackground,
+    'fontSize': profile.fontSize.isFinite ? profile.fontSize.clamp(6, 32) : 12,
+    'fontFamily': boundedTaskbarText(
+      profile.fontFamily.isEmpty ? 'Segoe UI' : profile.fontFamily,
+      128,
+    ),
+    'numberFontFamily': boundedTaskbarText(
+      profile.numberFontFamily.isEmpty ? 'Segoe UI' : profile.numberFontFamily,
+      128,
+    ),
+    'background': background,
+    'foreground': foreground,
+    'cells': [
+      for (final cell in taskbarVisibleCells(cells, chinese: chinese))
+        {
+          'text': boundedTaskbarText(
+            taskbarCellText(
+              cell,
+              showChangePercent: profile.showChangePercent,
+              config: config,
+              assets: assets,
+            ),
+            200,
+          ),
+          'tooltip': boundedTaskbarText(
+            taskbarCellTooltip(cell, chinese: chinese),
+            600,
+          ),
+          'color': colorFor?.call(cell) ?? foreground,
+        },
+    ],
+  };
+}
+
+String taskbarCellText(
+  DisplayText cell, {
+  required bool showChangePercent,
+  TaskbarConfig config = const TaskbarConfig(),
+  Iterable<Asset> assets = Asset.popular,
+}) {
+  final label = taskbarCellLabel(cell, config: config, assets: assets);
+  final text = DisplayText(
+    label,
+    cell.value,
+    unit: cell.unit,
+  ).text.replaceAll(RegExp(r'\s+'), ' ').trim();
   final change = cell.change;
   if (!showChangePercent || change == null || !change.isFinite) {
-    return cell.text;
+    return text;
   }
-  return '${cell.text}  ${formatValue(change, '+.2f')}%';
+  return '$text ${formatValue(change, '+.2f')}%';
 }
 
 /// Reserve a cell for the undisplayed count instead of rejecting a whole frame.

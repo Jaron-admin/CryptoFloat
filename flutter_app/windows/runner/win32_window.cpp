@@ -24,6 +24,7 @@ namespace {
 
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
 constexpr UINT kSettingsOutsideClick = WM_APP + 0x37;
+constexpr UINT kExplicitExit = WM_APP + 0x38;
 // WH_MOUSE_LL invokes the hook on its installing thread. The application has
 // one settings host; no callback state crosses the window thread boundary.
 thread_local Win32Window* g_settings_mouse_owner = nullptr;
@@ -83,14 +84,13 @@ BOOL CALLBACK FindDisplay(HMONITOR monitor, HDC, LPRECT, LPARAM parameter) {
   return TRUE;
 }
 
-RECT VisibleBounds(RECT desired, HMONITOR monitor) {
+RECT VisibleBounds(RECT desired, HMONITOR monitor, double scale) {
   MONITORINFO info{};
   info.cbSize = sizeof(info);
   if (!GetMonitorInfoW(monitor, &info)) return desired;
   const LONG work_width = info.rcWork.right - info.rcWork.left;
   const LONG work_height = info.rcWork.bottom - info.rcWork.top;
   if (work_width <= 0 || work_height <= 0) return desired;
-  const double scale = MonitorScale(monitor);
   const LONG width = std::min(
       work_width, std::max(static_cast<LONG>(Scale(320, scale)),
                            desired.right - desired.left));
@@ -206,7 +206,7 @@ bool Win32Window::Create(const std::wstring& title,
   double scale_factor = dpi / 96.0;
 
   HWND window = CreateWindowEx(
-      WS_EX_LAYERED, window_class, title.c_str(),
+      WS_EX_LAYERED | WS_EX_TOOLWINDOW, window_class, title.c_str(),
       WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX | WS_CLIPCHILDREN,
       origin.x, origin.y,
       Scale(static_cast<int>(size.width), scale_factor),
@@ -261,6 +261,16 @@ Win32Window::MessageHandler(HWND hwnd,
   const DpiDepthScope dpi_depth(dpi_message_depth_, message == WM_DPICHANGED);
   RecordDpiMessage(message, wparam, lparam, false);
   switch (message) {
+    case WM_CLOSE: {
+      // The taskbar close command and Alt+F4 must not bypass draft saving.
+      // Keep the host alive until Dart has completed the requested action.
+      const auto callback = close_request_;
+      if (callback) callback();
+      return 0;
+    }
+    case kExplicitExit:
+      DestroyWindow(hwnd);
+      return 0;
     case kSettingsOutsideClick: {
       if (wparam != settings_click_generation_) return 0;
       settings_click_pending_ = false;
@@ -282,7 +292,9 @@ Win32Window::MessageHandler(HWND hwnd,
     case WM_GETMINMAXINFO: {
       auto info = reinterpret_cast<MINMAXINFO*>(lparam);
       const HMONITOR monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-      const double scale = MonitorScale(monitor);
+      // WM_DPICHANGED updates the window DPI before its old rectangle has
+      // moved. Looking up that rectangle's monitor can apply the old minimum.
+      const double scale = current_dpi_ / 96.0;
       LONG min_width = Scale(320, scale);
       LONG min_height = Scale(settings_mode_ ? 360 : 180, scale);
       MONITORINFO work_area{};
@@ -326,7 +338,8 @@ Win32Window::MessageHandler(HWND hwnd,
       suggested.right = suggested.left + size.cx;
       suggested.bottom = suggested.top + size.cy;
       const RECT visible = VisibleBounds(suggested,
-          MonitorFromRect(&suggested, MONITOR_DEFAULTTONEAREST));
+          MonitorFromRect(&suggested, MONITOR_DEFAULTTONEAREST),
+          current_dpi_ / 96.0);
       applying_bounds_ = true;
       SetWindowPos(hwnd, nullptr, visible.left, visible.top,
                    visible.right - visible.left, visible.bottom - visible.top,
@@ -346,8 +359,12 @@ Win32Window::MessageHandler(HWND hwnd,
       RECT rect = GetClientArea();
       if (child_content_ != nullptr) {
         // Size and position the child window.
-        MoveWindow(child_content_, rect.left, rect.top, rect.right - rect.left,
-                   rect.bottom - rect.top, TRUE);
+        auto& diagnostics = DpiDiagnostics::Process();
+        const auto sample = diagnostics.BeginChildResize(child_content_);
+        const BOOL resized = MoveWindow(child_content_, rect.left, rect.top,
+            rect.right - rect.left, rect.bottom - rect.top, TRUE);
+        diagnostics.EndChildResize(sample, child_content_, rect.right - rect.left,
+                                   rect.bottom - rect.top, resized != FALSE);
       }
       return 0;
     }
@@ -411,6 +428,9 @@ LRESULT CALLBACK Win32Window::ChildSubclassProc(
     HWND window, UINT message, WPARAM wparam, LPARAM lparam,
     UINT_PTR subclass_id, DWORD_PTR reference_data) {
   auto owner = reinterpret_cast<Win32Window*>(reference_data);
+  if (message == WM_PAINT || message == WM_ERASEBKGND) {
+    DpiDiagnostics::Process().CountChildPaint(message);
+  }
   owner->RecordDpiMessage(message, wparam, lparam, true);
   if (message == WM_NCHITTEST && owner->ResizeHitTest(lparam) != HTCLIENT) {
     return HTTRANSPARENT;
@@ -541,7 +561,7 @@ void Win32Window::ApplyLogicalBounds(const Bounds& bounds, double width,
   RECT desired = bounds.rect;
   desired.right = desired.left + size.cx;
   desired.bottom = desired.top + size.cy;
-  const RECT visible = VisibleBounds(desired, monitor);
+  const RECT visible = VisibleBounds(desired, monitor, current_dpi_ / 96.0);
   const bool was_applying_bounds = applying_bounds_;
   applying_bounds_ = true;
   SetWindowPos(window_handle_, nullptr, visible.left, visible.top,
@@ -560,7 +580,7 @@ void Win32Window::ClampToVisibleWorkArea() {
   const SIZE size = ScaledWindowSize(current_dpi_);
   desired.right = desired.left + size.cx;
   desired.bottom = desired.top + size.cy;
-  const RECT visible = VisibleBounds(desired, monitor);
+  const RECT visible = VisibleBounds(desired, monitor, current_dpi_ / 96.0);
   if (EqualRect(&current, &visible)) return;
   const bool was_applying_bounds = applying_bounds_;
   applying_bounds_ = true;
@@ -597,6 +617,7 @@ void Win32Window::SetSettingsMode(bool enabled) {
   if (enabled == settings_mode_) return;
   StopSettingsMouseHook();
   settings_mode_ = enabled;
+  UpdateTaskbarPresence();
   ApplyOpacity();
   if (enabled) {
     panel_bounds_ = GetWindowBounds();
@@ -610,6 +631,34 @@ void Win32Window::SetSettingsMode(bool enabled) {
   } else {
     ApplyLogicalBounds(panel_bounds_, panel_logical_width_, panel_logical_height_);
   }
+}
+
+void Win32Window::UpdateTaskbarPresence() {
+  if (!window_handle_) return;
+  // Windows requires hiding a visible window before changing its taskbar
+  // style. Preserve hidden state and focus for tray and settings transitions.
+  const bool visible =
+      (GetWindowLongPtrW(window_handle_, GWL_STYLE) & WS_VISIBLE) != 0;
+  const bool foreground = GetForegroundWindow() == window_handle_;
+  if (visible) ShowWindow(window_handle_, SW_HIDE);
+  LONG_PTR style = GetWindowLongPtrW(window_handle_, GWL_EXSTYLE);
+  style &= ~(WS_EX_TOOLWINDOW | WS_EX_APPWINDOW);
+  style |= settings_mode_ ? WS_EX_APPWINDOW : WS_EX_TOOLWINDOW;
+  SetWindowLongPtrW(window_handle_, GWL_EXSTYLE, style);
+  SetWindowPos(window_handle_, nullptr, 0, 0, 0, 0,
+      SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+  if (visible) {
+    ShowWindow(window_handle_, SW_SHOWNA);
+    if (foreground) SetForegroundWindow(window_handle_);
+  }
+}
+
+void Win32Window::SetCloseRequestCallback(std::function<void()> callback) {
+  close_request_ = std::move(callback);
+}
+
+void Win32Window::RequestExit() {
+  if (window_handle_) PostMessageW(window_handle_, kExplicitExit, 0, 0);
 }
 
 void Win32Window::SetSettingsOutsideClickCallback(std::function<void()> callback) {

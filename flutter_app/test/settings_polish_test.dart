@@ -408,7 +408,7 @@ void main() {
   );
 
   testWidgets(
-    'draft background reaches surfaces and dialogs and cancels cleanly',
+    'draft background reaches surfaces and remains after saving in place',
     (tester) async {
       final store = SettingsStore();
       final controller = _controller(store, SettingsHost());
@@ -463,12 +463,13 @@ void main() {
       );
       await tester.tap(find.text('取消'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('放弃更改'));
+      await tester.tap(find.byKey(const ValueKey('settings-save')));
       await tester.pumpAndSettle();
+      expect(find.byType(SettingsPage), findsOneWidget);
       await tester.tap(find.byTooltip('返回悬浮窗'));
       await tester.pumpAndSettle();
-      expect(_theme(tester).colorScheme.surface, before);
-      expect(store.saved, isNull);
+      expect(_theme(tester).colorScheme.surface, theme.colorScheme.surface);
+      expect(store.saved, isNotNull);
       await tester.pumpWidget(const SizedBox.shrink());
     },
   );
@@ -492,11 +493,12 @@ void main() {
         .map((text) => text.data ?? text.textSpan?.toPlainText() ?? '')
         .join(' ');
     expect(samples, contains('中文预览'));
-    await tester.tap(find.text('放弃更改'));
+    await tester.tap(find.byKey(const ValueKey('settings-save')));
     await tester.pumpAndSettle();
+    expect(find.byType(SettingsPage), findsOneWidget);
     await tester.tap(find.byTooltip('返回悬浮窗'));
     await tester.pumpAndSettle();
-    expect(_theme(tester).textTheme.bodyMedium?.fontFamily, 'Segoe UI');
+    expect(_theme(tester).textTheme.bodyMedium?.fontFamily, 'Consolas');
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
@@ -525,6 +527,9 @@ void main() {
     await reveal(tester, firstAsset);
     await tester.tap(firstAsset);
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('settings-save')));
+    await tester.pumpAndSettle();
+    expect(find.byType(SettingsPage), findsOneWidget);
     await tester.tap(find.byTooltip('返回悬浮窗'));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('panel-title')), findsOneWidget);

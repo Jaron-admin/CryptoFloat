@@ -8,6 +8,13 @@
 
 #if __has_include("../dpi_diagnostics.h")
 #include "../dpi_diagnostics.h"
+#include <flutter_windows.h>
+
+// The fixture only creates hidden windows and never needs the desktop's DPI.
+UINT DiagnosticFixtureMonitorDpi(HMONITOR) { return 96; }
+#define FlutterDesktopGetDpiForMonitor DiagnosticFixtureMonitorDpi
+#include "../win32_window.cpp"
+#undef FlutterDesktopGetDpiForMonitor
 
 namespace {
 int failures = 0;
@@ -27,6 +34,111 @@ flutter::EncodableMap Payload() {
           {V("physicalHeight"), V(551.0)}, {V("logicalWidth"), V(560.0)},
           {V("logicalHeight"), V(551.0 / 1.75)},
           {V("textScale"), V(1.0)}, {V("fontSize"), V(15.0)}};
+}
+size_t Occurrences(const std::string& text, const std::string& match) {
+  size_t count = 0;
+  for (size_t at = 0; (at = text.find(match, at)) != std::string::npos;
+       at += match.size()) ++count;
+  return count;
+}
+class DiagnosticFixtureWindow : public Win32Window {
+ public:
+  using Win32Window::MessageHandler;
+};
+LRESULT CALLBACK DiagnosticFixtureChild(HWND hwnd, UINT message,
+                                        WPARAM wparam, LPARAM lparam) {
+  if (message == WM_SIZE) {
+    // Simulate synchronous work in the child's real resize message path.
+    Sleep(5);
+    SendMessageW(hwnd, WM_PAINT, 0, 0);
+    SendMessageW(hwnd, WM_ERASEBKGND, 0, 0);
+  }
+  if (message == WM_PAINT) {
+    PAINTSTRUCT paint{};
+    BeginPaint(hwnd, &paint);
+    EndPaint(hwnd, &paint);
+    return 0;
+  }
+  if (message == WM_ERASEBKGND) return 1;
+  return DefWindowProcW(hwnd, message, wparam, lparam);
+}
+void ChildResizeDiagnosticsTest(const std::filesystem::path& directory) {
+  auto& sink = DpiDiagnostics::Process();
+  const auto capture = directory / "child-resize";
+  const auto log = capture / "dpi-diagnostics.log";
+  sink.Initialize(false, capture);
+  DiagnosticFixtureWindow window;
+  Expect(window.Create(L"", {0, 0}, {640, 360}), "resize host created hidden");
+  WNDCLASSW klass{};
+  klass.lpfnWndProc = DiagnosticFixtureChild;
+  klass.hInstance = GetModuleHandleW(nullptr);
+  klass.lpszClassName = L"MetricPerchDiagnosticFixtureChild";
+  RegisterClassW(&klass);
+  HWND child = CreateWindowExW(0, klass.lpszClassName, L"", WS_CHILD,
+      0, 0, 200, 100, window.GetHandle(), nullptr, klass.hInstance, nullptr);
+  Expect(child != nullptr, "resize child created");
+  window.SetChildContent(child);
+  window.MessageHandler(window.GetHandle(), WM_ENTERSIZEMOVE, 0, 0);
+  window.MessageHandler(window.GetHandle(), WM_SIZE, 0, 0);
+  SendMessageW(child, WM_PAINT, 0, 0);
+  Expect(!std::filesystem::exists(capture), "disabled resize capture creates no files");
+
+  sink.Initialize(true, capture);
+  // No observation boundary yet: ordinary price repainting is not captured.
+  SendMessageW(child, WM_PAINT, 0, 0);
+  window.MessageHandler(window.GetHandle(), WM_SIZE, 0, 0);
+  Expect(Read(log).find("\"event\":\"childResize\"") == std::string::npos,
+         "resize duration is absent outside a transition");
+  MoveWindow(child, 0, 0, 200, 100, FALSE);
+  window.MessageHandler(window.GetHandle(), WM_ENTERSIZEMOVE, 0, 0);
+  const auto before = Read(log).size();
+  window.MessageHandler(window.GetHandle(), WM_SIZE, 0, 0);
+  std::string observed = Read(log).substr(before);
+  Expect(observed.find("\"event\":\"childResize\"") != std::string::npos,
+         "transition captures synchronous child resize duration");
+  Expect(observed.find("\"beforeWidth\":200") != std::string::npos &&
+         observed.find("\"requestedWidth\":640") != std::string::npos &&
+         observed.find("\"afterWidth\":640") != std::string::npos,
+         "resize sample relates requested size to actual before and after size");
+  const std::string timing_key = "\"durationMicros\":";
+  const auto timing_at = observed.find(timing_key);
+  Expect(timing_at != std::string::npos &&
+         std::stoull(observed.substr(timing_at + timing_key.size())) >= 4000,
+         "resize duration includes synchronous child work");
+  Expect(observed.find("\"paintCount\":1") != std::string::npos &&
+         observed.find("\"eraseCount\":1") != std::string::npos,
+         "resize sample contains child paint and erase counts");
+  const auto stable_log = Read(log);
+  for (int i = 0; i < 100; ++i) SendMessageW(child, WM_PAINT, 0, 0);
+  Expect(Read(log) == stable_log, "paint counting never writes a per-frame log");
+  window.MessageHandler(window.GetHandle(), WM_SIZE, 0, 0);
+  observed = Read(log).substr(stable_log.size());
+  Expect(observed.find("\"beforeWidth\":640") != std::string::npos &&
+         observed.find("\"requestedWidth\":640") != std::string::npos &&
+         observed.find("\"paintCount\":101") != std::string::npos,
+         "unchanged resize requests and intervening paints remain observable");
+  for (int i = 0; i < 100; ++i) {
+    window.MessageHandler(window.GetHandle(), WM_SIZE, 0, 0);
+  }
+  Expect(Occurrences(Read(log), "\"event\":\"childResize\"") == 16,
+         "resize detail is capped at sixteen samples per transition");
+  window.MessageHandler(window.GetHandle(), WM_ENTERSIZEMOVE, 0, 0);
+  Sleep(2100);
+  SendMessageW(child, WM_PAINT, 0, 0);
+  window.MessageHandler(window.GetHandle(), WM_SIZE, 0, 0);
+  Expect(Occurrences(Read(log), "\"event\":\"childResize\"") == 16,
+         "resize detail stops after two seconds without scheduling anything");
+  const auto click_at = Read(log).size();
+  window.MessageHandler(window.GetHandle(), WM_LBUTTONDOWN, 0, 0);
+  observed = Read(log).substr(click_at);
+  Expect(observed.find("\"paintCount\":0") != std::string::npos &&
+         observed.find("\"eraseCount\":0") != std::string::npos,
+         "paint activity outside finite observation window is not counted");
+  Expect(!IsWindowVisible(window.GetHandle()) && !IsWindowVisible(child),
+         "all resize and painting fixtures stayed hidden");
+  sink.Initialize(false, capture);
+  window.Destroy();
+  UnregisterClassW(klass.lpszClassName, klass.hInstance);
 }
 }
 
@@ -112,6 +224,16 @@ int main(int argc, char** argv) {
   Expect(contents.find("\"messageDpi\":144") != std::string::npos &&
          contents.find("\"depth\":2") != std::string::npos,
          "message DPI and nesting are numerical");
+  DpiDiagnostics nested;
+  nested.Initialize(true, directory / "nested-boundary");
+  nested.RecordNative(DpiNativeEvent::kEnterMove, parent, child, 96, false, 0);
+  const auto sample = nested.BeginChildResize(child);
+  nested.RecordNative(DpiNativeEvent::kParentDpi, parent, child, 144, false, 1);
+  nested.EndChildResize(sample, child, 601, 301, true);
+  const auto nested_log = Read(directory / "nested-boundary" / "dpi-diagnostics.log");
+  Expect(nested_log.find("\"startedTransition\":1") != std::string::npos &&
+         nested_log.find("\"renderTransition\":2") != std::string::npos,
+         "resize sample identifies a nested transition without mixing its origin");
   DestroyWindow(child); DestroyWindow(parent);
   for (int i = 0; i < 1500; ++i) sink.ReportDart(V(Payload()));
   Expect(std::filesystem::file_size(log) <= 65536, "active log bounded to 64 KiB");
@@ -130,6 +252,7 @@ int main(int argc, char** argv) {
   contents = Read(log) + Read(directory / "dpi-diagnostics.log.1");
   Expect(contents.find("private-") == std::string::npos,
          "no rejected text recorded");
+  ChildResizeDiagnosticsTest(directory);
   std::cout << checks << " DPI diagnostic checks, " << failures << " failures.\n";
   return failures == 0 ? 0 : 1;
 }

@@ -12,11 +12,11 @@ Example appearance from v1.1: customize the name, fonts, colors, transparency, a
 
 ![Material 3 appearance settings](docs/images/settings-en.png)
 
-The retained v1.2 screenshot illustrates the appearance; v1.3 adds display targets and system monitoring settings, and v1.4 adds columns, entry orientation, and automatic saving when closing Settings. This preview uses sample data. Watchlist selections stay in place while editing; selected items move to the top when reopening the page or refreshing the catalog.
+The retained v1.2 screenshot illustrates the appearance; v1.3 adds display targets and system monitoring, v1.4 adds columns and entry orientation, and v1.4.1 adds Save without leaving Settings and compact taskbar options. This preview uses sample data. Watchlist selections stay in place while editing; selected items move to the top when reopening the page or refreshing the catalog.
 
 ## Download and run
 
-Download **MetricPerch-Windows-x64-1.4.0.zip** from [Releases](https://github.com/Jaron-admin/MetricPerch/releases).
+Download **MetricPerch-Windows-x64-1.4.1.zip** from [Releases](https://github.com/Jaron-admin/MetricPerch/releases).
 
 Extract the entire archive and run `metricperch.exe`. Keep `metricperch_taskbar.exe`, the accompanying libraries, and the `data` folder beside it. The taskbar helper starts and exits with the main app.
 
@@ -30,6 +30,7 @@ Right-click the floating panel to open Settings. Select **Settings → Appearanc
 
 - The floating market panel and taskbar monitoring start enabled; the taskbar's default selection is CPU, memory percentage, upload, and download rates.
 - Each display independently selects quotes, API fields, text templates, and system metrics, with its own order, fonts, colors, and units. Data sources and device choices are shared.
+- Transparent taskbar background, compact one/two-row layouts, maximum width, and item spacing. Choose short or custom labels; hover for original names and values.
 - CPU, memory, GPU, video memory, network rates, and disk read/write rates, with a 1–60 second sample interval and automatic or manual device selection.
 - Cryptocurrency, US stock, and selected mainland China stock quotes, with prices, changes, units, and update status.
 - Searchable OKX, Binance, and KuCoin trading-pair catalogs. Reorder your watchlist by dragging or using move-up and move-down buttons.
@@ -41,11 +42,15 @@ Right-click the floating panel to open Settings. Select **Settings → Appearanc
 - Context menu, always-on-top window, double-click to hide to the tray, click to restore, and per-monitor DPI support.
 - English and Simplified Chinese interfaces, with manual or system language selection.
 
-Select **Floating panel** or **Taskbar** in Settings before editing its content and appearance. **Display layout** controls columns, entry orientation, and change display. **Taskbar layout** controls its own enable switch, width, and one or two rows. Clicking outside Settings or returning to the panel saves automatically and briefly confirms success. A failed save keeps the draft open. Alt+Tab and color, font, or file pickers do not close Settings. **Discard changes** restores the saved settings. Devices and the sample interval apply to both displays.
+Select **Floating panel** or **Taskbar** in Settings before editing its content and appearance. **Display layout** controls columns, entry orientation, and change display. **Taskbar layout** controls its own enable switch, maximum width, one/two rows, transparent background, item spacing, and labels. Short content uses less width. Custom labels affect only the taskbar and preserve the source data. Devices and the sample interval apply to both displays.
+
+**Save** commits changes and keeps Settings open. Clicking outside Settings or returning to the panel still saves automatically and briefly confirms success. A close request during a save waits for that operation; a failed save keeps the draft for retry. Alt+Tab and color, font, or file pickers do not close Settings. Only Settings has an application taskbar button. Closing Settings saves and returns to the panel; closing the floating panel hides it to the tray. Use **Exit** to end the app.
 
 Taskbar integration targets the standard primary Windows taskbar. It attempts to display only when a usable region can be confirmed and has enough room. Unsupported layouts, insufficient space, and an unavailable taskbar pause the display; Settings shows the helper's reported state. v1.4 fixes the reproduced Windows 11 composition issue that hid taskbar content, with visible metrics confirmed on one real desktop setup. Other configurations still need testing; the reported state alone does not verify visible content. Windows 11 has no supported third-party reserved slot, so every layout cannot be guaranteed. Taskbar content provides a context menu with settings, refresh, show floating panel, disable taskbar, and exit actions. The tray remains a way to restore the floating panel.
 
 Missing metrics and samples establishing a baseline show `—`; only valid zero values show `0`. Automatic network selection uses active physical interfaces; manual selection can include virtual interfaces. GPU usage represents the busiest engine on the selected adapter; a memory percentage is unavailable when its capacity cannot be established. Rates need a new baseline after startup, resume, or a device change. Compatibility with the real taskbar still requires validation for the particular Windows version and desktop layout.
+
+v1.4.1 corrects a DPI transition that reused the old display's minimum size and changed the window's logical width; the native regression passes. A momentary black flash was still reported in the diagnostic probe. The complete visual issue has not been verified as resolved; see the [DPI investigation](docs/verification/dpi-investigation.md).
 
 ## Data and settings
 
@@ -73,7 +78,7 @@ flutter build windows --release
 To create a release folder and ZIP containing the usage guides and licenses:
 
 ```powershell
-./tool/build_windows.ps1 -PackageName MetricPerch-Windows-x64-1.4.0
+./tool/build_windows.ps1 -PackageName MetricPerch-Windows-x64-1.4.1
 ```
 
 ## License

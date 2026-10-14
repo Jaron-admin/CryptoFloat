@@ -25,7 +25,7 @@ if (Test-Path -LiteralPath $implementation) { $arguments += $implementation }
 $arguments += @("/Fe:$outputDirectory\dpi_diagnostics_test.exe", "/Fo:$outputDirectory\",
   '/link', ('/LIBPATH:' + (Join-Path $CompilerRoot 'lib\x64')),
   ('/LIBPATH:' + (Join-Path $sdkLib 'ucrt\x64')), ('/LIBPATH:' + (Join-Path $sdkLib 'um\x64')),
-  'user32.lib', 'shell32.lib')
+  'user32.lib', 'shell32.lib', 'gdi32.lib', 'dwmapi.lib', 'advapi32.lib', 'comctl32.lib')
 & $compiler @arguments
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 & "$outputDirectory\dpi_diagnostics_test.exe" $outputDirectory

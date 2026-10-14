@@ -71,12 +71,18 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
   int _settingsSection = 0;
   bool _savedNoticePending = false;
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
+  final _settingsCloseRequests = StreamController<void>.broadcast();
   StreamSubscription<String>? _traySubscription;
   StreamSubscription<String>? _taskbarSubscription;
+  StreamSubscription<void>? _outsideClickSubscription;
 
   @override
   void initState() {
     super.initState();
+    _outsideClickSubscription = widget.controller.tray.settingsOutsideClicks
+        .listen((_) {
+          if (_settings) _settingsCloseRequests.add(null);
+        });
     _taskbarSubscription = widget.controller.taskbar.actions.listen((
       action,
     ) async {
@@ -116,6 +122,12 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
           unawaited(widget.controller.data.refresh(force: true));
         case 'exit':
           unawaited(widget.controller.close());
+        case 'windowClose':
+          if (_settings) {
+            _settingsCloseRequests.add(null);
+          } else {
+            unawaited(widget.controller.hideToTray());
+          }
         // Native code restores the same view, preserving any settings draft.
         case 'show':
           break;
@@ -179,6 +191,8 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
   void dispose() {
     unawaited(_traySubscription?.cancel());
     unawaited(_taskbarSubscription?.cancel());
+    unawaited(_outsideClickSubscription?.cancel());
+    unawaited(_settingsCloseRequests.close());
     widget.controller.dispose();
     super.dispose();
   }
@@ -225,7 +239,7 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
             ? SettingsPage(
                 controller: widget.controller,
                 initialSection: _settingsSection,
-                outsideClicks: widget.controller.tray.settingsOutsideClicks,
+                outsideClicks: _settingsCloseRequests.stream,
                 onSaved: () => _savedNoticePending = true,
                 onClose: () => _showSettings(false),
               )

@@ -35,9 +35,10 @@ void main() {
       await send('window.settingsOutsideClick');
       await send('window.focusLost');
       await send('tray.action', 'settings');
+      await send('tray.action', 'windowClose');
       await send('tray.action', 'unexpected');
       expect(clicks, 1);
-      expect(actions, ['settings']);
+      expect(actions, ['settings', 'windowClose']);
       await clickSub.cancel();
       await actionSub.cancel();
       host.dispose();

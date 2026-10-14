@@ -11,6 +11,29 @@
 namespace {
 constexpr wchar_t kControllerClass[] = L"MetricPerchTaskbarController";
 constexpr wchar_t kDisplayClass[] = L"MetricPerchTaskbarDisplay";
+struct PixelSurface {
+  HDC dc = nullptr;
+  HBITMAP bitmap = nullptr;
+  HGDIOBJ previous = nullptr;
+  uint32_t* pixels = nullptr;
+  PixelSurface(int width, int height) {
+    if (width <= 0 || height <= 0 || width > 12800 || height > 1024) return;
+    dc = CreateCompatibleDC(nullptr);
+    if (!dc) return;
+    BITMAPINFO info{}; info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    info.bmiHeader.biWidth = width; info.bmiHeader.biHeight = -height;
+    info.bmiHeader.biPlanes = 1; info.bmiHeader.biBitCount = 32; info.bmiHeader.biCompression = BI_RGB;
+    bitmap = CreateDIBSection(dc, &info, DIB_RGB_COLORS, reinterpret_cast<void**>(&pixels), nullptr, 0);
+    if (bitmap) previous = SelectObject(dc, bitmap);
+  }
+  ~PixelSurface() {
+    if (previous) SelectObject(dc, previous);
+    if (bitmap) DeleteObject(bitmap);
+    if (dc) DeleteDC(dc);
+  }
+  PixelSurface(const PixelSurface&) = delete;
+  PixelSurface& operator=(const PixelSurface&) = delete;
+};
 struct Host {
   HANDLE input = nullptr, output = nullptr, parent = nullptr, stop = nullptr;
   HWND controller = nullptr, display = nullptr, tooltip = nullptr;
@@ -28,6 +51,7 @@ struct Host {
   std::thread ipc, discovery;
   HFONT text_font = nullptr, number_font = nullptr;
   UINT font_dpi = 0;
+  SIZE painted_size{};
   std::wstring tooltip_text;
   std::string last_diagnostic;
 #ifdef TASKBAR_ISOLATED_TEST
@@ -48,6 +72,7 @@ struct Host {
         " nodes=" + std::to_string(layout ? layout->nodes : 0) +
         " controls=" + std::to_string(layout ? layout->controls : 0) +
         " occupied=" + std::to_string(layout ? layout->occupied.size() : 0) +
+        " ignored_own=" + std::to_string(layout ? layout->ignored_own : 0) +
         " age_ms=" + std::to_string(age));
   }
   void Shutdown() {
@@ -107,17 +132,23 @@ struct Host {
     if (SUCCEEDED(com)) CoUninitialize();
   }
   void RemoveDisplay() {
+    if (tooltip && IsWindow(tooltip)) {
+      SendMessageW(tooltip, TTM_POP, 0, 0);
+      DestroyWindow(tooltip);
+    }
+    tooltip = nullptr;
     if (display && IsWindow(display)) DestroyWindow(display);
     display = nullptr; tooltip = nullptr; own_window.store(nullptr);
+    painted_size = {};
   }
   void Fonts(UINT dpi) {
     if (text_font) DeleteObject(text_font);
     if (number_font) DeleteObject(number_font);
     const int height = -MulDiv(static_cast<int>(std::lround(frame.font_size)), static_cast<int>(dpi), 96);
     text_font = CreateFontW(height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, frame.font_family.c_str());
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH, frame.font_family.c_str());
     number_font = CreateFontW(height, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET,
-        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH, frame.number_font_family.c_str());
+        OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH, frame.number_font_family.c_str());
     font_dpi = dpi;
   }
   void Tooltip() {
@@ -125,12 +156,24 @@ struct Host {
     for (const auto& cell : frame.cells) {
       if (!tooltip_text.empty()) tooltip_text += L"\n";
       tooltip_text += cell.tooltip.empty() ? cell.text : cell.tooltip;
-      if (tooltip_text.size() > 8192) { tooltip_text.resize(8192); break; }
+      // The validated IPC frame bounds the aggregate string; retain every cell.
     }
     TOOLINFOW info{sizeof(TOOLINFOW)};
     info.uFlags = TTF_IDISHWND | TTF_SUBCLASS; info.hwnd = display;
     info.uId = reinterpret_cast<UINT_PTR>(display); info.lpszText = tooltip_text.data();
     SendMessageW(tooltip, TTM_UPDATETIPTEXTW, 0, reinterpret_cast<LPARAM>(&info));
+  }
+  bool TooltipNotification(const NMHDR* notification) {
+    if (!notification || notification->hwndFrom != tooltip ||
+        (notification->code != TTN_SHOW && notification->code != TTN_POP)) return false;
+    RECT tip{}, panel{}, intersection{};
+    GetWindowRect(tooltip, &tip); GetWindowRect(display, &panel);
+    const bool overlap = IntersectRect(&intersection, &tip, &panel) != FALSE;
+    taskbar::WriteDiagnostic(taskbar::DiagnosticSource::helper,
+        std::string("tooltip=") + (notification->code == TTN_SHOW ? "show" : "pop") +
+        " own_owner=" + std::to_string(GetWindow(tooltip, GW_OWNER) == controller ? 1 : 0) +
+        " panel_overlap=" + std::to_string(overlap ? 1 : 0));
+    return true;
   }
   void Tick() {
     taskbar::LayoutSnapshot layout; HWND bar; ULONGLONG time; uint64_t next_revision;
@@ -154,40 +197,42 @@ struct Host {
       RemoveDisplay(); SetStatus(taskbar::Status::waiting, "taskbarBoundsChanged"); return;
     }
 #endif
+    if (layout.dpi < 48 || layout.dpi > 768) {
+      RemoveDisplay(); SetStatus(taskbar::Status::waiting, "invalidTaskbarDpi", 0, &layout); return;
+    }
+    const bool font_changed = changed || font_dpi != layout.dpi;
+    if (font_changed) Fonts(layout.dpi);
     int height = static_cast<int>(std::ceil(frame.font_size + 4)) * frame.line_count + 4;
-    auto result = taskbar::FitFreeRegion(layout, frame.width, height);
+    auto result = taskbar::FitFreeRegion(layout, RequiredLogicalWidth(), height, 64);
     if (result.status != taskbar::Status::displaying) {
       const char* reason = result.status == taskbar::Status::noSpace ? "insufficientFreeRegion" :
           result.status == taskbar::Status::unsupported ? "unsupportedOrientation" : layout.reason;
       RemoveDisplay(); SetStatus(result.status, reason, layout.error, &layout, GetTickCount64() - time); return;
     }
     if (display && GetParent(display) != bar) RemoveDisplay();
+    bool created = false;
     if (!display) {
       // Matching Explorer's DPI context affects only this isolated process/thread.
       auto previous = SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(bar));
-      // Give GDI its own redirected surface. An ordinary child can paint
+      // Give the glyph surface its own compositor layer. An ordinary child can paint
       // correctly yet remain hidden behind the Windows 11 taskbar compositor.
       display = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_LAYERED, kDisplayClass, L"MetricPerch · 数栖", WS_CHILD,
           0, 0, 1, 1, bar, nullptr, GetModuleHandleW(nullptr), this);
       const DWORD create_error = display ? ERROR_SUCCESS : GetLastError();
       if (previous) SetThreadDpiAwarenessContext(previous);
       if (!display) { SetStatus(taskbar::Status::error, "createDisplayFailed", create_error); return; }
-      if (!SetLayeredWindowAttributes(display, 0, 255, LWA_ALPHA)) {
-        const DWORD error = GetLastError();
-        RemoveDisplay(); SetStatus(taskbar::Status::error, "createOpaqueSurfaceFailed", error); return;
-      }
+      created = true;
       own_window.store(display);
       tooltip = CreateWindowExW(WS_EX_TOPMOST | WS_EX_NOACTIVATE, TOOLTIPS_CLASSW, nullptr,
-          WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX, 0, 0, 0, 0, display, nullptr, GetModuleHandleW(nullptr), nullptr);
+          WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX, 0, 0, 0, 0, controller, nullptr, GetModuleHandleW(nullptr), nullptr);
       if (tooltip) {
         TOOLINFOW info{sizeof(TOOLINFOW)}; info.uFlags = TTF_IDISHWND | TTF_SUBCLASS;
         info.hwnd = display; info.uId = reinterpret_cast<UINT_PTR>(display); info.lpszText = const_cast<wchar_t*>(L"");
         SendMessageW(tooltip, TTM_ADDTOOLW, 0, reinterpret_cast<LPARAM>(&info));
         SendMessageW(tooltip, TTM_SETMAXTIPWIDTH, 0, 600);
       }
-      font_dpi = 0;
     }
-    if (changed || font_dpi != layout.dpi) { Fonts(layout.dpi); Tooltip(); }
+    if (changed || font_changed || created) Tooltip();
     RECT position = result.rect;
 #if !defined(TASKBAR_ISOLATED_TEST) || defined(TASKBAR_TEST_NATIVE_COORDINATES)
     SetLastError(0);
@@ -201,49 +246,128 @@ struct Host {
       const DWORD error = GetLastError();
       RemoveDisplay(); SetStatus(taskbar::Status::error, "positionDisplayFailed", error); return;
     }
+    RECT client{}; GetClientRect(display, &client);
+    if (changed || font_changed || created || painted_size.cx != client.right || painted_size.cy != client.bottom) {
+      if (!Present()) {
+        const DWORD error = GetLastError();
+        RemoveDisplay(); SetStatus(taskbar::Status::error, "presentSurfaceFailed", error); return;
+      }
+      painted_size = {client.right, client.bottom};
+    }
     painted_revision = next_revision;
-    if (changed) InvalidateRect(display, nullptr, FALSE);
     SetStatus(taskbar::Status::displaying, "ready", 0, &layout, GetTickCount64() - time);
   }
   static COLORREF Color(uint32_t argb) { return RGB((argb >> 16) & 255, (argb >> 8) & 255, argb & 255); }
   void Paint() {
-    PAINTSTRUCT paint; HDC dc = BeginPaint(display, &paint); Render(dc); EndPaint(display, &paint);
+    // UpdateLayeredWindow owns the surface. WM_PAINT only validates the region.
+    PAINTSTRUCT paint; BeginPaint(display, &paint); EndPaint(display, &paint);
   }
-  void Render(HDC dc) {
-    RECT bounds{}; GetClientRect(display, &bounds);
-    HBRUSH background = CreateSolidBrush(Color(frame.background)); FillRect(dc, &bounds, background); DeleteObject(background);
-    SetBkMode(dc, TRANSPARENT);
-    if (!frame.cells.empty()) {
-      const int rows = frame.line_count;
-      const int columns = static_cast<int>((frame.cells.size() + rows - 1) / rows);
-      const int padding = MulDiv(4, static_cast<int>(font_dpi ? font_dpi : 96), 96);
-      const auto old_font = SelectObject(dc, text_font);
-      for (size_t i = 0; i < frame.cells.size(); ++i) {
-        const auto& cell = frame.cells[i]; const int col = static_cast<int>(i) / rows, row = static_cast<int>(i) % rows;
-        RECT r{bounds.left + col * (bounds.right / columns) + padding, row * (bounds.bottom / rows),
-               (col + 1) * (bounds.right / columns) - padding, (row + 1) * (bounds.bottom / rows)};
-        SetTextColor(dc, Color(cell.color == 0 ? frame.foreground : cell.color));
-        int x = r.left; bool clipped = false;
-        for (size_t start = 0; start < cell.text.size();) {
-          auto numeric = [](wchar_t c) { return (c >= L'0' && c <= L'9') || c == L'.' || c == L',' || c == L'%' || c == L'−'; };
-          const bool number = numeric(cell.text[start]); size_t end = start + 1;
-          while (end < cell.text.size() && numeric(cell.text[end]) == number) ++end;
-          SelectObject(dc, number ? number_font : text_font);
-          SIZE size{}; GetTextExtentPoint32W(dc, cell.text.data() + start, static_cast<int>(end - start), &size);
-          ExtTextOutW(dc, x, r.top + (r.bottom - r.top - size.cy) / 2, ETO_CLIPPED, &r,
-              cell.text.data() + start, static_cast<UINT>(end - start), nullptr);
-          x += size.cx; clipped |= x > r.right; start = end;
-        }
+  static bool Numeric(wchar_t c) {
+    return (c >= L'0' && c <= L'9') || c == L'.' || c == L',' || c == L'%' || c == L'−';
+  }
+  int TextWidth(HDC dc, const std::wstring& text, const RECT* draw = nullptr) {
+    int width = 0;
+    for (size_t start = 0; start < text.size();) {
+      const bool number = Numeric(text[start]); size_t end = start + 1;
+      while (end < text.size() && Numeric(text[end]) == number) ++end;
+      SelectObject(dc, number ? number_font : text_font);
+      SIZE size{}; GetTextExtentPoint32W(dc, text.data() + start, static_cast<int>(end - start), &size);
+      if (draw) ExtTextOutW(dc, draw->left + width, draw->top + (draw->bottom - draw->top - size.cy) / 2,
+          ETO_CLIPPED, draw, text.data() + start, static_cast<UINT>(end - start), nullptr);
+      width += size.cx; start = end;
+    }
+    return width;
+  }
+  std::vector<int> DesiredColumns(HDC dc) {
+    std::vector<int> widths((frame.cells.size() + frame.line_count - 1) / frame.line_count, 1);
+    for (size_t i = 0; i < frame.cells.size(); ++i) {
+      auto& width = widths[i / frame.line_count]; width = (std::max)(width, TextWidth(dc, frame.cells[i].text));
+    }
+    return widths;
+  }
+  int RequiredLogicalWidth() {
+    if (font_dpi < 48 || font_dpi > 768) return frame.width;
+    HDC dc = CreateCompatibleDC(nullptr);
+    if (!dc) return frame.width;
+    const auto previous = GetCurrentObject(dc, OBJ_FONT);
+    const auto widths = DesiredColumns(dc);
+    int pixels = MulDiv(8, static_cast<int>(font_dpi), 96);
+    for (int width : widths) pixels += width;
+    if (!widths.empty()) pixels += static_cast<int>(widths.size() - 1) * MulDiv(frame.item_gap, static_cast<int>(font_dpi), 96);
+    SelectObject(dc, previous); DeleteDC(dc);
+    return (std::clamp)((pixels * 96 + static_cast<int>(font_dpi) - 1) / static_cast<int>(font_dpi), 64, frame.width);
+  }
+  std::vector<uint32_t> RenderPixels(int width, int height) {
+    PixelSurface mask(width, height);
+    if (!mask.pixels) return {};
+    const size_t count = static_cast<size_t>(width) * height;
+    std::fill(mask.pixels, mask.pixels + count, 0);
+    // Alpha one is visually transparent but keeps the full rectangle hit-testable.
+    // A zero-alpha background would pass mouse input through to Explorer.
+    const uint32_t background = frame.transparent_background ? 0x01000000 : (frame.background | 0xFF000000);
+    std::vector<uint32_t> pixels(count, background);
+    SetBkMode(mask.dc, TRANSPARENT); SetTextColor(mask.dc, RGB(255, 255, 255));
+    const int padding = MulDiv(4, static_cast<int>(font_dpi), 96);
+    const int gap = MulDiv(frame.item_gap, static_cast<int>(font_dpi), 96);
+    const auto desired = DesiredColumns(mask.dc);
+    SelectObject(mask.dc, text_font); SIZE ellipsis_size{}; GetTextExtentPoint32W(mask.dc, L"…", 1, &ellipsis_size);
+    const auto widths = taskbar::CompactColumns(desired, (std::max)(0, width - 2 * padding), gap, (std::max)(1L, ellipsis_size.cx));
+    int left = padding;
+    for (size_t col = 0; col < widths.size(); ++col) {
+      for (int row = 0; row < frame.line_count; ++row) {
+        const size_t i = col * frame.line_count + row;
+        if (i >= frame.cells.size() || widths[col] <= 0) continue;
+        const auto& cell = frame.cells[i];
+        const RECT r{left, row * height / frame.line_count, left + widths[col], (row + 1) * height / frame.line_count};
+        std::wstring text = cell.text;
+        if (col + 1 == widths.size() && widths.size() < desired.size()) text += L" …";
+        const bool clipped = TextWidth(mask.dc, text, &r) > widths[col];
         if (clipped) {
-          SelectObject(dc, text_font); SIZE size{}; GetTextExtentPoint32W(dc, L"…", 1, &size);
-          RECT ellipsis{r.right - size.cx, r.top, r.right, r.bottom};
-          HBRUSH brush = CreateSolidBrush(Color(frame.background)); FillRect(dc, &ellipsis, brush); DeleteObject(brush);
-          DrawTextW(dc, L"…", 1, &ellipsis, DT_SINGLELINE | DT_VCENTER | DT_RIGHT);
+          SelectObject(mask.dc, text_font);
+          RECT tail{(std::max)(r.left, r.right - ellipsis_size.cx), r.top, r.right, r.bottom};
+          FillRect(mask.dc, &tail, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+          DrawTextW(mask.dc, L"…", 1, &tail, DT_SINGLELINE | DT_VCENTER | DT_RIGHT);
+        }
+        GdiFlush();
+        const uint32_t color = cell.color == 0 ? frame.foreground : cell.color;
+        for (int y = r.top; y < r.bottom; ++y) for (int x = r.left; x < r.right; ++x) {
+          const auto index = static_cast<size_t>(y) * width + x;
+          const uint32_t coverage = mask.pixels[index] & 255; // Grayscale glyph mask; no ClearType fringe.
+          const uint32_t inverse = 255 - coverage;
+          const uint32_t alpha = coverage + (((background >> 24) * inverse + 127) / 255);
+          uint32_t result = alpha << 24;
+          for (int shift = 0; shift <= 16; shift += 8) {
+            const uint32_t channel = ((((color >> shift) & 255) * coverage + ((background >> shift) & 255) * inverse + 127) / 255);
+            result |= channel << shift;
+          }
+          pixels[index] = result;
         }
       }
-      SelectObject(dc, old_font);
+      left += widths[col] + gap;
     }
-    GdiFlush();
+    return pixels;
+  }
+  bool Present() {
+    RECT client{};
+    if (!GetClientRect(display, &client)) return false;
+    auto pixels = RenderPixels(client.right, client.bottom);
+    PixelSurface surface(client.right, client.bottom);
+    if (pixels.empty() || !surface.pixels) return false;
+    std::copy(pixels.begin(), pixels.end(), surface.pixels);
+    POINT source{};
+    BLENDFUNCTION blend{AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
+    // Tick has already positioned/sized this cross-process child in parent
+    // coordinates. Keep ULW geometry null so it cannot reinterpret those units.
+    return UpdateLayeredWindow(display, nullptr, nullptr, nullptr, surface.dc, &source, 0, &blend, ULW_ALPHA) != FALSE;
+  }
+  void Render(HDC dc) {
+    RECT client{}; GetClientRect(display, &client);
+    auto pixels = RenderPixels(client.right, client.bottom);
+    if (pixels.empty()) return;
+    BITMAPINFO info{}; info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    info.bmiHeader.biWidth = client.right; info.bmiHeader.biHeight = -client.bottom;
+    info.bmiHeader.biPlanes = 1; info.bmiHeader.biBitCount = 32; info.bmiHeader.biCompression = BI_RGB;
+    SetDIBitsToDevice(dc, 0, 0, client.right, client.bottom, 0, 0, 0, client.bottom, pixels.data(), &info, DIB_RGB_COLORS);
   }
   void Menu(LPARAM location) {
     POINT point{static_cast<short>(LOWORD(location)), static_cast<short>(HIWORD(location))};
@@ -272,6 +396,7 @@ LRESULT CALLBACK DisplayProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
       case WM_PAINT: host->Paint(); return 0;
       case WM_PRINTCLIENT: host->Render(reinterpret_cast<HDC>(wparam)); return 0;
       case WM_ERASEBKGND: return 1;
+      case WM_NOTIFY: if (host->TooltipNotification(reinterpret_cast<NMHDR*>(lparam))) return 0; break;
       case WM_CONTEXTMENU: host->Menu(lparam); return 0;
       case WM_MOUSEACTIVATE: return MA_NOACTIVATE;
       case WM_LBUTTONDBLCLK: {
@@ -290,6 +415,7 @@ LRESULT CALLBACK ControllerProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM l
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(host));
   }
   if (host) {
+    if (message == WM_NOTIFY && host->TooltipNotification(reinterpret_cast<NMHDR*>(lparam))) return 0;
     if (message == WM_TIMER) { host->Tick(); return 0; }
     if (message == WM_THEMECHANGED || message == WM_DISPLAYCHANGE || message == WM_SETTINGCHANGE || message == WM_DPICHANGED) {
       host->RemoveDisplay(); host->font_dpi = 0;

@@ -82,6 +82,7 @@ class _SettingsPageState extends State<SettingsPage> {
   int _assetPage = 0;
   bool _catalogRequested = false;
   bool _saving = false;
+  Future<bool>? _saveOperation;
   bool _pickingImage = false;
   bool _closing = false;
   bool _loadingDraft = false;
@@ -171,7 +172,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<bool> _requestLeave({required bool exitApp}) async {
-    if (!mounted || _closing || _saving || _pickingImage || _loadingDraft) {
+    if (!mounted || _closing || _pickingImage || _loadingDraft) {
       return false;
     }
     // Editors and pickers own their draft until they return a result.
@@ -179,6 +180,11 @@ class _SettingsPageState extends State<SettingsPage> {
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _closing = true);
     try {
+      // A manual save owns the current draft. Coalesce close requests behind
+      // it; a failed write must keep both the window and its draft available.
+      final pendingSave = _saveOperation;
+      if (pendingSave != null && !await pendingSave) return false;
+      if (!mounted) return false;
       if (_dirty) return await _save(closeSettings: !exitApp);
       await _clearUncommittedSecrets();
       if (!mounted) return false;
@@ -186,6 +192,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (exitApp) {
         setState(() => _rootDraft = widget.controller.config);
       } else {
+        if (pendingSave != null) widget.onSaved?.call();
         widget.onClose();
       }
       return true;
@@ -194,22 +201,17 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _discardChanges() async {
-    if (_saving || _closing || _pickingImage || _loadingDraft) return;
-    setState(() => _closing = true);
-    try {
-      await _clearUncommittedSecrets();
-      if (!mounted) return;
-      setState(() {
-        _rootDraft = widget.controller.config;
-        _draftRevision++;
-        _error = null;
-        _resetCatalogOrder();
-      });
-      widget.controller.clearAppearancePreview();
-    } finally {
-      if (mounted) setState(() => _closing = false);
+  Future<void> _saveAndStay() async {
+    if (!mounted ||
+        _closing ||
+        _saving ||
+        _pickingImage ||
+        _loadingDraft ||
+        ModalRoute.of(context)?.isCurrent == false) {
+      return;
     }
+    FocusManager.instance.primaryFocus?.unfocus();
+    if (_dirty) await _save(closeSettings: false);
   }
 
   Future<void> _clearUncommittedSecrets() async {
@@ -224,8 +226,18 @@ class _SettingsPageState extends State<SettingsPage> {
     _createdSecrets.clear();
   }
 
-  Future<bool> _save({bool closeSettings = true}) async {
-    if (_saving || _pickingImage || _loadingDraft) return false;
+  Future<bool> _save({bool closeSettings = true}) {
+    if (!mounted || _saving || _pickingImage || _loadingDraft) {
+      return Future<bool>.value(false);
+    }
+    final operation = _commitDraft(closeSettings: closeSettings);
+    _saveOperation = operation;
+    return operation.whenComplete(() {
+      if (identical(_saveOperation, operation)) _saveOperation = null;
+    });
+  }
+
+  Future<bool> _commitDraft({required bool closeSettings}) async {
     final draftToSave = _rootDraft;
     setState(() {
       _saving = true;
@@ -245,6 +257,11 @@ class _SettingsPageState extends State<SettingsPage> {
         } catch (_) {}
       }
       _createdSecrets.clear();
+      if (mounted) {
+        // Keep the current form, scroll and catalog ordering. Only advance its
+        // committed baseline; subsequent edits remain independent drafts.
+        setState(() => _rootDraft = widget.controller.config);
+      }
       if (mounted && closeSettings) {
         widget.onSaved?.call();
         widget.onClose();
@@ -272,150 +289,161 @@ class _SettingsPageState extends State<SettingsPage> {
     },
     child: Material(
       color: Theme.of(context).colorScheme.surface,
-      child: AbsorbPointer(
-        absorbing: _saving || _closing || _loadingDraft,
-        child: Column(
-          children: [
-            _settingsHeader(),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-              child: SizedBox(
-                width: double.infinity,
-                child: SegmentedButton<DisplayTarget>(
-                  key: const ValueKey('display-target-selector'),
-                  showSelectedIcon: false,
-                  segments: [
-                    ButtonSegment(
-                      value: DisplayTarget.floating,
-                      icon: const Icon(Icons.picture_in_picture_alt, size: 18),
-                      label: Text(context.metrics.floating),
-                    ),
-                    ButtonSegment(
-                      value: DisplayTarget.taskbar,
-                      icon: const Icon(Icons.dock_outlined, size: 18),
-                      label: Text(context.metrics.taskbar),
-                    ),
-                  ],
-                  selected: {_target},
-                  onSelectionChanged: (values) => setState(() {
-                    _target = values.single;
-                    _resetCatalogOrder();
-                    _assetPage = 0;
-                    _assetSearch.clear();
-                    _search = '';
-                    if (_scrollController.hasClients) {
-                      _scrollController.jumpTo(0);
-                    }
-                  }),
-                ),
-              ),
-            ),
-            if (_error != null)
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.error_outline_rounded,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onErrorContainer,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onErrorContainer,
+      child: ExcludeFocus(
+        excluding: _saving || _closing || _loadingDraft,
+        child: AbsorbPointer(
+          absorbing: _saving || _closing || _loadingDraft,
+          child: Column(
+            children: [
+              _settingsHeader(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: SegmentedButton<DisplayTarget>(
+                    key: const ValueKey('display-target-selector'),
+                    showSelectedIcon: false,
+                    segments: [
+                      ButtonSegment(
+                        value: DisplayTarget.floating,
+                        icon: const Icon(
+                          Icons.picture_in_picture_alt,
+                          size: 18,
                         ),
+                        label: Text(context.metrics.floating),
                       ),
-                    ),
-                  ],
+                      ButtonSegment(
+                        value: DisplayTarget.taskbar,
+                        icon: const Icon(Icons.dock_outlined, size: 18),
+                        label: Text(context.metrics.taskbar),
+                      ),
+                    ],
+                    selected: {_target},
+                    onSelectionChanged: (values) => setState(() {
+                      _target = values.single;
+                      _resetCatalogOrder();
+                      _assetPage = 0;
+                      _assetSearch.clear();
+                      _search = '';
+                      if (_scrollController.hasClients) {
+                        _scrollController.jumpTo(0);
+                      }
+                    }),
+                  ),
                 ),
               ),
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final wide = constraints.maxWidth >= 760;
-                  final narrow = constraints.maxWidth < 560;
-                  final body = KeyedSubtree(
-                    key: ValueKey(
-                      'settings-form-${_target.name}-$_draftRevision',
-                    ),
-                    child: _settingsQuery.trim().isEmpty
-                        ? _sectionBody()
-                        : _searchResults(),
-                  );
-                  if (narrow) {
-                    return Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: _searchField(),
-                        ),
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                          child: Row(
-                            children: [
-                              for (
-                                var i = 0;
-                                i < settingsCategories.length;
-                                i++
-                              )
-                                Padding(
-                                  padding: const EdgeInsets.only(right: 6),
-                                  child: ChoiceChip(
-                                    label: Text(
-                                      settingsCategories[i].title(context.l10n),
-                                    ),
-                                    selected:
-                                        i == _section && _settingsQuery.isEmpty,
-                                    onSelected: (_) => _selectSection(i),
-                                    showCheckmark: false,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        Expanded(child: body),
-                      ],
-                    );
-                  }
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+              if (_error != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _navigationPane(extended: wide),
+                      Icon(
+                        Icons.error_outline_rounded,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: Column(
-                          children: [
-                            if (!wide)
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  20,
-                                  0,
-                                  20,
-                                  12,
-                                ),
-                                child: _searchField(),
-                              ),
-                            Expanded(child: body),
-                          ],
+                        child: Text(
+                          _error!,
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onErrorContainer,
+                          ),
                         ),
                       ),
                     ],
-                  );
-                },
+                  ),
+                ),
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final wide = constraints.maxWidth >= 760;
+                    final narrow = constraints.maxWidth < 560;
+                    final body = KeyedSubtree(
+                      key: ValueKey(
+                        'settings-form-${_target.name}-$_draftRevision',
+                      ),
+                      child: _settingsQuery.trim().isEmpty
+                          ? _sectionBody()
+                          : _searchResults(),
+                    );
+                    if (narrow) {
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: _searchField(),
+                          ),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                            child: Row(
+                              children: [
+                                for (
+                                  var i = 0;
+                                  i < settingsCategories.length;
+                                  i++
+                                )
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: ChoiceChip(
+                                      label: Text(
+                                        settingsCategories[i].title(
+                                          context.l10n,
+                                        ),
+                                      ),
+                                      selected:
+                                          i == _section &&
+                                          _settingsQuery.isEmpty,
+                                      onSelected: (_) => _selectSection(i),
+                                      showCheckmark: false,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Expanded(child: body),
+                        ],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _navigationPane(extended: wide),
+                        Expanded(
+                          child: Column(
+                            children: [
+                              if (!wide)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    20,
+                                    0,
+                                    20,
+                                    12,
+                                  ),
+                                  child: _searchField(),
+                                ),
+                              Expanded(child: body),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-            _settingsFooter(),
-          ],
+              _settingsFooter(),
+            ],
+          ),
         ),
       ),
     ),
@@ -557,13 +585,14 @@ class _SettingsPageState extends State<SettingsPage> {
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
-        if (_dirty)
-          TextButton(
-            onPressed: _saving || _pickingImage || _closing
-                ? null
-                : _discardChanges,
-            child: Text(context.l10n.settingDiscardChanges),
-          ),
+        FilledButton(
+          key: const ValueKey('settings-save'),
+          onPressed:
+              !_dirty || _saving || _pickingImage || _closing || _loadingDraft
+              ? null
+              : _saveAndStay,
+          child: Text(context.l10n.editSave),
+        ),
       ],
     ),
   );

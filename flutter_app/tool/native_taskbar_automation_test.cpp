@@ -29,5 +29,13 @@ int main() {
   layout.occupied = walk.occupied; layout.complete = true;
   check(taskbar::FitFreeRegion(layout, 360, 34).status == taskbar::Status::noSpace,
         "unknown occupied fragment cannot become an alleged free gap");
+  HWND own_popup = CreateWindowExW(WS_EX_TOOLWINDOW, L"STATIC", nullptr, WS_POPUP,
+      400, 0, 600, 48, nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+  std::vector<RECT> occupied;
+  taskbar::NativeWalk native{nullptr, {0, 0, 1200, 48}, &occupied};
+  taskbar::CollectNative(own_popup, reinterpret_cast<LPARAM>(&native));
+  check(own_popup && native.ignored_own == 1 && occupied.empty(),
+        "self-process popup is excluded before visibility or occupancy queries");
+  if (own_popup) DestroyWindow(own_popup);
   return failures == 0 ? 0 : 1;
 }

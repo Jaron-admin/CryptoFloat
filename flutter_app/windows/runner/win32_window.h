@@ -67,6 +67,10 @@ class Win32Window {
   bool SetAlwaysOnTop(bool enabled);
   bool SetOpacity(double opacity);
   void SetSettingsMode(bool enabled);
+  // User Close is a request to save settings or hide the panel. Only the
+  // explicit Exit command destroys the host after its channel reply is sent.
+  void SetCloseRequestCallback(std::function<void()> callback);
+  void RequestExit();
   // Called on the window thread for mouse presses outside this process only.
   // Focus changes never notify. A native modal dialog suspends notification.
   void SetSettingsOutsideClickCallback(std::function<void()> callback);
@@ -111,6 +115,7 @@ class Win32Window {
                                            DWORD_PTR reference_data);
   LRESULT ResizeHitTest(LPARAM screen_point) const;
   bool ApplyOpacity();
+  void UpdateTaskbarPresence();
   void RecordDpiMessage(UINT message, WPARAM wparam, LPARAM lparam, bool child);
   SIZE ScaledWindowSize(UINT dpi) const;
   void ApplyLogicalBounds(const Bounds& bounds, double width, double height);
@@ -144,6 +149,7 @@ class Win32Window {
   unsigned dpi_message_depth_ = 0;
   bool dpi_trace_click_pending_ = false;
   std::function<void()> settings_outside_click_;
+  std::function<void()> close_request_;
   HHOOK settings_mouse_hook_ = nullptr;
   UINT_PTR settings_click_generation_ = 0;
   bool settings_click_pending_ = false;

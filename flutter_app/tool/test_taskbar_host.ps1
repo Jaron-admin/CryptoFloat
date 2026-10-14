@@ -35,6 +35,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Automation bounds tests did not compile.' }
 & $automationTest
 if ($LASTEXITCODE -ne 0) { throw 'Automation bounds regression checks failed.' }
 $rendererTest = Join-Path $outputDirectory 'native_taskbar_renderer_test.exe'
+$hoverTest = Join-Path $outputDirectory 'native_taskbar_hover_test.exe'
+& $compiler @common ('/Fe' + $hoverTest) @sources (Join-Path $PSScriptRoot 'native_taskbar_hover_test.cpp') @libraries '/SUBSYSTEM:CONSOLE'
+if ($LASTEXITCODE -ne 0) { throw 'Hover lifecycle tests did not compile.' }
+& $hoverTest
+if ($LASTEXITCODE -ne 0) { throw 'Hidden tooltip lifecycle checks failed.' }
 & $compiler @common ('/Fe' + $rendererTest) @sources (Join-Path $PSScriptRoot 'native_taskbar_renderer_test.cpp') @libraries '/SUBSYSTEM:CONSOLE'
 if ($LASTEXITCODE -ne 0) { throw 'Renderer tests did not compile.' }
 & $rendererTest

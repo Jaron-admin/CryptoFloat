@@ -11,7 +11,7 @@ void main() {
       const quote = DisplayText('BTC', '100.00', unit: 'USDT', change: 2.5);
       expect(
         taskbarCellText(quote, showChangePercent: true),
-        'BTC 100.00 USDT  +2.50%',
+        'BTC 100.00 USDT +2.50%',
       );
       expect(
         taskbarCellText(quote, showChangePercent: false),

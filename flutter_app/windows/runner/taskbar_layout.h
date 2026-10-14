@@ -10,10 +10,15 @@ struct LayoutSnapshot {
   const char* reason = "pending";
   uint32_t error = 0;
   int nodes = 0, controls = 0;
+  int ignored_own = 0;
 };
 struct LayoutResult { Status status = Status::waiting; RECT rect{}; };
 LayoutResult FitFreeRegion(const LayoutSnapshot& snapshot, int logical_width,
-                           int logical_height);
+                           int logical_height, int minimum_width = 0);
+bool IsOwnProcess(DWORD process);
+// Desired physical text widths; keeps short columns small and caps only long ones.
+std::vector<int> CompactColumns(const std::vector<int>& desired, int available,
+                                int gap, int minimum);
 // Helper-only discovery. Never invoked by the Flutter process or isolated tests.
 LayoutSnapshot DiscoverTaskbar(HWND taskbar, HWND own_window);
 }

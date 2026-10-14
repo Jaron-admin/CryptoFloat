@@ -29,7 +29,13 @@ class TrayHost {
     if (call.method != 'tray.action') return;
     final action = call.arguments;
     if (action is String &&
-        const {'show', 'settings', 'refresh', 'exit'}.contains(action)) {
+        const {
+          'show',
+          'settings',
+          'refresh',
+          'exit',
+          'windowClose',
+        }.contains(action)) {
       _actions.add(action);
     }
   }
