@@ -11,6 +11,31 @@
 namespace {
 constexpr wchar_t kControllerClass[] = L"MetricPerchTaskbarController";
 constexpr wchar_t kDisplayClass[] = L"MetricPerchTaskbarDisplay";
+bool SurfaceDiagnosticsEnabled() {
+  wchar_t value[2]{};
+  return GetEnvironmentVariableW(L"METRICPERCH_TASKBAR_RENDER_DIAGNOSTICS", value, 2) == 1 &&
+      value[0] == L'1';
+}
+class WindowDpiScope {
+ public:
+  explicit WindowDpiScope(HWND window)
+      : previous_(SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(window))) {}
+  ~WindowDpiScope() {
+    if (previous_) {
+      const DWORD error = preserve_error_ ? exit_error_ : GetLastError();
+      SetThreadDpiAwarenessContext(previous_);
+      SetLastError(error);
+    }
+  }
+  bool valid() const { return previous_ != nullptr; }
+  void PreserveError(DWORD error) { exit_error_ = error; preserve_error_ = true; }
+  WindowDpiScope(const WindowDpiScope&) = delete;
+  WindowDpiScope& operator=(const WindowDpiScope&) = delete;
+ private:
+  DPI_AWARENESS_CONTEXT previous_;
+  DWORD exit_error_ = ERROR_SUCCESS;
+  bool preserve_error_ = false;
+};
 struct PixelSurface {
   HDC dc = nullptr;
   HBITMAP bitmap = nullptr;
@@ -52,6 +77,8 @@ struct Host {
   HFONT text_font = nullptr, number_font = nullptr;
   UINT font_dpi = 0;
   SIZE painted_size{};
+  bool surface_diagnostics = SurfaceDiagnosticsEnabled();
+  unsigned surface_diagnostic_count = 0;
   std::wstring tooltip_text;
   std::string last_diagnostic;
 #ifdef TASKBAR_ISOLATED_TEST
@@ -348,17 +375,61 @@ struct Host {
     return pixels;
   }
   bool Present() {
+    // Client dimensions and ULW's explicit SIZE must share the child's units.
+    // A PMv2 caller sizing an unaware child would otherwise scale twice.
+    WindowDpiScope dpi_context(display);
+    if (!dpi_context.valid()) return false;
     RECT client{};
-    if (!GetClientRect(display, &client)) return false;
+    if (!GetClientRect(display, &client)) { dpi_context.PreserveError(GetLastError()); return false; }
     auto pixels = RenderPixels(client.right, client.bottom);
     PixelSurface surface(client.right, client.bottom);
-    if (pixels.empty() || !surface.pixels) return false;
+    if (pixels.empty() || !surface.pixels) { dpi_context.PreserveError(GetLastError()); return false; }
     std::copy(pixels.begin(), pixels.end(), surface.pixels);
     POINT source{};
+    SIZE size{client.right, client.bottom};
     BLENDFUNCTION blend{AC_SRC_OVER, 0, 255, AC_SRC_ALPHA};
     // Tick has already positioned/sized this cross-process child in parent
-    // coordinates. Keep ULW geometry null so it cannot reinterpret those units.
-    return UpdateLayeredWindow(display, nullptr, nullptr, nullptr, surface.dc, &source, 0, &blend, ULW_ALPHA) != FALSE;
+    // coordinates. Preserve that position; explicitly submit the bitmap size.
+    const BOOL uploaded = UpdateLayeredWindow(display, nullptr, nullptr, &size,
+        surface.dc, &source, 0, &blend, ULW_ALPHA);
+    const DWORD error = uploaded ? ERROR_SUCCESS : GetLastError();
+    if (surface_diagnostics && surface_diagnostic_count < 3) {
+      ++surface_diagnostic_count;
+      size_t ink = 0, opaque = 0;
+      uint32_t maximum_alpha = 0;
+      for (const auto pixel : pixels) {
+        const uint32_t alpha = pixel >> 24;
+        maximum_alpha = (std::max)(maximum_alpha, alpha);
+        if (alpha == 255) ++opaque;
+        if (frame.transparent_background ? alpha > 1 :
+            (pixel & 0xFFFFFF) != (frame.background & 0xFFFFFF)) ++ink;
+      }
+      const HWND parent_window = GetParent(display);
+      RECT parent_rect{}, child_rect{};
+      const bool parent_measured = GetWindowRect(parent_window, &parent_rect) != FALSE;
+      const bool child_measured = GetWindowRect(display, &child_rect) != FALSE;
+      std::string record = "surface_upload=" + std::to_string(surface_diagnostic_count) +
+          " width=" + std::to_string(size.cx) + " height=" + std::to_string(size.cy) +
+          " ink_pixels=" + std::to_string(ink) + " opaque_pixels=" + std::to_string(opaque) +
+          " max_alpha=" + std::to_string(maximum_alpha) + " success=" + std::to_string(uploaded ? 1 : 0) +
+          " code=" + std::to_string(error) + " geometry_ok=" + std::to_string(parent_measured && child_measured ? 1 : 0);
+      const auto rectangle = [&record](const char* prefix, const RECT& rect) {
+        record += std::string(" ") + prefix + "_x=" + std::to_string(rect.left) +
+            " " + prefix + "_y=" + std::to_string(rect.top) +
+            " " + prefix + "_width=" + std::to_string(rect.right - rect.left) +
+            " " + prefix + "_height=" + std::to_string(rect.bottom - rect.top);
+      };
+      rectangle("parent", parent_rect); rectangle("child", child_rect);
+      record += " parent_dpi=" + std::to_string(GetDpiForWindow(parent_window)) +
+          " child_dpi=" + std::to_string(GetDpiForWindow(display)) +
+          " thread_awareness=" + std::to_string(static_cast<int>(GetAwarenessFromDpiAwarenessContext(GetThreadDpiAwarenessContext()))) +
+          " parent_awareness=" + std::to_string(static_cast<int>(GetAwarenessFromDpiAwarenessContext(GetWindowDpiAwarenessContext(parent_window)))) +
+          " child_awareness=" + std::to_string(static_cast<int>(GetAwarenessFromDpiAwarenessContext(GetWindowDpiAwarenessContext(display))));
+      taskbar::WriteDiagnostic(taskbar::DiagnosticSource::helper, record);
+    }
+    // The scope outlives the surfaces and restores this failure after GDI cleanup.
+    if (!uploaded) dpi_context.PreserveError(error);
+    return uploaded != FALSE;
   }
   void Render(HDC dc) {
     RECT client{}; GetClientRect(display, &client);

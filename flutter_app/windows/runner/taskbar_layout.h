@@ -2,6 +2,7 @@
 #define RUNNER_TASKBAR_LAYOUT_H_
 #include "taskbar_protocol.h"
 namespace taskbar {
+enum class TaskbarAlignment { left, centered, unknown };
 struct LayoutSnapshot {
   RECT bounds{};  // Physical screen coordinates, primary horizontal taskbar.
   std::vector<RECT> occupied;
@@ -11,6 +12,8 @@ struct LayoutSnapshot {
   uint32_t error = 0;
   int nodes = 0, controls = 0;
   int ignored_own = 0;
+  TaskbarAlignment alignment = TaskbarAlignment::left;
+  const char* alignment_reason = "alignmentNotRead";
 };
 struct LayoutResult { Status status = Status::waiting; RECT rect{}; };
 LayoutResult FitFreeRegion(const LayoutSnapshot& snapshot, int logical_width,

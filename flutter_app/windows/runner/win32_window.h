@@ -7,6 +7,8 @@
 #include <memory>
 #include <string>
 
+#include "dpi_diagnostics.h"
+
 // A class abstraction for a high DPI-aware Win32 Window. Intended to be
 // inherited from by classes that wish to specialize with custom
 // rendering and input handling
@@ -40,7 +42,10 @@ class Win32Window {
   // logical desktop pixels and is scaled for the origin's display. The window
   // is invisible until
   // |Show| is called. Returns true if the window was created successfully.
-  bool Create(const std::wstring& title, const Point& origin, const Size& size);
+  // Optional A/B composition requires both diagnostics and isolated launch.
+  // The selected policy is fixed for this HWND's lifetime, never persisted.
+  bool Create(const std::wstring& title, const Point& origin, const Size& size,
+              const DpiDiagnostics::Options& diagnostics = {});
 
   // Show the current window. Returns true if the window was successfully shown.
   bool Show();
@@ -137,6 +142,7 @@ class Win32Window {
   HWND child_content_ = nullptr;
   bool settings_mode_ = false;
   double panel_opacity_ = 0.96;
+  DpiProbeComposition probe_composition_ = DpiProbeComposition::kDefault;
   Bounds panel_bounds_;
   double panel_logical_width_ = 0;
   double panel_logical_height_ = 0;

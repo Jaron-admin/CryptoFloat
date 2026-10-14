@@ -68,6 +68,17 @@ DpiDiagnostics::Options DpiDiagnostics::ParseArguments(
       "--dpi-diagnostics") != arguments.end();
   options.isolated = options.enabled && std::find(arguments.begin(),
       arguments.end(), "--dpi-probe-isolated") != arguments.end();
+  if (options.isolated) {
+    const bool layered = std::find(arguments.begin(), arguments.end(),
+        "--dpi-probe-opaque-layered") != arguments.end();
+    const bool nonlayered = std::find(arguments.begin(), arguments.end(),
+        "--dpi-probe-opaque-nonlayered") != arguments.end();
+    // Conflicting variants do not silently pick one based on argument order.
+    if (layered != nonlayered) {
+      options.composition = layered ? DpiProbeComposition::kOpaqueLayered
+                                    : DpiProbeComposition::kOpaqueNonLayered;
+    }
+  }
   return options;
 }
 

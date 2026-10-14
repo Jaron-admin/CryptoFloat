@@ -68,6 +68,8 @@ The floating market panel and taskbar monitoring are enabled by default. The tas
 
 **Taskbar layout** has its own enable switch, maximum width, one/two rows, transparent background, and item spacing. The background is transparent by default, or can use the taskbar's palette. Floating transparency does not affect the taskbar. Maximum width is a limit: short content uses its actual text width, two rows share the wider entry's column width, and long text is shortened when space is limited.
 
+With centered Windows taskbar icons, data starts in the far-left available space, avoiding weather, widgets, and other controls. Insufficient space on that side pauses the display. Left-aligned Windows taskbars use the right-side gap.
+
 **Labels** offers short or full labels. Automatic cryptocurrency labels remove a recognized quote-currency suffix, such as BTC-USDT → BTC. **Custom labels** lets you name individual quotes, metrics, API fields, and display rows in the taskbar; leave a label blank to restore its automatic name. These labels preserve source names, field identifiers, and data. Tooltips retain original names and values.
 
 Preview draft changes in Settings, then save manually or leave Settings to apply them. A failed save retains the draft. Before deleting shared sources or fields, remove references in both displays, including a disabled display.
@@ -121,7 +123,7 @@ The import section on the Watchlist page accepts a legacy `crypto_config.json`. 
 
 The app saves window size and position. The Windows runner uses PerMonitorV2 DPI awareness. If the saved monitor is disconnected or the window is completely offscreen, it returns to a visible area on the primary monitor. Behavior across mixed-DPI displays also depends on the monitor and operating-system configuration.
 
-v1.4.1 corrects a transition in which the old monitor's minimum size constrained the new-DPI rectangle; its native regression passes. A momentary black flash was still reported in the diagnostic probe. The complete font-size and presentation issue has not been verified as resolved; see the [DPI investigation](https://github.com/Jaron-admin/MetricPerch/blob/main/docs/verification/dpi-investigation.md).
+v1.4.1 corrects a transition in which the old monitor's minimum size constrained the new-DPI rectangle; its native regression passes. See the [DPI investigation](https://github.com/Jaron-admin/MetricPerch/blob/main/docs/verification/dpi-investigation.md) for live observations and verification limits.
 
 ## Build from source
 

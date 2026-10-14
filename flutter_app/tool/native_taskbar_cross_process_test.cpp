@@ -1,14 +1,111 @@
 // Read/write only windows created by this fixture. Real shell discovery remains
 // compiled out, while Tick uses the production bounds and coordinate mapping.
+#include "../windows/runner/taskbar_layout.h"
+#include <regex>
+
+namespace fixture {
+bool upload_size_matches = true, upload_position_unchanged = true;
+bool upload_context_matches = true, upload_preserves_rect = true;
+bool fail_upload = false;
+BOOL DeleteDiagnosticDC(HDC dc) {
+  const BOOL result = DeleteDC(dc);
+  // Successful Win32 cleanup is allowed to overwrite the thread's last error.
+  if (fail_upload) SetLastError(ERROR_BUSY);
+  return result;
+}
+unsigned upload_count = 0;
+std::vector<std::string> diagnostics;
+BOOL Upload(HWND window, HDC destination, POINT* position, SIZE* size, HDC source,
+            POINT* source_position, COLORREF key, BLENDFUNCTION* blend, DWORD flags) {
+  RECT client{};
+  RECT before{}, after{};
+  BITMAP bitmap{};
+  const bool sampled = GetWindowRect(window, &before) && GetClientRect(window, &client) &&
+      GetObjectW(GetCurrentObject(source, OBJ_BITMAP), sizeof(bitmap), &bitmap) != 0;
+  ++upload_count;
+  upload_position_unchanged &= position == nullptr;
+  upload_size_matches &= size && sampled && size->cx == client.right &&
+      size->cy == client.bottom && size->cx == bitmap.bmWidth && size->cy == bitmap.bmHeight;
+  upload_context_matches &= AreDpiAwarenessContextsEqual(GetThreadDpiAwarenessContext(),
+      GetWindowDpiAwarenessContext(window)) != FALSE;
+  if (fail_upload) { SetLastError(ERROR_INVALID_PARAMETER); return FALSE; }
+  // Forward the real upload: the later physical geometry assertions must also
+  // catch any DPI virtualization caused by supplying this size.
+  const BOOL uploaded = UpdateLayeredWindow(window, destination, position, size, source,
+      source_position, key, blend, flags);
+  const DWORD error = GetLastError();
+  upload_preserves_rect &= GetWindowRect(window, &after) && EqualRect(&before, &after);
+  if (!uploaded) SetLastError(error);
+  return uploaded;
+}
+}
+namespace taskbar {
+void CaptureDiagnostic(DiagnosticSource, const std::string& message) {
+  fixture::diagnostics.push_back(message);
+}
+}
+#define UpdateLayeredWindow fixture::Upload
+#define DeleteDC fixture::DeleteDiagnosticDC
+#define WriteDiagnostic CaptureDiagnostic
 #define TASKBAR_ISOLATED_TEST
 #define TASKBAR_TEST_NATIVE_COORDINATES
 #include "../windows/runner/taskbar_main.cpp"
+#undef UpdateLayeredWindow
+#undef DeleteDC
+#undef WriteDiagnostic
 #include <cstdio>
+
+bool SurfaceDiagnosticsTest(HWND parent) {
+  bool failure_paths_valid = true;
+  auto capture = [parent, &failure_paths_valid](const wchar_t* value) {
+    SetEnvironmentVariableW(L"METRICPERCH_TASKBAR_RENDER_DIAGNOSTICS", value);
+    fixture::diagnostics.clear();
+    Host host;
+    host.frame.cells = {{L"PRIVATE_FIXTURE_TEXT 25%", 0xFFFFFFFF, L"PRIVATE_TOOLTIP"}};
+    host.Fonts(96);
+    host.display = CreateWindowExW(WS_EX_LAYERED | WS_EX_NOACTIVATE, kDisplayClass,
+        nullptr, WS_CHILD, 0, 0, 300, 48, parent, nullptr, GetModuleHandleW(nullptr), &host);
+    bool uploaded = host.display != nullptr;
+    for (int i = 0; i < 8 && uploaded; ++i) uploaded &= host.Present();
+    const auto caller_context = GetThreadDpiAwarenessContext();
+    fixture::fail_upload = true;
+    const bool failed = !host.Present();
+    const DWORD upload_error = GetLastError();
+    fixture::fail_upload = false;
+    failure_paths_valid &= failed && upload_error == ERROR_INVALID_PARAMETER &&
+        AreDpiAwarenessContextsEqual(caller_context, GetThreadDpiAwarenessContext());
+    host.RemoveDisplay(); DeleteObject(host.text_font); DeleteObject(host.number_font);
+    return uploaded;
+  };
+  bool good = capture(nullptr) && fixture::diagnostics.empty();
+  std::printf("%s surface upload diagnostics are disabled by default\n", good ? "PASS" : "FAIL");
+  const bool invalid_disabled = capture(L"yes") && fixture::diagnostics.empty();
+  std::printf("%s surface diagnostics require exact explicit opt-in\n", invalid_disabled ? "PASS" : "FAIL");
+  good &= invalid_disabled;
+  const bool enabled = capture(L"1");
+  const std::regex numeric_record(
+      "surface_upload=[0-9]+ width=[0-9]+ height=[0-9]+ ink_pixels=[1-9][0-9]* "
+      "opaque_pixels=[0-9]+ max_alpha=255 success=1 code=0 geometry_ok=1 "
+      "parent_x=-?[0-9]+ parent_y=-?[0-9]+ parent_width=[0-9]+ parent_height=[0-9]+ "
+      "child_x=-?[0-9]+ child_y=-?[0-9]+ child_width=[0-9]+ child_height=[0-9]+ "
+      "parent_dpi=[0-9]+ child_dpi=[0-9]+ thread_awareness=-?[0-9]+ "
+      "parent_awareness=-?[0-9]+ child_awareness=-?[0-9]+");
+  const bool bounded = enabled && fixture::diagnostics.size() == 3 &&
+      std::all_of(fixture::diagnostics.begin(), fixture::diagnostics.end(),
+          [&numeric_record](const auto& record) { return std::regex_match(record, numeric_record); });
+  std::printf("%s explicit surface diagnostics contain only numeric upload evidence and stop at three\n",
+      bounded ? "PASS" : "FAIL");
+  std::printf("%s failed upload restores caller DPI context and preserves Win32 error\n",
+      failure_paths_valid ? "PASS" : "FAIL");
+  SetEnvironmentVariableW(L"METRICPERCH_TASKBAR_RENDER_DIAGNOSTICS", nullptr);
+  return good && bounded && failure_paths_valid;
+}
 
 int CheckRenderer(HWND parent) {
   WNDCLASSW display{}; display.hInstance = GetModuleHandleW(nullptr);
   display.lpfnWndProc = DisplayProc; display.lpszClassName = kDisplayClass;
   RegisterClassW(&display);
+  SetEnvironmentVariableW(L"METRICPERCH_TASKBAR_RENDER_DIAGNOSTICS", nullptr);
   Host host;
   host.incoming_frame.font_size = 12;
   host.incoming_frame.cells = {{L"CPU 25%", 0xFFFFFFFF, L"CPU"}};
@@ -23,6 +120,7 @@ int CheckRenderer(HWND parent) {
   host.snapshot.visible = true; host.snapshot.complete = true;
   host.snapshot.reason = "isolatedCrossProcessFixture";
   host.snapshot_time = GetTickCount64();
+  const auto caller_context = GetThreadDpiAwarenessContext();
   host.Tick();
   const auto expected = taskbar::FitFreeRegion(host.snapshot, host.RequiredLogicalWidth(), 36, 64);
   RECT actual{};
@@ -50,10 +148,36 @@ int CheckRenderer(HWND parent) {
       actual.left, actual.top, actual.right, actual.bottom);
   std::printf("%s visible nonactivating child sits above full-width fixture sibling while parent stays hidden\n", styles ? "PASS" : "FAIL");
   std::printf("%s child uses per-pixel compositor alpha without mouse passthrough style\n", layered ? "PASS" : "FAIL");
+  const bool upload_contract = fixture::upload_count == 1 && fixture::upload_size_matches &&
+      fixture::upload_position_unchanged;
+  std::printf("%s upload explicitly declares full bitmap/client size without changing position\n",
+      upload_contract ? "PASS" : "FAIL");
+  const bool upload_context = fixture::upload_context_matches && fixture::upload_preserves_rect &&
+      AreDpiAwarenessContextsEqual(caller_context, GetThreadDpiAwarenessContext());
+  std::printf("%s upload uses child DPI context, preserves its rectangle, and restores caller context\n",
+      upload_context ? "PASS" : "FAIL");
+  bool stable_updates = created;
+  for (int step = 0; step < 3 && stable_updates; ++step) {
+    if (step == 1) {
+      ++host.revision;
+      host.incoming_frame.cells[0].color = 0xFF00FF00; // Changed frame, same measured width.
+    }
+    host.snapshot_time = GetTickCount64();
+    host.Tick();
+    RECT updated{};
+    stable_updates &= host.status == taskbar::Status::displaying &&
+        GetWindowRect(host.display, &updated) && EqualRect(&actual, &updated) &&
+        AreDpiAwarenessContextsEqual(caller_context, GetThreadDpiAwarenessContext());
+  }
+  stable_updates &= fixture::upload_size_matches && fixture::upload_position_unchanged &&
+      fixture::upload_context_matches && fixture::upload_preserves_rect;
+  std::printf("%s same changed and same frame updates keep geometry and upload units stable\n",
+      stable_updates ? "PASS" : "FAIL");
   host.RemoveDisplay();
   if (host.text_font) DeleteObject(host.text_font);
   if (host.number_font) DeleteObject(host.number_font);
-  return created && positioned && styles && layered ? 0 : 1;
+  const bool diagnostics = SurfaceDiagnosticsTest(parent);
+  return created && positioned && styles && layered && upload_contract && upload_context && stable_updates && diagnostics ? 0 : 1;
 }
 
 int wmain(int argc, wchar_t** argv) {

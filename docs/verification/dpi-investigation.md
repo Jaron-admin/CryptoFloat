@@ -1,14 +1,20 @@
 # Mixed-monitor DPI investigation
 
-Status: investigating, 2026-10-14. A transition-time minimum-size defect has been reproduced and corrected in local native regression checks. This does not establish that the complete visual issue or the reported black flash is fixed.
+Status: minimum-size defect corrected; R2 visual checks passed as reported by the user, with the flash's exact cause still unproven, 2026-10-14. The earlier installed candidate failed visual acceptance. Alignment checks, the final release build and archive audit passed. Final package verified; GitHub publication is tracked by the v1.4.1 tag/release.
 
 ## Report
 
-The initial report was enlarged text after moving the panel to a lower-scaling display, recovering after one more click. A later report described persistent enlargement. In the latest diagnostic probe, the user reported normal size but a momentary black flash. These observations concern different runs; they must not be combined into a claim that the original issue has disappeared.
+The initial report was enlarged text after moving the panel to a lower-scaling display, recovering after one more click. A later report described persistent enlargement. An earlier diagnostic probe produced a normal-size report with a momentary black flash and exposed the minimum-size defect documented below.
+
+After that correction, the user tested an initial installed v1.4.1 diagnostic candidate. Font size was reported as normal in that run, but the black flash persisted. Taskbar content was also invisible despite helper ready/displaying status. That test instance was closed and the failed candidate was not published.
+
+In the subsequent R2 A run, using an opaque layered floating host and the revised taskbar upload, the user reported normal size, no black flash, visible taskbar data and working hover. R2 B used an opaque nonlayered floating host; the user reported no black flash and normal font size. Both owned test instances were closed. The user additionally reported that transparent mode was normal. That last observation is accepted as user-reported evidence, not an instrumented measurement of an exact alpha value. See the [v1.4.1 verification record](v1.4.1.md).
+
+These later observations are positive checks of the tested runs. They neither establish that alpha caused the flash nor prove every original symptom on every monitor combination. The existing ordinary opacity implementation remains unchanged; a further C-mode test is not a release requirement in the confirmed scope.
 
 Geometry-only tests do not verify Flutter viewport propagation or final desktop composition.
 
-## Deidentified observation and confirmed defect
+## Earlier deidentified observation and confirmed defect
 
 Only the relevant numeric extent is retained here; the private log, display identifiers, coordinates and configuration are not included.
 
@@ -31,13 +37,14 @@ This evidence establishes a geometry/minimum-size bug. It does not establish the
 
 - `--dpi-diagnostics` enables numerical observations in portable `user_data/dpi-diagnostics.log`, limited to 64 KiB plus one previous file.
 - `--dpi-probe-isolated` has an effect only with diagnostics enabled. It gives the diagnostic process a separate single-instance namespace. Use a separate application folder and temporary configuration; this switch does not isolate files on its own.
+- `--dpi-probe-opaque-layered` and `--dpi-probe-opaque-nonlayered` are optional A/B host-composition policies requiring both flags above. They apply only when creating that diagnostic HWND, are not persisted, and do not change ordinary startup. Supplying both variants retains the ordinary policy.
 - Ordinary launches neither register Dart observers nor create diagnostic logs. They retain the normal single-instance namespace.
 
 Observations include host/child DPI, geometry, parent/child DPI notifications, size and move-loop boundaries, the first click after a transition, Flutter metrics, natural post-frame callbacks, and limited frame timings. Payload keys and events are allowlisted and numeric; displayed text, API values, credentials and paths are not collected. Geometry can still reveal monitor layout, so logs remain local and excluded from Git and release archives.
 
 To investigate the reported flash, native transition observations also include child resize duration and before/after dimensions. Child paint and background-erase messages increment counters without writing per-message records. Each transition has a two-second observation window and at most sixteen detailed resize records. These measurements preserve the existing resize/repaint behavior and are inactive during ordinary launches.
 
-The observer never requests a frame, changes font size, adjusts DPI awareness, or changes window geometry. Frame callbacks may be delivered after the corresponding frame. Correlate timestamps and transition boundaries; do not treat callback arrival as presentation time.
+The observer itself never requests a frame, changes font size, adjusts DPI awareness, or changes window geometry. The explicitly selected A/B host policy is separate from this observation sink. Frame callbacks may be delivered after the corresponding frame. Correlate timestamps and transition boundaries; do not treat callback arrival as presentation time.
 
 Logging still adds execution and file-I/O overhead, so timing-sensitive failures may behave differently while tracing. Failure to reproduce with tracing is not evidence that the original issue is fixed.
 
@@ -49,7 +56,9 @@ Logging still adds execution and file-I/O overhead, so timing-sensitive failures
 4. Select the correction only after observing the failing boundary.
 5. Repeat transitions without a recovery click before claiming a fix.
 
-The user has reported the diagnostic probe's visible result, and its numerical observations exposed the minimum-size defect above. A repeated real-desktop comparison of the corrected build, with and without tracing and without a recovery click, is still needed. The brief black flash remains open.
+The initial corrected candidate failed the visual check; later R2 A/B runs passed the user-reported size/flash checks, and R2 A also passed the taskbar visibility/hover check. The additional transparent-mode report is positive without an exact-alpha measurement. No unique flash root cause has been established, and these runs do not provide exhaustive with/without-tracing or multi-monitor coverage. Those limits must accompany claims; they do not require an unrequested additional launch before the currently scoped release.
+
+The taskbar failure and subsequent visible result remain separate from font-size evidence. Hidden-window alpha tests, rectangle checks and successful window/drawing API calls validate intermediate results, not Explorer's final composition. Ready/displaying status could not override the earlier invisible-content report; the later user observation supplies the actual visibility evidence. The new taskbar alignment rule passed local regressions and is included in the completed final build/archive audit. GitHub publication is tracked separately by the v1.4.1 tag/release. Raw logs and configuration remain local and are not included in public documentation.
 
 ## Related Save, close and taskbar lifecycle regression
 
@@ -63,7 +72,18 @@ The reusable lesson is to keep persistence, ordinary window close, explicit appl
 
 ## Local checks
 
-Latest focused checks:
+Final confirmation: the Windows x64 release build completed with exit 0; the 20-file canonical archive audit reported no findings. Fresh runs passed 63 DPI diagnostic checks, 193 native window checks, Flutter static analysis and all 192 Flutter tests. The final artifact hash and tracked-source privacy scope are recorded in [v1.4.1 verification](v1.4.1.md). These local results do not expand the R2 user-observation evidence to every display or platform.
+
+Latest alignment checks:
+
+- 124 native taskbar checks passed after adding alignment selection, widget/occupied-area avoidance, narrow-gap behavior and negative-coordinate/high-DPI coverage. Registry/version queries are test substitutions; the production helper was compiled only. Independent read-only review found no blocker.
+
+Earlier R2 native checks:
+
+- 108 native taskbar checks passed, including PMv2/system/unaware hidden parents, explicit-size uploads, stable repeated frames, and error/context restoration. Hidden fixtures do not establish final Explorer visibility.
+- 63 diagnostic checks and 193 native window checks passed, including opt-in A/B gating and hidden-window composition policies.
+
+Earlier focused checks:
 
 - The native stale-monitor minimum regression failed before the correction and passed after it; this is geometry evidence only.
 - 40 focused application tests passed across Settings autosave, window events, appearance, localization, independent display settings and desktop flow. They include Save staying open, pending-close serialization, failure/retry and secret cleanup ordering.

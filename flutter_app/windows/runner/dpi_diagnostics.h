@@ -16,12 +16,21 @@ enum class DpiNativeEvent {
   kChildBeforeParent, kChildAfterParent, kChildSize, kMouseDown,
 };
 
-// Opt-in observational trace only. It never changes window or Flutter state.
+enum class DpiProbeComposition {
+  kDefault, kOpaqueLayered, kOpaqueNonLayered,
+};
+
+// Opt-in observational trace. This sink never changes window or Flutter state;
+// isolated A/B options are applied separately when the native host is created.
 // The only persisted strings are fixed event names; all payload values are
 // validated numbers. Normal launches do not create a directory or a log.
 class DpiDiagnostics {
  public:
-  struct Options { bool enabled = false; bool isolated = false; };
+  struct Options {
+    bool enabled = false;
+    bool isolated = false;
+    DpiProbeComposition composition = DpiProbeComposition::kDefault;
+  };
   static Options ParseArguments(const std::vector<std::string>& arguments);
   static DpiDiagnostics& Process();
   void Initialize(bool enabled, const std::filesystem::path& directory);

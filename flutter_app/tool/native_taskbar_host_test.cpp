@@ -92,6 +92,38 @@ int main() {
   const auto widest_fit = taskbar::FitFreeRegion(compact_layout, 360, 32, 64);
   Check(widest_fit.status == taskbar::Status::displaying && widest_fit.rect.right - widest_fit.rect.left == 360 && widest_fit.rect.right < 1000,
         "full text gap is preferred to a narrow gap further right");
+  auto centered = layout;
+  centered.alignment = taskbar::TaskbarAlignment::centered;
+  centered.occupied = {{700, 1000, 1200, 1048}, {1520, 1000, 1920, 1048}};
+  auto centered_fit = taskbar::FitFreeRegion(centered, 360, 32, 64);
+  Check(centered_fit.status == taskbar::Status::displaying && centered_fit.rect.left == 8 &&
+        centered_fit.rect.right == 368, "centered taskbar anchors data at far-left free edge rather than beside apps");
+  centered.occupied.insert(centered.occupied.begin(), {0, 1000, 200, 1048});
+  centered_fit = taskbar::FitFreeRegion(centered, 360, 32, 64);
+  Check(centered_fit.status == taskbar::Status::displaying && centered_fit.rect.left == 208 &&
+        centered_fit.rect.right == 568, "far-left placement avoids weather widgets with padding");
+  centered.occupied = {{0, 1000, 400, 1048}, {600, 1000, 1100, 1048}, {1520, 1000, 1920, 1048}};
+  centered_fit = taskbar::FitFreeRegion(centered, 360, 32, 64);
+  Check(centered_fit.status == taskbar::Status::displaying && centered_fit.rect.left == 408 &&
+        centered_fit.rect.right == 592, "centered taskbar compacts in far-left gap instead of choosing larger right gap");
+  centered.occupied = {{0, 1000, 900, 1048}, {1520, 1000, 1920, 1048}};
+  Check(taskbar::FitFreeRegion(centered, 360, 32, 64).status == taskbar::Status::noSpace,
+        "centered taskbar does not cross midpoint or fall back right when left region is full");
+  centered.occupied = {{0, 1000, 200, 1048}, {240, 1000, 340, 1048},
+                       {700, 1000, 1200, 1048}, {1520, 1000, 1920, 1048}};
+  centered_fit = taskbar::FitFreeRegion(centered, 360, 32, 64);
+  Check(centered_fit.status == taskbar::Status::displaying && centered_fit.rect.left == 348 &&
+        centered_fit.rect.right == 692, "left placement skips unusably narrow gaps without overlapping occupied controls");
+  centered.alignment = taskbar::TaskbarAlignment::unknown;
+  Check(taskbar::FitFreeRegion(centered, 360, 32, 64).status == taskbar::Status::waiting,
+        "unknown taskbar alignment fails closed");
+  centered.alignment = taskbar::TaskbarAlignment::centered;
+  centered.bounds = {-2880, 1600, 0, 1684}; centered.dpi = 168;
+  centered.occupied = {{-2880, 1600, -2600, 1684}, {-1800, 1600, -1000, 1684}, {-400, 1600, 0, 1684}};
+  centered_fit = taskbar::FitFreeRegion(centered, 360, 32, 64);
+  Check(centered_fit.status == taskbar::Status::displaying && centered_fit.rect.left == -2586 &&
+        centered_fit.rect.right == -1956 && centered_fit.rect.top == 1614 && centered_fit.rect.bottom == 1670,
+        "far-left placement scales padding and content on negative-coordinate high-DPI taskbar");
   layout.complete = false;
   Check(taskbar::FitFreeRegion(layout, 360, 32).status == taskbar::Status::waiting,
         "unknown layout refused");

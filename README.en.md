@@ -50,7 +50,9 @@ Taskbar integration targets the standard primary Windows taskbar. It attempts to
 
 Missing metrics and samples establishing a baseline show `—`; only valid zero values show `0`. Automatic network selection uses active physical interfaces; manual selection can include virtual interfaces. GPU usage represents the busiest engine on the selected adapter; a memory percentage is unavailable when its capacity cannot be established. Rates need a new baseline after startup, resume, or a device change. Compatibility with the real taskbar still requires validation for the particular Windows version and desktop layout.
 
-v1.4.1 corrects a DPI transition that reused the old display's minimum size and changed the window's logical width; the native regression passes. A momentary black flash was still reported in the diagnostic probe. The complete visual issue has not been verified as resolved; see the [DPI investigation](docs/verification/dpi-investigation.md).
+With centered Windows taskbar icons, data uses the far-left available space while avoiding weather and widgets; insufficient room on that side pauses the display. Left-aligned Windows taskbars use the right-side gap.
+
+v1.4.1 corrects a DPI transition that reused the old display's minimum size and changed the window's logical width; the native regression passes. See the [DPI investigation](docs/verification/dpi-investigation.md) for live observations and verification limits.
 
 ## Data and settings
 

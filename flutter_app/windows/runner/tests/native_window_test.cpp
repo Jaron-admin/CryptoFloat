@@ -30,14 +30,21 @@ bool system_menu_items = true;
 bool checked_topmost = false;
 UINT menu_selection = 0;
 int failures = 0;
+int checks = 0;
+int layered_attribute_calls = 0;
 std::wstring notification_text;
 bool accept_notifications = true;
 
 void Expect(bool condition, const char* message) {
+  ++checks;
   if (!condition) {
     ++failures;
     std::cerr << "FAIL: " << message << '\n';
   }
+}
+BOOL LayeredAttributes(HWND window, COLORREF key, BYTE alpha, DWORD flags) {
+  ++layered_attribute_calls;
+  return SetLayeredWindowAttributes(window, key, alpha, flags);
 }
 UINT MonitorDpi(HMONITOR) { return monitor_dpi_override ? monitor_dpi_override : dpi; }
 UINT WindowDpi(HWND) { return dpi; }
@@ -120,6 +127,7 @@ BOOL TrackMenu(HMENU menu, UINT flags, int, int, HWND, LPTPMPARAMS) {
 #define TrackPopupMenuEx fixture::TrackMenu
 #define LoadIconMetric fixture::TrayIcon
 #define Shell_NotifyIconW fixture::NotifyIcon
+#define SetLayeredWindowAttributes fixture::LayeredAttributes
 #include "../win32_window.cpp"
 #include "../context_menu.cpp"
 #include "../notification_tray.cpp"
@@ -136,11 +144,105 @@ BOOL TrackMenu(HMENU menu, UINT flags, int, int, HWND, LPTPMPARAMS) {
 #undef TrackPopupMenuEx
 #undef LoadIconMetric
 #undef Shell_NotifyIconW
+#undef SetLayeredWindowAttributes
 
 class HiddenWindow : public Win32Window {
  public:
   using Win32Window::MessageHandler;
 };
+
+class CompositionFixtureWindow : public HiddenWindow {
+ public:
+  LONG_PTR creation_style = 0;
+ protected:
+  LRESULT MessageHandler(HWND window, UINT message, WPARAM wparam,
+                         LPARAM lparam) noexcept override {
+    if (message == WM_CREATE) creation_style = GetWindowLongPtrW(window, GWL_EXSTYLE);
+    return HiddenWindow::MessageHandler(window, message, wparam, lparam);
+  }
+};
+
+template <typename T, typename = void>
+struct HasProbeCreate : std::false_type {};
+template <typename T>
+struct HasProbeCreate<T, std::void_t<decltype(std::declval<T>().Create(
+    std::wstring{}, Win32Window::Point{0, 0}, Win32Window::Size{320, 180},
+    DpiDiagnostics::Options{}))>> : std::true_type {};
+
+template <typename Window = CompositionFixtureWindow,
+          typename Options = DpiDiagnostics::Options>
+void ProbeCompositionLifetimeTest() {
+  if constexpr (!HasProbeCreate<Window>::value) {
+    fixture::Expect(false, "hidden native host accepts isolated diagnostic composition");
+  } else {
+    using Mode = decltype(Options{}.composition);
+    fixture::dpi = 96;
+    fixture::work = RECT{0, 0, 1600, 1000};
+    const Options layered = DpiDiagnostics::ParseArguments(
+        {"--dpi-diagnostics", "--dpi-probe-isolated", "--dpi-probe-opaque-layered"});
+    const Options nonlayered = DpiDiagnostics::ParseArguments(
+        {"--dpi-diagnostics", "--dpi-probe-isolated", "--dpi-probe-opaque-nonlayered"});
+    Options missing_diagnostics = nonlayered;
+    missing_diagnostics.enabled = false;
+    Options missing_isolation = layered;
+    missing_isolation.isolated = false;
+    for (const auto& options : std::vector<Options>{Options{}, layered,
+             nonlayered, missing_diagnostics, missing_isolation}) {
+      const bool opaque = options.enabled && options.isolated &&
+          options.composition != Mode::kDefault;
+      const bool use_layered = !(opaque && options.composition == Mode::kOpaqueNonLayered);
+      Window window;
+      const int calls_before = fixture::layered_attribute_calls;
+      fixture::Expect(window.Create(L"Hidden composition probe", {100, 100},
+          {320, 180}, options), "diagnostic composition fixture created hidden");
+      fixture::Expect(((window.creation_style & WS_EX_LAYERED) != 0) == use_layered,
+          "probe composition applies when HWND is created");
+      auto check_policy = [&](BYTE expected_alpha) {
+        fixture::Expect(((GetWindowLongPtrW(window.GetHandle(), GWL_EXSTYLE) &
+            WS_EX_LAYERED) != 0) == use_layered,
+            "composition remains unchanged throughout the HWND lifetime");
+        if (use_layered) {
+          BYTE alpha = 0; DWORD flags = 0;
+          fixture::Expect(GetLayeredWindowAttributes(window.GetHandle(), nullptr,
+              &alpha, &flags) != FALSE && flags == LWA_ALPHA &&
+              alpha == expected_alpha, "effective alpha obeys normal or forced opaque policy");
+        } else {
+          fixture::Expect(fixture::layered_attribute_calls == calls_before,
+              "nonlayered probe never calls SetLayeredWindowAttributes");
+        }
+        fixture::Expect(!IsWindowVisible(window.GetHandle()), "probe fixture remains hidden");
+      };
+      check_policy(opaque ? 255 : 245);
+      fixture::Expect(window.SetOpacity(0.4), "opacity request succeeds under each probe policy");
+      check_policy(opaque ? 255 : 102);
+      window.SetSettingsMode(true);
+      check_policy(255);
+      window.SetOpacity(0.6);
+      check_policy(255);
+      window.SetSettingsMode(false);
+      check_policy(opaque ? 255 : 153);
+      for (const UINT dpi : {168U, 96U}) {
+        fixture::dpi = dpi;
+        RECT suggested{100, 100, 660, 415};
+        SendMessageW(window.GetHandle(), WM_DPICHANGED, MAKELONG(dpi, dpi),
+            reinterpret_cast<LPARAM>(&suggested));
+        const RECT bounds = window.GetWindowBounds().rect;
+        fixture::Expect(bounds.right - bounds.left == (dpi == 168 ? 560 : 320) &&
+            bounds.bottom - bounds.top == (dpi == 168 ? 315 : 180),
+            "all composition policies preserve the same 320x180 DIP geometry");
+        check_policy(opaque ? 255 : 153);
+      }
+      window.Destroy();
+      fixture::Expect(window.Create(L"Hidden ordinary recreation", {100, 100}, {320, 180}),
+          "recreating without probe options restores ordinary startup");
+      BYTE alpha = 0; DWORD flags = 0;
+      fixture::Expect((GetWindowLongPtrW(window.GetHandle(), GWL_EXSTYLE) & WS_EX_LAYERED) != 0 &&
+          GetLayeredWindowAttributes(window.GetHandle(), nullptr, &alpha, &flags) != FALSE &&
+          alpha == 245, "probe policy does not leak to a recreated ordinary HWND");
+      fixture::Expect(!IsWindowVisible(window.GetHandle()), "recreated fixture remains hidden");
+    }
+  }
+}
 
 void Pump(HWND window) {
   MSG message{};
@@ -432,7 +534,8 @@ int main() {
   OutsideClickTest();
   DpiMinimumDuringTransitionTest();
   TaskbarPresenceAndCloseTest();
+  ProbeCompositionLifetimeTest();
   if (fixture::failures != 0) return 1;
-  std::cout << "Native geometry, menu, outside click and saved notification tests passed.\n";
+  std::cout << fixture::checks << " native window checks passed.\n";
   return 0;
 }

@@ -22,7 +22,7 @@ $common = @('/nologo', '/std:c++17', '/EHsc', '/MT', '/W4', '/WX', '/utf-8', '/D
 $libraries = @('/link', ('/LIBPATH:' + (Join-Path $CompilerRoot 'lib\x64')),
   ('/LIBPATH:' + (Join-Path $sdkLib 'ucrt\x64')), ('/LIBPATH:' + (Join-Path $sdkLib 'um\x64')),
   '/MANIFEST:EMBED', ('/MANIFESTINPUT:' + (Join-Path $appRoot 'windows\runner\runner.exe.manifest')),
-  'user32.lib', 'gdi32.lib', 'ole32.lib', 'oleaut32.lib', 'uiautomationcore.lib', 'shell32.lib', 'comctl32.lib')
+  'user32.lib', 'gdi32.lib', 'ole32.lib', 'oleaut32.lib', 'uiautomationcore.lib', 'shell32.lib', 'comctl32.lib', 'advapi32.lib')
 $sources = @((Join-Path $appRoot 'windows\runner\taskbar_protocol.cpp'), (Join-Path $appRoot 'windows\runner\taskbar_layout.cpp'))
 $testExecutable = Join-Path $outputDirectory 'native_taskbar_host_test.exe'
 & $compiler @common ('/Fe' + $testExecutable) @sources (Join-Path $PSScriptRoot 'native_taskbar_host_test.cpp') @libraries '/SUBSYSTEM:CONSOLE'

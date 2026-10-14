@@ -5,18 +5,20 @@
 ### 简体中文
 
 - 任务栏新增透明背景、可调项目间距、自动/完整名称和逐项自定义简写。按实际文字宽度紧凑排列，设置中的宽度改为最大宽度；单行和双行均保留，悬停可查看原始名称与数值。
+- Windows 任务栏居中对齐时，数据从最左侧可用空白开始排列，并避开天气、小组件和其他控件；左侧空间不足时暂停显示。系统任务栏左对齐时保留右侧空白布局。
 - 恢复 **保存** 按钮，提交成功后留在当前设置页；移除“放弃更改”。点击设置外或返回仍自动保存；保存中的关闭请求等待当前提交，重复请求合并，失败保留草稿供重试。密钥在配置提交成功后再清理。
 - 应用任务栏按钮仅在设置模式显示。关闭设置窗口会保存后返回悬浮窗，关闭悬浮窗会隐藏到托盘；明确 **退出** 才结束程序。调整任务栏按钮样式时保留已有隐藏状态。
 - 修正跨屏 DPI 过渡中旧屏最小尺寸限制新矩形的问题：最小尺寸和可见边界计算使用消息中更新的窗口 DPI，对应原生回归先失败、修正后通过。
-- **仍待验证：**诊断副本仍有短暂黑闪的用户报告，尚不能宣称完整字体或呈现问题已解决。数值证据、验证边界和后续检查见 [DPI 调查记录](https://github.com/Jaron-admin/MetricPerch/blob/main/docs/verification/dpi-investigation.md)。
+- 修正透明任务栏图像提交的尺寸和 DPI 上下文，并独立管理悬停提示窗口的所有者。实机复测与验证范围见 [DPI 调查记录](https://github.com/Jaron-admin/MetricPerch/blob/main/docs/verification/dpi-investigation.md)。
 
 ### English
 
 - Added transparent taskbar backgrounds, adjustable item spacing, short/full labels, and per-item custom labels. Text uses a compact layout and the width preference is now a maximum. One and two rows remain available; tooltips retain original names and values.
+- With centered Windows taskbar icons, data starts in the far-left available space, avoiding weather, widgets, and other controls. Insufficient space on that side pauses the display. Left-aligned Windows taskbars retain placement in the right-side gap.
 - Restored **Save** to commit changes while staying on the current Settings page; removed Discard changes. Outside clicks and returning to the panel still save automatically. Close requests wait for an active save, repeats are merged, and failures retain the draft for retry. Secret cleanup follows a successful configuration commit.
 - The application taskbar button is shown only in Settings mode. Closing Settings saves and returns to the floating panel; closing the panel hides it to the tray. Explicit **Exit** ends the app. Taskbar style changes preserve an already-hidden window.
 - Corrected a DPI transition that applied the old monitor's minimum size to the new rectangle. Minimum dimensions and visible-bound constraints use the updated window DPI. The targeted native regression failed before the correction and passed afterward.
-- **Still open:** a momentary black flash was reported in the diagnostic probe; the complete font-size or presentation issue has not been verified as resolved. See the [DPI investigation](https://github.com/Jaron-admin/MetricPerch/blob/main/docs/verification/dpi-investigation.md) for numerical evidence and verification limits.
+- Corrected the surface size and DPI context used to present transparent taskbar content, and separated tooltip ownership. See the [DPI investigation](https://github.com/Jaron-admin/MetricPerch/blob/main/docs/verification/dpi-investigation.md) for live observations and verification limits.
 
 ## 1.4.0
 

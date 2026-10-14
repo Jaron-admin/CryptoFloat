@@ -189,8 +189,15 @@ Win32Window::~Win32Window() {
 
 bool Win32Window::Create(const std::wstring& title,
                          const Point& origin,
-                         const Size& size) {
+                         const Size& size,
+                         const DpiDiagnostics::Options& diagnostics) {
   Destroy();
+  probe_composition_ = DpiProbeComposition::kDefault;
+  if (diagnostics.enabled && diagnostics.isolated &&
+      (diagnostics.composition == DpiProbeComposition::kOpaqueLayered ||
+       diagnostics.composition == DpiProbeComposition::kOpaqueNonLayered)) {
+    probe_composition_ = diagnostics.composition;
+  }
 
   const wchar_t* window_class =
       WindowClassRegistrar::GetInstance()->GetWindowClass();
@@ -205,8 +212,10 @@ bool Win32Window::Create(const std::wstring& title,
   logical_height_ = size.height;
   double scale_factor = dpi / 96.0;
 
+  const DWORD extended_style = WS_EX_TOOLWINDOW |
+      (probe_composition_ == DpiProbeComposition::kOpaqueNonLayered ? 0 : WS_EX_LAYERED);
   HWND window = CreateWindowEx(
-      WS_EX_LAYERED | WS_EX_TOOLWINDOW, window_class, title.c_str(),
+      extended_style, window_class, title.c_str(),
       WS_POPUP | WS_THICKFRAME | WS_MINIMIZEBOX | WS_CLIPCHILDREN,
       origin.x, origin.y,
       Scale(static_cast<int>(size.width), scale_factor),
@@ -608,8 +617,14 @@ bool Win32Window::SetOpacity(double opacity) {
 }
 
 bool Win32Window::ApplyOpacity() {
+  if (!window_handle_) return false;
+  // The nonlayered probe must never enter redirected layered composition,
+  // including when settings or restored configuration reapply their opacity.
+  if (probe_composition_ == DpiProbeComposition::kOpaqueNonLayered) return true;
+  const bool opaque = settings_mode_ ||
+      probe_composition_ == DpiProbeComposition::kOpaqueLayered;
   const auto alpha = static_cast<BYTE>(std::lround(
-      (settings_mode_ ? 1.0 : panel_opacity_) * 255.0));
+      (opaque ? 1.0 : panel_opacity_) * 255.0));
   return SetLayeredWindowAttributes(window_handle_, 0, alpha, LWA_ALPHA) != FALSE;
 }
 

@@ -49,7 +49,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project, single_instance);
   Win32Window::Point origin(40, 40);
   Win32Window::Size size(460, 360);
-  if (!window.Create(L"MetricPerch · 数栖", origin, size)) {
+  if (!window.Create(L"MetricPerch · 数栖", origin, size, diagnostics)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

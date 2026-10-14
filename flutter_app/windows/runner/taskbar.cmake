@@ -14,7 +14,7 @@ apply_standard_settings(metricperch_taskbar)
 target_compile_definitions(metricperch_taskbar PRIVATE UNICODE _UNICODE NOMINMAX)
 target_compile_options(metricperch_taskbar PRIVATE /utf-8)
 target_link_libraries(metricperch_taskbar PRIVATE
-  user32 gdi32 shell32 comctl32 ole32 oleaut32 uiautomationcore
+  user32 gdi32 shell32 comctl32 ole32 oleaut32 uiautomationcore advapi32
 )
 add_dependencies(${BINARY_NAME} metricperch_taskbar)
 # Flutter stores a generator expression in its install prefix. Resolve the

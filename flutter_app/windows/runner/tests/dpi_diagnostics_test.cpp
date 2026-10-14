@@ -5,6 +5,8 @@
 #include <iostream>
 #include <limits>
 #include <sstream>
+#include <type_traits>
+#include <utility>
 
 #if __has_include("../dpi_diagnostics.h")
 #include "../dpi_diagnostics.h"
@@ -22,6 +24,56 @@ int checks = 0;
 void Expect(bool value, const char* name) {
   ++checks;
   if (!value) { ++failures; std::cerr << "FAIL: " << name << '\n'; }
+}
+template <typename T, typename = void>
+struct HasProbeComposition : std::false_type {};
+template <typename T>
+struct HasProbeComposition<T, std::void_t<decltype(
+    std::declval<T>().composition)>> : std::true_type {};
+
+template <typename Options = DpiDiagnostics::Options>
+void ProbeArgumentGatingTest() {
+  if constexpr (!HasProbeComposition<Options>::value) {
+    Expect(false, "diagnostic A/B composition is gated by explicit isolation");
+  } else {
+    using Mode = decltype(Options{}.composition);
+    const std::vector<std::pair<const char*, Mode>> variants = {
+      {"--dpi-probe-opaque-layered", Mode::kOpaqueLayered},
+      {"--dpi-probe-opaque-nonlayered", Mode::kOpaqueNonLayered},
+    };
+    for (const auto& variant : variants) {
+      for (const auto& prerequisites : std::vector<std::vector<std::string>>{
+               {}, {"--dpi-diagnostics"}, {"--dpi-probe-isolated"}}) {
+        auto arguments = prerequisites;
+        arguments.push_back(variant.first);
+        const Options options = DpiDiagnostics::ParseArguments(arguments);
+        Expect(options.composition == Mode::kDefault,
+               "each A/B variant requires diagnostics and isolation together");
+      }
+      const Options options = DpiDiagnostics::ParseArguments(
+          {"--dpi-diagnostics", "--dpi-probe-isolated", variant.first});
+      Expect(options.enabled && options.isolated &&
+             options.composition == variant.second,
+             "explicit isolated A/B variant is selected");
+      const Options duplicate = DpiDiagnostics::ParseArguments(
+          {variant.first, "--dpi-probe-isolated", variant.first, "--dpi-diagnostics"});
+      Expect(duplicate.composition == variant.second,
+             "duplicate flags and argument order do not change A/B selection");
+    }
+    const Options conflict = DpiDiagnostics::ParseArguments(
+        {"--dpi-diagnostics", "--dpi-probe-isolated",
+         "--dpi-probe-opaque-layered", "--dpi-probe-opaque-nonlayered"});
+    Expect(conflict.composition == Mode::kDefault,
+           "conflicting A/B variants preserve the normal composition policy");
+    const Options ordinary = DpiDiagnostics::ParseArguments({});
+    Expect(!ordinary.enabled && !ordinary.isolated &&
+           ordinary.composition == Mode::kDefault,
+           "ordinary launch keeps diagnostics and opacity overrides disabled");
+    const Options isolated = DpiDiagnostics::ParseArguments(
+        {"--dpi-diagnostics", "--dpi-probe-isolated"});
+    Expect(isolated.composition == Mode::kDefault,
+           "existing isolated diagnostic launch keeps normal composition");
+  }
 }
 std::string Read(const std::filesystem::path& file) {
   std::ifstream input(file, std::ios::binary);
@@ -143,6 +195,7 @@ void ChildResizeDiagnosticsTest(const std::filesystem::path& directory) {
 }
 
 int main(int argc, char** argv) {
+  ProbeArgumentGatingTest();
   using V = flutter::EncodableValue;
   const auto directory = (argc > 1 ? std::filesystem::path(argv[1]) :
       std::filesystem::temp_directory_path()) /

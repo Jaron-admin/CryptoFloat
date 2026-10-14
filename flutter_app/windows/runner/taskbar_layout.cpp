@@ -6,6 +6,37 @@
 #include <string>
 namespace taskbar {
 namespace {
+struct AlignmentSetting {
+  TaskbarAlignment value = TaskbarAlignment::unknown;
+  const char* reason = "alignmentUnreadable";
+  DWORD error = 0;
+};
+AlignmentSetting ReadTaskbarAlignment() {
+  DWORD value = 0, bytes = sizeof(value);
+  // This DWORD is Explorer's observed local setting. Microsoft's backup-data
+  // reference uses a different representation; this is a read-only adapter.
+  const LSTATUS status = RegGetValueW(HKEY_CURRENT_USER,
+      L"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+      L"TaskbarAl", RRF_RT_REG_DWORD, nullptr, &value, &bytes);
+  if (status == ERROR_SUCCESS) {
+    if (value == 0) return {TaskbarAlignment::left, "alignmentSettingLeft", 0};
+    if (value == 1) return {TaskbarAlignment::centered, "alignmentSettingCentered", 0};
+    return {TaskbarAlignment::unknown, "invalidAlignmentSetting", ERROR_INVALID_DATA};
+  }
+  if (status != ERROR_FILE_NOT_FOUND && status != ERROR_PATH_NOT_FOUND)
+    return {TaskbarAlignment::unknown, "alignmentUnreadable", static_cast<DWORD>(status)};
+  // Windows 11's documented default is centered. The Win10/11 manifest is
+  // required for this version query; failed queries never imply a default.
+  OSVERSIONINFOEXW version{}; version.dwOSVersionInfoSize = sizeof(version);
+  version.dwBuildNumber = 22000;
+  SetLastError(ERROR_SUCCESS);
+  if (VerifyVersionInfoW(&version, VER_BUILDNUMBER,
+      VerSetConditionMask(0, VER_BUILDNUMBER, VER_GREATER_EQUAL)))
+    return {TaskbarAlignment::centered, "alignmentDefaultCentered", 0};
+  const DWORD error = GetLastError();
+  if (error == ERROR_OLD_WIN_VERSION) return {TaskbarAlignment::left, "alignmentDefaultLeft", 0};
+  return {TaskbarAlignment::unknown, "alignmentUnknownWindows", error};
+}
 bool ValidRect(const RECT& r) {
   return r.left >= -100000 && r.right <= 100000 && r.top >= -100000 && r.bottom <= 100000 &&
          r.right > r.left && r.bottom > r.top;
@@ -113,25 +144,31 @@ LayoutResult FitFreeRegion(const LayoutSnapshot& s, int width, int height, int m
   if (!ValidRect(s.bounds) || s.bounds.bottom - s.bounds.top > s.bounds.right - s.bounds.left) {
     result.status = Status::unsupported; return result;
   }
-  if (!s.complete || !s.visible || s.occupied.empty() || s.dpi < 48 || s.dpi > 768) return result;
+  if (!s.complete || !s.visible || s.occupied.empty() || s.dpi < 48 || s.dpi > 768 ||
+      s.alignment == TaskbarAlignment::unknown) return result;
   if (width < 64 || width > 1600 || height < 8 || height > 128) { result.status = Status::error; return result; }
   const int w = MulDiv(width, static_cast<int>(s.dpi), 96);
   const int minimum = minimum_width == 0 ? w : MulDiv((std::clamp)(minimum_width, 1, width), static_cast<int>(s.dpi), 96);
   const int h = MulDiv(height, static_cast<int>(s.dpi), 96);
   const int padding = MulDiv(8, static_cast<int>(s.dpi), 96);
+  const bool far_left = s.alignment == TaskbarAlignment::centered;
+  // Center-aligned taskbars reserve their left half for this placement policy.
+  // If widgets/controls fill it, refuse placement instead of jumping right.
+  const LONG limit = far_left ? s.bounds.left + (s.bounds.right - s.bounds.left) / 2 : s.bounds.right - padding;
   if (h > s.bounds.bottom - s.bounds.top - 2) { result.status = Status::noSpace; return result; }
   std::vector<std::pair<LONG, LONG>> blocks;
   for (const auto& r : s.occupied) {
     if (!ValidRect(r)) return result;
-    if (Overlap(r, s.bounds)) blocks.emplace_back((std::max)(s.bounds.left, r.left - padding),
-                                                (std::min)(s.bounds.right, r.right + padding));
+    if (Overlap(r, s.bounds)) blocks.emplace_back((std::min)(limit, (std::max)(s.bounds.left, r.left - padding)),
+                                                (std::min)(limit, r.right + padding));
   }
   std::sort(blocks.begin(), blocks.end());
   LONG start = s.bounds.left + padding, selected = 0, selected_width = 0; bool found = false;
-  blocks.emplace_back(s.bounds.right - padding, s.bounds.right);
+  blocks.emplace_back(limit, s.bounds.right);
   for (const auto& block : blocks) {
     if (block.first - start >= minimum) {
       const LONG candidate = (std::min)(static_cast<LONG>(w), block.first - start);
+      if (far_left) { selected = start; selected_width = candidate; found = true; break; }
       if (!found || candidate >= selected_width) {
         selected_width = candidate; selected = block.first - selected_width; found = true;
       }
@@ -165,6 +202,11 @@ LayoutSnapshot DiscoverTaskbar(HWND bar, HWND own) {
   if (!result.visible) return result;
   result.reason = "invalidTaskbarBounds";
   if (!ValidRect(result.bounds)) return result;
+  const auto alignment = ReadTaskbarAlignment();
+  result.alignment = alignment.value; result.alignment_reason = alignment.reason;
+  if (alignment.value == TaskbarAlignment::unknown) {
+    result.reason = alignment.reason; result.error = alignment.error; return result;
+  }
   ComPtr<IUIAutomation> automation; ComPtr<IUIAutomationElement> root;
   result.reason = "automationUnavailable";
   HRESULT error = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&automation));
