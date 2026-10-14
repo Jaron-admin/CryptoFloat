@@ -38,7 +38,7 @@ bool NotificationTray::EnsureIcon() {
   data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP;
   data.uCallbackMessage = kTrayMessage;
   data.hIcon = icon_;
-  wcscpy_s(data.szTip, L"MetricPerch");
+  wcscpy_s(data.szTip, L"DuoMonitor");
   if (registered_ && Shell_NotifyIconW(NIM_MODIFY, &data)) return true;
   registered_ = Shell_NotifyIconW(NIM_ADD, &data) != FALSE;
   if (!registered_) return false;
@@ -81,7 +81,7 @@ bool NotificationTray::NotifySettingsSaved(bool chinese) {
   data.uID = kTrayId;
   data.uFlags = NIF_INFO;
   data.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
-  wcscpy_s(data.szInfoTitle, L"MetricPerch");
+  wcscpy_s(data.szInfoTitle, L"DuoMonitor");
   wcscpy_s(data.szInfo, chinese ? L"设置已自动保存。"
                               : L"Settings saved automatically.");
   return Shell_NotifyIconW(NIM_MODIFY, &data) != FALSE;

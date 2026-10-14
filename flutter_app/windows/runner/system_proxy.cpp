@@ -379,7 +379,7 @@ class SystemProxy::Impl {
     job->detect_stage = detect_stage;
     job->url = url;
     job->automatic_url = automatic;
-    job->session = WinHttpOpen(L"CryptoFloat/0.3", WINHTTP_ACCESS_TYPE_NO_PROXY,
+    job->session = WinHttpOpen(L"DuoMonitor/1.5.0", WINHTTP_ACCESS_TYPE_NO_PROXY,
         WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, WINHTTP_FLAG_ASYNC);
     if (!job->session) {
       Reply({{}, "system_proxy_unavailable"}, result.get());

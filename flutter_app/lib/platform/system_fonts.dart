@@ -63,3 +63,24 @@ class SystemFonts {
   static bool hasLoaded(String original) =>
       _aliases.containsKey(original.trim());
 }
+
+/// True when an installed family name is commonly monospace.
+/// This never invents a font that is not already in the picker list.
+bool isMonospaceFontFamily(String family) {
+  final name = family.trim().toLowerCase();
+  if (name.isEmpty) return false;
+  if (RegExp(r'(^|[\s_-])mono(space)?([\s_-]|$)').hasMatch(name)) return true;
+  const markers = [
+    'consolas',
+    'courier',
+    'cascadia code',
+    'inconsolata',
+    'fira code',
+    'firacode',
+    'source code',
+    'lucida console',
+    'menlo',
+    'monaco',
+  ];
+  return markers.any(name.contains);
+}

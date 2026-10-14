@@ -61,6 +61,7 @@ class DpiDiagnostics {
   void AppendChildRenderCounts(std::ostream& stream) const;
   void Write(const std::string& fields);
   bool enabled_ = false;
+  bool process_directory_ = false;
   std::filesystem::path file_;
   std::mutex mutex_;
   uint64_t sequence_ = 0;

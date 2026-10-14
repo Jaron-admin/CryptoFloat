@@ -175,7 +175,7 @@ AppConfig appendTemplate(
         refreshSeconds: 600,
         headers: const {
           'Accept': 'application/vnd.github+json',
-          'User-Agent': 'MetricPerch',
+          'User-Agent': 'DuoMonitor',
         },
         fields: [
           CustomField(id: 'stars', label: 'Stars', path: 'stargazers_count'),

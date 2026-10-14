@@ -46,7 +46,7 @@ struct Child {
 #ifdef TASKBAR_ISOLATED_TEST
     path += L"taskbar_isolated_helper.exe";
 #else
-    path += L"metricperch_taskbar.exe";
+    path += L"duomonitor_taskbar.exe";
 #endif
     std::wstring command = L"\"" + path + L"\" " +
         std::to_wstring(reinterpret_cast<uintptr_t>(child_input)) + L" " +

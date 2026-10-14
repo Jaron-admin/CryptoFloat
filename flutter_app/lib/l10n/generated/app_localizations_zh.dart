@@ -395,7 +395,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get editRepoName => '仓库名称';
 
   @override
-  String get editRepoNameHint => '例如 MetricPerch';
+  String get editRepoNameHint => '例如 DuoMonitor';
 
   @override
   String editHeaderMissingSecret(String name) {
@@ -983,7 +983,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingReturnToPanel => '返回悬浮窗';
 
   @override
-  String get settingTitle => 'MetricPerch 设置';
+  String get settingTitle => 'DuoMonitor 设置';
 
   @override
   String get settingSaving => '保存中…';
@@ -1490,6 +1490,68 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingCatalogTray => '隐藏与托盘恢复';
+
+  @override
+  String get settingScopeShared => '同时作用于悬浮窗与任务栏';
+
+  @override
+  String get settingScopePanel => '仅影响悬浮窗';
+
+  @override
+  String get settingScopeTaskbar => '仅影响任务栏';
+
+  @override
+  String get settingNumberFontHint => '数字更适合使用等宽字体。';
+
+  @override
+  String get settingMonospaceFont => '等宽';
+
+  @override
+  String get settingStorageMode => '数据存储位置';
+
+  @override
+  String get settingStoragePortable => '便携（程序旁边）';
+
+  @override
+  String get settingStorageSystem => '系统应用数据';
+
+  @override
+  String get settingStorageModeHint =>
+      '便携模式把 user_data 放在程序旁边。系统模式保存在当前用户的应用数据目录。';
+
+  @override
+  String get settingStorageMigrateTitle => '复制现有数据？';
+
+  @override
+  String get settingStorageMigrateBody => '把设置、图标和备份复制到新位置，避免丢失配置。';
+
+  @override
+  String get settingStorageMigrate => '复制并切换';
+
+  @override
+  String get settingStorageSwitchOnly => '不复制，只切换';
+
+  @override
+  String get settingStorageSwitchFailed => '无法保存存储位置。请选择可写的文件夹，或继续使用当前位置。';
+
+  @override
+  String get settingPriceColor => '价格颜色';
+
+  @override
+  String get settingPriceColorPlain => '默认（主题文字）';
+
+  @override
+  String get settingPriceColorTheme => '主题涨跌色';
+
+  @override
+  String get settingPriceColorGreenUp => '绿涨红跌';
+
+  @override
+  String get settingPriceColorRedUp => '红涨绿跌';
+
+  @override
+  String get settingPriceColorHint =>
+      '红绿颜色比较的是上一次成功刷新的价格，不是 24 小时涨跌。启动或更换品种后的第一次刷新为中性色。';
 
   @override
   String get theme120Saturation => '饱和度';

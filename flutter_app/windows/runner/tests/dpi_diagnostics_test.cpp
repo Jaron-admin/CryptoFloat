@@ -124,7 +124,7 @@ void ChildResizeDiagnosticsTest(const std::filesystem::path& directory) {
   WNDCLASSW klass{};
   klass.lpfnWndProc = DiagnosticFixtureChild;
   klass.hInstance = GetModuleHandleW(nullptr);
-  klass.lpszClassName = L"MetricPerchDiagnosticFixtureChild";
+  klass.lpszClassName = L"DuoMonitorDiagnosticFixtureChild";
   RegisterClassW(&klass);
   HWND child = CreateWindowExW(0, klass.lpszClassName, L"", WS_CHILD,
       0, 0, 200, 100, window.GetHandle(), nullptr, klass.hInstance, nullptr);
@@ -199,7 +199,7 @@ int main(int argc, char** argv) {
   using V = flutter::EncodableValue;
   const auto directory = (argc > 1 ? std::filesystem::path(argv[1]) :
       std::filesystem::temp_directory_path()) /
-      (L"metricperch-dpi-test-" + std::to_wstring(GetCurrentProcessId()) + L"-" +
+      (L"duomonitor-dpi-test-" + std::to_wstring(GetCurrentProcessId()) + L"-" +
        std::to_wstring(GetTickCount64()));
   DpiDiagnostics sink;
   Expect(!sink.enabled(), "diagnostics default to disabled");

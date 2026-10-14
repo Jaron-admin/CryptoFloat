@@ -12,6 +12,8 @@ import '../../domain/unit_conversion.dart';
 import '../../platform/system_fonts.dart';
 import 'display_row_view.dart';
 import '../../app/market_change_colors.dart';
+import '../../app/theme_presets.dart';
+import '../../domain/refresh_price.dart';
 import '../../l10n/l10n.dart';
 
 class PanelPage extends StatelessWidget {
@@ -128,6 +130,7 @@ class PanelPage extends StatelessWidget {
             spacing: config.rowSpacing,
             config: config,
             rates: rates,
+            tick: controller.priceTickFor(asset.id),
           ),
       for (final id in config.selectedMetricIds)
         'metric:$id': _MetricRow(
@@ -154,6 +157,10 @@ class PanelPage extends StatelessWidget {
             config: config,
             quotes: quotes,
             rates: rates,
+            priceTicks: {
+              for (final quote in quotes.values)
+                quote.assetId: controller.priceTickFor(quote.assetId),
+            },
           ),
         ),
     };
@@ -365,9 +372,7 @@ class _MetricRow extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: style,
-            textAlign: config.panelItemLayout == 'vertical'
-                ? TextAlign.left
-                : TextAlign.right,
+            textAlign: TextAlign.right,
           ),
         ),
       ),
@@ -417,6 +422,7 @@ class _AssetRow extends StatelessWidget {
     required this.spacing,
     required this.config,
     required this.rates,
+    required this.tick,
   });
   final Asset asset;
   final MarketQuote? quote;
@@ -424,6 +430,7 @@ class _AssetRow extends StatelessWidget {
   final double spacing;
   final AppConfig config;
   final Map<String, double> rates;
+  final PriceTick tick;
   @override
   Widget build(BuildContext context) {
     final currency = quote?.currency.isNotEmpty == true
@@ -432,6 +439,13 @@ class _AssetRow extends StatelessWidget {
     final converted = quote?.price == null
         ? null
         : convertUnitValue(quote!.price!, currency, config, rates);
+    final tone = priceTickColor(
+      priceColorMode: config.priceColorMode,
+      tick: tick,
+      neutral: Theme.of(context).colorScheme.onSurface,
+      brightness: Theme.of(context).brightness,
+      themeColors: marketColorsOf(context),
+    );
     final symbol = asset.kind == MarketKind.crypto
         ? asset.symbol.split('-').first.replaceFirst(RegExp(r'USDT$'), '')
         : asset.symbol;
@@ -466,26 +480,16 @@ class _AssetRow extends StatelessWidget {
             ],
           ),
           value: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Expanded(
-                child: Align(
-                  alignment: config.panelItemLayout == 'vertical'
-                      ? Alignment.centerLeft
-                      : Alignment.centerRight,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      formatValue(converted?.value ?? quote?.price),
-                      style: config.showChangePercent
-                          ? style
-                          : style.copyWith(
-                              color: marketChangeColor(
-                                context,
-                                config,
-                                quote?.changePercent,
-                              ),
-                            ),
-                    ),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    formatValue(converted?.value ?? quote?.price),
+                    textAlign: TextAlign.right,
+                    style: style.copyWith(color: tone),
                   ),
                 ),
               ),
@@ -560,7 +564,7 @@ class _CustomFieldRow extends StatelessWidget {
     final value = quote?.field(field.id);
     final number = value is num
         ? value
-        : (field.unit.isNotEmpty ? num.tryParse('$value') : null);
+        : (value is String ? num.tryParse(value) : null);
     final converted = number == null
         ? null
         : convertUnitValue(number, field.unit, config, rates);
@@ -583,7 +587,7 @@ class _CustomFieldRow extends StatelessWidget {
             style: TextStyle(fontSize: style.fontSize),
           ),
           value: Row(
-            mainAxisAlignment: config.panelItemLayout == 'vertical'
+            mainAxisAlignment: number == null
                 ? MainAxisAlignment.start
                 : MainAxisAlignment.end,
             children: [

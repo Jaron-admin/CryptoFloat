@@ -28,8 +28,8 @@ void main() {
     ),
   );
 
-  test('absent title uses MetricPerch and explicit titles stay intact', () {
-    expect(AppConfig.fromJson({}).headerName, 'MetricPerch');
+  test('absent title uses DuoMonitor and explicit titles stay intact', () {
+    expect(AppConfig.fromJson({}).headerName, 'DuoMonitor');
     expect(
       AppConfig.fromJson({
         'appearance': {'headerName': 'CryptoFloat'},

@@ -127,7 +127,7 @@
   "editRepoOwner": "Repository owner",
   "editRepoOwnerHint": "For example: flutter",
   "editRepoName": "Repository name",
-  "editRepoNameHint": "For example: MetricPerch",
+  "editRepoNameHint": "For example: DuoMonitor",
   "editHeaderMissingSecret": "Enter the secret for {name}.",
   "@editHeaderMissingSecret": {
     "placeholders": {

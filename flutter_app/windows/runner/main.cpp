@@ -13,7 +13,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   const auto diagnostics = DpiDiagnostics::ParseArguments(command_line_arguments);
   // An explicitly isolated probe never activates an already running real app.
   SingleInstance single_instance(diagnostics.isolated
-      ? L"MetricPerch.DpiProbe.v1." + std::to_wstring(GetCurrentProcessId())
+      ? L"DuoMonitor.DpiProbe.v1." + std::to_wstring(GetCurrentProcessId())
       : L"CryptoFloat.SingleInstance.v1");
   const auto instance_result = single_instance.Start();
   if (instance_result == SingleInstance::StartResult::kForwarded) {
@@ -23,10 +23,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     const bool chinese = PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_CHINESE;
     MessageBoxW(
         nullptr,
-        chinese ? L"无法启动或唤回数栖。请先退出已运行的 MetricPerch，再重试。"
-                : L"MetricPerch could not start or activate the running app. "
-                  L"Close any running MetricPerch instance and try again.",
-        L"MetricPerch · 数栖", MB_OK | MB_ICONERROR);
+        chinese ? L"无法启动或唤回 DuoMonitor。请先退出已运行的 DuoMonitor，再重试。"
+                : L"DuoMonitor could not start or activate the running app. "
+                  L"Close any running DuoMonitor instance and try again.",
+        L"DuoMonitor", MB_OK | MB_ICONERROR);
     return EXIT_FAILURE;
   }
   DpiDiagnostics::Process().InitializeForProcess(diagnostics.enabled);
@@ -49,7 +49,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project, single_instance);
   Win32Window::Point origin(40, 40);
   Win32Window::Size size(460, 360);
-  if (!window.Create(L"MetricPerch · 数栖", origin, size, diagnostics)) {
+  if (!window.Create(L"DuoMonitor", origin, size, diagnostics)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

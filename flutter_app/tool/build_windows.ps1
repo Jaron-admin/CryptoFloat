@@ -1,4 +1,4 @@
-param([string]$Flutter = 'flutter', [string]$PackageName = 'MetricPerch-Windows-x64-1.4.1')
+param([string]$Flutter = 'flutter', [string]$PackageName = 'DuoMonitor-Windows-x64-1.5.0')
 $ErrorActionPreference = 'Stop'
 $appRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $repoRoot = [System.IO.Directory]::GetParent($appRoot).FullName
@@ -59,8 +59,8 @@ try {
     # locally and contain personal user_data. Add future runtime assets here
     # deliberately rather than widening these lists to all files or directories.
     foreach ($relativePath in @(
-        'metricperch.exe',
-        'metricperch_taskbar.exe',
+        'duomonitor.exe',
+        'duomonitor_taskbar.exe',
         'flutter_windows.dll',
         'file_selector_windows_plugin.dll',
         'data\app.so',

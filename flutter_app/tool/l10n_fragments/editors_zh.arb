@@ -127,7 +127,7 @@
   "editRepoOwner": "仓库拥有者",
   "editRepoOwnerHint": "例如 flutter",
   "editRepoName": "仓库名称",
-  "editRepoNameHint": "例如 MetricPerch",
+  "editRepoNameHint": "例如 DuoMonitor",
   "editHeaderMissingSecret": "请填写 {name} 的密钥。",
   "@editHeaderMissingSecret": {
     "placeholders": {

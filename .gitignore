@@ -15,5 +15,9 @@ settings.json
 crypto_config.json
 secrets/
 user_data/
+duomonitor_storage.json
+metricperch_storage.json
+storage_mode.json
+.storage-selection/
 .vscode/
 .idea/

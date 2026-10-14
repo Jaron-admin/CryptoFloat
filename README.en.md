@@ -1,10 +1,10 @@
-# MetricPerch · 数栖
+# DuoMonitor
 
 [简体中文](README.md) · **English**
 
 Show market quotes, JSON API fields, text, and local system metrics in a floating desktop panel and the Windows taskbar. Choose content and appearance independently for each display. Built with Flutter and Material 3, with English and Simplified Chinese interfaces.
 
-![Example MetricPerch floating panel](docs/images/panel-preview.png)
+![Example DuoMonitor floating panel](docs/images/panel-preview.png)
 
 Example appearance from v1.1: customize the name, fonts, colors, transparency, and displayed content. The settings interface has changed in the current version.
 
@@ -16,11 +16,11 @@ The retained v1.2 screenshot illustrates the appearance; v1.3 adds display targe
 
 ## Download and run
 
-Download **MetricPerch-Windows-x64-1.4.1.zip** from [Releases](https://github.com/Jaron-admin/MetricPerch/releases).
+Download **DuoMonitor-Windows-x64-1.5.0.zip** from [Releases](https://github.com/Jaron-admin/DuoMonitor/releases).
 
-Extract the entire archive and run `metricperch.exe`. Keep `metricperch_taskbar.exe`, the accompanying libraries, and the `data` folder beside it. The taskbar helper starts and exits with the main app.
+Extract the entire archive and run `duomonitor.exe`. Keep `duomonitor_taskbar.exe`, the accompanying libraries, and the `data` folder beside it. The taskbar helper starts and exits with the main app.
 
-This is a portable app: settings, caches, imported icons, protected secrets, and taskbar diagnostic logs live in `user_data` beside the executable. Use a writable folder and move the whole folder together. Only one instance runs for the current Windows user in the current login session; launching again brings the existing window forward. Exit the old version before upgrading and keep your `user_data` in the new app folder. Existing CryptoFloat portable settings are migrated while preserving custom titles, icons, themes, and display content.
+Portable mode is the default: settings, caches, imported icons, protected secrets, and diagnostic logs live in `user_data` beside the executable. **Settings → Import & data location** can switch to the Windows system app-data folder `%APPDATA%\DuoMonitor`, with an option to copy the current data. Only one instance runs for the current Windows user in the current login session; launching again brings it forward. Exit the old version and back up the active data folder before upgrading; in portable mode, keep `user_data` beside the new app. Existing MetricPerch/CryptoFloat custom titles, icons, themes, and display content are retained.
 
 The current release provides a **Windows x64** build. macOS and Linux project scaffolds are included, but their native window and protected storage integrations are incomplete. Android and iOS releases are not available.
 
@@ -38,11 +38,12 @@ Right-click the floating panel to open Settings. Select **Settings → Appearanc
 - Unit aliases, reference exchange-rate conversion, and custom multipliers. Starter templates cover weather, exchange rates, public repository statistics, and text reminders.
 - Light, dark, and system themes, multiple named color presets, and a visual color picker.
 - Custom system fonts, numeric fonts, transparency, text size, spacing, app name, and icon.
-- A 1–8 column floating layout with horizontal or vertical entries. Hide the 24h percentage and use customizable rising/falling price colors.
+- A 1–8 column floating layout with horizontal or vertical entries and right-aligned values. The 24h percentage can be hidden independently.
+- Shared price colors for both displays: default text, theme up/down colors, green-up, or red-up. Direction compares consecutive successful refreshes; the first refresh is neutral.
 - Context menu, always-on-top window, double-click to hide to the tray, click to restore, and per-monitor DPI support.
 - English and Simplified Chinese interfaces, with manual or system language selection.
 
-Select **Floating panel** or **Taskbar** in Settings before editing its content and appearance. **Display layout** controls columns, entry orientation, and change display. **Taskbar layout** controls its own enable switch, maximum width, one/two rows, transparent background, item spacing, and labels. Short content uses less width. Custom labels affect only the taskbar and preserve the source data. Devices and the sample interval apply to both displays.
+Select **Floating panel** or **Taskbar** in Settings before editing its content and appearance. **Display layout** controls columns, entry orientation, and the 24h percentage; price colors compare refreshes instead of the 24h change. **Taskbar layout** controls its own enable switch, maximum width, one/two rows, transparent background, item spacing, and labels. Short content uses less width. Custom labels affect only the taskbar and preserve the source data. Section captions explain the scope; price colors, devices, and the sample interval apply to both displays. The numeric font picker marks installed common monospace families to help align numbers.
 
 **Save** commits changes and keeps Settings open. Clicking outside Settings or returning to the panel still saves automatically and briefly confirms success. A close request during a save waits for that operation; a failed save keeps the draft for retry. Alt+Tab and color, font, or file pickers do not close Settings. Only Settings has an application taskbar button. Closing Settings saves and returns to the panel; closing the floating panel hides it to the tray. Use **Exit** to end the app.
 
@@ -56,7 +57,7 @@ v1.4.1 corrects a DPI transition that reused the old display's minimum size and 
 
 ## Data and settings
 
-Without `user_data`, the app starts with default settings. It does not automatically read or migrate old data from the Windows user profile, and leaves those files unchanged. Subsequent launches reuse this portable copy's `user_data`. To share the app, use the release ZIP or remove `user_data` from your sharing copy first.
+The app remembers the selected data location. Existing portable installs continue to read their own `user_data` until a choice is saved. An active folder without settings starts with defaults; old `%APPDATA%\CryptoFloatFlutter` or `%LOCALAPPDATA%\CryptoFloat\secrets` data is not read automatically. Preserve the complete active data folder when moving or backing up the app. Share the original release ZIP, which excludes personal data and storage-location markers.
 
 Secret request headers are protected using Windows DPAPI for the current user. Enter those secrets again after moving to another computer or Windows account. Connections follow the Windows system network settings.
 
@@ -71,8 +72,8 @@ See the [changelog](CHANGELOG.md) for this release.
 Use Flutter 3.47.5 / Dart 3.13.4 and the Visual Studio desktop development with C++ toolchain. Follow the [Flutter Windows setup guide](https://docs.flutter.dev/platform-integration/windows/setup).
 
 ```powershell
-git clone https://github.com/Jaron-admin/MetricPerch.git
-cd MetricPerch/flutter_app
+git clone https://github.com/Jaron-admin/DuoMonitor.git
+cd DuoMonitor/flutter_app
 flutter pub get
 flutter build windows --release
 ```
@@ -80,11 +81,11 @@ flutter build windows --release
 To create a release folder and ZIP containing the usage guides and licenses:
 
 ```powershell
-./tool/build_windows.ps1 -PackageName MetricPerch-Windows-x64-1.4.1
+./tool/build_windows.ps1 -PackageName DuoMonitor-Windows-x64-1.5.0
 ```
 
 ## License
 
-MetricPerch's own source code is licensed under the [MIT License](LICENSE). You may use, modify, distribute, and use it commercially while retaining the license and copyright notice.
+DuoMonitor's own source code is licensed under the [MIT License](LICENSE). You may use, modify, distribute, and use it commercially while retaining the license and copyright notice.
 
 Dependencies and fonts retain their own licenses. See [Third-party notices](THIRD_PARTY_NOTICES.md). Release packages include the project license and full third-party license texts.

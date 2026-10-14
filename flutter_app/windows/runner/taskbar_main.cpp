@@ -9,8 +9,8 @@
 #include <thread>
 
 namespace {
-constexpr wchar_t kControllerClass[] = L"MetricPerchTaskbarController";
-constexpr wchar_t kDisplayClass[] = L"MetricPerchTaskbarDisplay";
+constexpr wchar_t kControllerClass[] = L"DuoMonitorTaskbarController";
+constexpr wchar_t kDisplayClass[] = L"DuoMonitorTaskbarDisplay";
 bool SurfaceDiagnosticsEnabled() {
   wchar_t value[2]{};
   return GetEnvironmentVariableW(L"METRICPERCH_TASKBAR_RENDER_DIAGNOSTICS", value, 2) == 1 &&
@@ -243,7 +243,7 @@ struct Host {
       auto previous = SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(bar));
       // Give the glyph surface its own compositor layer. An ordinary child can paint
       // correctly yet remain hidden behind the Windows 11 taskbar compositor.
-      display = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_LAYERED, kDisplayClass, L"MetricPerch · 数栖", WS_CHILD,
+      display = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_LAYERED, kDisplayClass, L"DuoMonitor", WS_CHILD,
           0, 0, 1, 1, bar, nullptr, GetModuleHandleW(nullptr), this);
       const DWORD create_error = display ? ERROR_SUCCESS : GetLastError();
       if (previous) SetThreadDpiAwarenessContext(previous);

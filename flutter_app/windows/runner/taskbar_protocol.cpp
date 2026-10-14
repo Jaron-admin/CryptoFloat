@@ -1,4 +1,5 @@
 #include "taskbar_protocol.h"
+#include "storage_paths.h"
 #include <cmath>
 #include <cstring>
 #include <cstdio>
@@ -53,14 +54,12 @@ void WriteDiagnostic(DiagnosticSource source, const std::string& message) {
   static std::mutex log_mutex;
   std::lock_guard<std::mutex> lock(log_mutex);
   auto write = [&] {
-    wchar_t module[32768]{};
-    const DWORD length = GetModuleFileNameW(nullptr, module, 32768);
-    if (length == 0 || length >= 32768) return;
-    std::wstring directory(module, length);
-    const auto slash = directory.find_last_of(L"\\/");
-    if (slash == std::wstring::npos) return;
-    directory.resize(slash + 1); directory += L"user_data";
-    if (!CreateDirectoryW(directory.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) return;
+    const auto root = storage_paths::ForProcess();
+    if (root.empty()) return;
+    std::error_code directory_error;
+    std::filesystem::create_directories(root, directory_error);
+    if (directory_error) return;
+    const auto directory = root.wstring();
     const std::wstring path = directory + (source == DiagnosticSource::bridge ?
         L"\\taskbar-bridge.log" : L"\\taskbar-helper.log");
     SYSTEMTIME now{}; GetSystemTime(&now);

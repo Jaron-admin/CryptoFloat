@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -6,9 +7,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'app/app_controller.dart';
 import 'app/theme.dart';
 import 'data/config_store.dart';
+import 'data/storage_location.dart';
 import 'domain/models.dart';
 import 'features/panel/panel_page.dart';
 import 'features/settings/settings_page.dart';
+import 'features/settings/storage_recovery.dart';
 import 'platform/floating_window_host.dart';
 import 'platform/dpi_diagnostics_host.dart';
 import 'platform/secret_store.dart';
@@ -17,7 +20,24 @@ import 'l10n/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final store = ConfigStore();
+  final root = DataRoot.resolve(
+    executable: Platform.resolvedExecutable,
+    operatingSystem: Platform.operatingSystem,
+    environment: Platform.environment,
+  );
+  DataStorageMode storageMode;
+  try {
+    storageMode = await initializeDataStorage(root);
+  } catch (_) {
+    final host = FloatingWindowHost();
+    try {
+      await host.initialize();
+      await host.setSettingsMode(true);
+    } catch (_) {}
+    runApp(StorageRecoveryApp(root: root, onRecovered: main));
+    return;
+  }
+  final store = ConfigStore(directory: root.directoryFor(storageMode));
   var config = AppConfig.defaults;
   String? startupMessage;
   try {
@@ -55,6 +75,8 @@ Future<void> main() async {
     host: host,
     secrets: PlatformSecretStore(),
     startupMessage: startupMessage,
+    dataRoot: root,
+    storageMode: storageMode,
   );
   runApp(CryptoFloatApp(controller: controller));
 }
@@ -203,7 +225,7 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
     builder: (context, child) {
       final config = widget.controller.appearanceConfig;
       return MaterialApp(
-        title: 'MetricPerch · 数栖',
+        title: 'DuoMonitor',
         debugShowCheckedModeBanner: false,
         scaffoldMessengerKey: _messengerKey,
         locale: config.language == 'system' ? null : Locale(config.language),

@@ -1,4 +1,4 @@
-# MetricPerch · 数栖 1.4.1 · Windows 便携版
+# DuoMonitor 1.5.0 · Windows 便携版
 
 **简体中文** · [English](README.en.md)
 
@@ -6,9 +6,9 @@
 
 ## 使用
 
-发布目录中的 `metricperch.exe` 可以直接启动；整个目录需要一起保留，包括 `metricperch_taskbar.exe`、运行库和 `data`，不能单独复制主 EXE。任务栏宿主由主程序管理，只接收显示文本与外观，不接收 API 地址或密钥。程序使用 Windows 图形应用入口，正常启动不创建命令行窗口。
+发布目录中的 `duomonitor.exe` 可以直接启动；整个目录需要一起保留，包括 `duomonitor_taskbar.exe`、运行库和 `data`，不能单独复制主 EXE。任务栏宿主由主程序管理，只接收显示文本与外观，不接收 API 地址或密钥。程序使用 Windows 图形应用入口，正常启动不创建命令行窗口。
 
-解压到具有写入权限的目录。程序使用 EXE 同级的 `user_data` 保存个人数据，目录不可写时会提示。同一 Windows 用户的当前登录会话只允许一个实例，即使从另一个便携版目录启动，也会唤回已运行的窗口；隐藏在托盘中的窗口会重新显示。升级前请退出旧版并备份 `user_data`。
+解压到具有写入权限的目录。程序默认使用 EXE 同级的 `user_data` 保存个人数据，目录不可写时会提示。设置中的“导入与数据位置”可以改到 `%APPDATA%\DuoMonitor`，并在切换时选择复制现有数据。同一 Windows 用户的当前登录会话只允许一个实例，即使从另一个便携版目录启动，也会唤回已运行的窗口；隐藏在托盘中的窗口会重新显示。升级前请退出旧版并备份完整的当前数据目录；便携模式把 `user_data` 保留在新程序旁。
 
 - 标题区域拖动窗口，拖动窗口边缘调整大小；右键悬浮窗任意位置打开 Windows 标准菜单。双击悬浮窗隐藏到右下角托盘，单击托盘图标恢复；托盘右键也可刷新、进入设置或退出。图标可能被 Windows 收进 `^` 隐藏区域。设置页标题也可拖动窗口。
 - 设置使用 Flutter Material 3 控件。左侧分类与搜索，右侧分组设置；较窄窗口会调整为图标侧栏或横向分类导航。点击 **保存** 提交更改后留在当前页；点击设置外或返回悬浮窗仍会自动保存，失败时保留草稿。保存期间的关闭请求会等待当前提交完成。Alt+Tab、取色器、字体选择器和文件选择框不会误触发关闭。
@@ -36,7 +36,9 @@
 
 默认同时启用行情悬浮窗和任务栏系统监测。任务栏默认选择 CPU、内存百分比、上传和下载速率。设置中先选择 **悬浮窗** 或 **任务栏**，再编辑关注行情、自定义字段、显示模板、系统指标、排序、文字/数字字体、主题和单位。两处可以显示完全不同的内容；仅调整排序不会重新请求全部行情。
 
-“显示布局”可选择悬浮窗 1–8 列，每项可横向或纵向排列；多列超出当前宽度时可横向滚动。24h 涨跌幅可以隐藏，隐藏后价格按涨跌方向着色，可选主题自定义颜色、红涨绿跌或绿涨红跌。
+“显示布局”可选择悬浮窗 1–8 列，每项可横向或纵向排列；多列超出当前宽度时可横向滚动。名称靠左、数字和价格靠右对齐。数字字体控件提示等宽字体更适合数字，并标出已安装的常见等宽字体。
+
+“价格颜色”同时作用于悬浮窗与任务栏，可选默认主题文字、主题涨跌色、绿涨红跌或红涨绿跌。方向比较相邻两次成功刷新的价格；首次成功刷新、价格相同或本次刷新失败时为中性色。刷新失败保留上次成功价格作为下次比较基准。24h 涨跌幅有自己的数值和颜色，可独立隐藏，不决定价格颜色。设置分区会标明共享、仅悬浮窗或仅任务栏的影响范围。
 
 “任务栏布局”单独控制启停、最大宽度、单行/双行、透明背景和项目间距。默认透明背景，也可使用任务栏自己的背景配色；悬浮窗透明度不影响任务栏。最大宽度是上限，短内容按实际文字宽度收窄；两行按同列较宽文字排列，空间有限时省略过长内容。
 
@@ -81,29 +83,31 @@
 
 ## 便携数据与旧版导入
 
-个人数据全部位于 `metricperch.exe` 同级的 `user_data`：设置保存在 `user_data/settings.json`，保存前保留 `.bak`，文件损坏时尝试恢复备份；交易对缓存、导入图标和受保护的密钥文件也保存在此目录。移动或备份软件时，保留整个目录。
+个人数据默认位于 `duomonitor.exe` 同级的 `user_data`，也可在设置中改到 `%APPDATA%\DuoMonitor`。当前数据目录内的 `settings.json` 保存配置，保存前保留 `.bak`，文件损坏时尝试恢复备份；交易对缓存、导入图标和受保护的密钥文件也跟随所选目录。移动或备份软件时，保留完整的当前数据目录。
 
-任务栏诊断也保存在 `user_data` 的 `taskbar-bridge.log` 和 `taskbar-helper.log` 中。日志仅记录固定状态、错误代码和计数，不记录行情内容、API 地址或密钥；每个日志上限为 64 KiB，并保留一份轮换备份。
+切换前先保存当前草稿。“复制当前数据”会复制配置、图标、备份、缓存、密钥和日志，源目录保留；目标中的同名数据会先保留在 `migration-backups`。不复制时读取目标已有的设置，没有设置则使用默认配置；失败时继续使用原数据位置。程序旁的 `duomonitor_storage.json` 记录选择，兼容旧 `metricperch_storage.json`；程序目录不可写时使用系统目录下按程序路径区分的选择记录。已选用旧 `%APPDATA%\MetricPerch` 的数据会复制到新系统目录，旧目录保留。
 
-原 CryptoFloat 便携配置自动升级为双显示配置，并保留迁移前原始备份。悬浮窗的关注项、模板、排序、字体、主题、自定义标题和图标保留；升级默认新增任务栏系统监测。已保存的任务栏关闭选择在后续启动中保留。高于当前支持版本的配置不会被默认设置覆盖。改名沿用旧单实例与密钥引用标识；不要同时启动旧新版本。
+任务栏诊断也保存在当前数据目录的 `taskbar-bridge.log` 和 `taskbar-helper.log` 中。日志仅记录固定状态、错误代码和计数，不记录行情内容、API 地址或密钥；每个日志上限为 64 KiB，并保留一份轮换备份。
 
-没有 `user_data` 时从默认配置开始，不自动读取、复制或迁移 Windows 用户目录中的旧版文件。旧 `%APPDATA%\CryptoFloatFlutter` 与 `%LOCALAPPDATA%\CryptoFloat\secrets` 保持原样。Windows DPAPI 密钥保护仍绑定当前用户和电脑，换电脑或账户后需要重新输入 API 密钥。
+原 CryptoFloat 便携配置自动升级为双显示配置，并保留迁移前原始备份。悬浮窗的关注项、模板、排序、字体、主题、自定义标题和图标保留；升级默认新增任务栏系统监测。MetricPerch 配置继续读取，已保存的标题不被改名覆盖。已保存的任务栏关闭选择在后续启动中保留。高于当前支持版本的配置不会被默认设置覆盖。改名沿用旧单实例与密钥引用标识；不要同时启动旧新版本。
 
-发行 ZIP 不含个人数据。不要直接分享自己运行过的程序目录；请使用原始发行 ZIP，或从用于分享的副本中移除 `user_data`。
+程序会记住所选数据位置；未选择位置的既有便携版继续使用自己的 `user_data`。所选目录没有设置时从默认配置开始，不自动读取、复制或迁移旧 `%APPDATA%\CryptoFloatFlutter` 与 `%LOCALAPPDATA%\CryptoFloat\secrets`。Windows DPAPI 密钥保护仍绑定当前用户和电脑，换电脑或账户后需要重新输入 API 密钥。
+
+发行 ZIP 不含个人数据和数据位置标记。分享程序请使用原始发行 ZIP；备份个人配置时另行复制当前数据目录。
 
 在“关注行情”的“导入与数据位置”中选择导入旧版设置，填写旧 `crypto_config.json` 的位置。导入先形成草稿，点击保存或关闭设置时保存后应用；旧文件不被修改。兼容的行情选择、顺序、字体和显示行可以迁移，旧密钥需要重新输入。
 
 窗口位置和大小保存在新版设置中。Windows runner 使用 PerMonitorV2 DPI；保存的显示器消失或窗口完全离屏时，恢复到主屏可见区域。
 
-v1.4.1 修正了跨屏过程中旧屏最小尺寸影响新 DPI 矩形的问题，原生回归已通过。跨屏复测结果和验证范围见 [DPI 调查记录](https://github.com/Jaron-admin/MetricPerch/blob/main/docs/verification/dpi-investigation.md)。
+v1.4.1 修正了跨屏过程中旧屏最小尺寸影响新 DPI 矩形的问题，原生回归已通过。跨屏复测结果和验证范围见 [DPI 调查记录](https://github.com/Jaron-admin/DuoMonitor/blob/main/docs/verification/dpi-investigation.md)。
 
 ## 开发与构建
 
 构建使用 Flutter 3.47.5 / Dart 3.13.4、Windows x64，以及 Visual Studio 的 C++ 桌面工具、MSVC、CMake 和 Windows SDK。按 [Flutter Windows 配置文档](https://docs.flutter.dev/platform-integration/windows/setup)准备工具链。
 
 ```powershell
-git clone https://github.com/Jaron-admin/MetricPerch.git
-cd MetricPerch/flutter_app
+git clone https://github.com/Jaron-admin/DuoMonitor.git
+cd DuoMonitor/flutter_app
 flutter pub get
 flutter run -d windows
 ```
@@ -119,10 +123,10 @@ flutter build windows --release
 生成完整发布包：
 
 ```powershell
-./tool/build_windows.ps1 -PackageName MetricPerch-Windows-x64-1.4.1
+./tool/build_windows.ps1 -PackageName DuoMonitor-Windows-x64-1.5.0
 ```
 
-发布目录和 ZIP 写入 `dist/`，包含 `metricperch.exe`、`metricperch_taskbar.exe`、中英文使用说明、更新记录、项目许可证和第三方许可文本。脚本从全新暂存目录打包，只复制白名单中的程序、运行库和 Flutter 资源，不复制 `user_data`、日志或测试临时文件；任一必需宿主缺失都会终止打包。目标目录或 ZIP 已存在时会报错，请更换 `-PackageName`，脚本不会覆盖或清空已有程序目录。调试信息保存在独立目录，分享时使用生成的 ZIP。Flutter 未加入 PATH 时，可以传入 `-Flutter` 指定本机 Flutter 命令路径。
+发布目录和 ZIP 写入 `dist/`，包含 `duomonitor.exe`、`duomonitor_taskbar.exe`、中英文使用说明、更新记录、项目许可证和第三方许可文本。脚本从全新暂存目录打包，只复制白名单中的程序、运行库和 Flutter 资源，不复制 `user_data`、日志或测试临时文件；任一必需宿主缺失都会终止打包。目标目录或 ZIP 已存在时会报错，请更换 `-PackageName`，脚本不会覆盖或清空已有程序目录。调试信息保存在独立目录，分享时使用生成的 ZIP。Flutter 未加入 PATH 时，可以传入 `-Flutter` 指定本机 Flutter 命令路径。
 
 公开发布应从中性路径构建，并检查成品中的个人路径和敏感数据。可把源码根目录映射为未占用的盘符（例如 `subst M: <源码根目录>`），在 `M:\flutter_app` 构建；完成后用 `subst M: /D` 移除映射。映射只能减少构建路径暴露，仍需对最终 ZIP 做隐私检查并计算 SHA256。不要把调试符号目录作为发行包上传。
 
@@ -134,6 +138,6 @@ flutter build windows --release
 
 ## 开源协议
 
-MetricPerch 自有源码使用 [MIT License](../LICENSE)。允许使用、修改、分发和商业使用；分发时请保留版权声明及许可文本。
+DuoMonitor 自有源码使用 [MIT License](../LICENSE)。允许使用、修改、分发和商业使用；分发时请保留版权声明及许可文本。
 
 依赖、图标字体和外部数据分别遵循各自的许可与服务条款，见 [第三方许可说明](../THIRD_PARTY_NOTICES.md)。Windows 发布包保留 Flutter 生成的 `data/flutter_assets/NOTICES.Z`，并附有解压后的 `THIRD_PARTY_LICENSES.txt`。

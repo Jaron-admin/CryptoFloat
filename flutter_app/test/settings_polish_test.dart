@@ -366,7 +366,7 @@ void main() {
     await tester.pumpWidget(CryptoFloatApp(controller: controller));
     await tester.pumpAndSettle();
     await openSettings(tester);
-    await tester.drag(find.text('MetricPerch 设置'), const Offset(40, 0));
+    await tester.drag(find.text('DuoMonitor 设置'), const Offset(40, 0));
     await tester.pumpAndSettle();
     expect(host.drags, 1);
     await tester.pumpWidget(const SizedBox.shrink());

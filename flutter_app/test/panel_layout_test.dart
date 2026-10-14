@@ -5,6 +5,7 @@ import 'package:cryptofloat/app/market_change_colors.dart';
 import 'package:cryptofloat/app/theme_presets.dart';
 import 'package:cryptofloat/data/config_store.dart';
 import 'package:cryptofloat/domain/models.dart';
+import 'package:cryptofloat/domain/refresh_price.dart';
 import 'package:cryptofloat/main.dart';
 import 'package:cryptofloat/platform/floating_window_host.dart';
 import 'package:cryptofloat/platform/secret_store.dart';
@@ -176,6 +177,92 @@ void main() {
   );
 
   testWidgets(
+    'vertical panel keeps labels on the left and numeric values on the right',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(720, 640));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final controller = _Controller(
+        AppConfig.defaults.copyWith(
+          panelItemLayout: 'vertical',
+          selectedAssetIds: ['OKX:BTC-USDT'],
+          selectedCustomFieldIds: [
+            'custom:weather|temperature',
+            'custom:notes|body',
+          ],
+          customSources: const [
+            CustomApiSource(
+              id: 'weather',
+              name: 'Weather',
+              url: 'https://example.test',
+              fields: [
+                CustomField(id: 'temperature', label: 'Temperature', path: 't'),
+              ],
+            ),
+            CustomApiSource(
+              id: 'notes',
+              name: 'Notes',
+              url: 'https://example.test/notes',
+              fields: [CustomField(id: 'body', label: 'Note', path: 'body')],
+            ),
+          ],
+        ),
+        quotes: {
+          'OKX:BTC-USDT': MarketQuote(
+            assetId: 'OKX:BTC-USDT',
+            price: 101,
+            changePercent: 2.5,
+            currency: 'USDT',
+            updatedAt: DateTime.utc(2026, 1, 1),
+          ),
+          'custom:weather': MarketQuote(
+            assetId: 'custom:weather',
+            price: null,
+            currency: '',
+            updatedAt: DateTime.utc(2026, 1, 1),
+            extra: const {'temperature': '23.50'},
+          ),
+          'custom:notes': MarketQuote(
+            assetId: 'custom:notes',
+            price: null,
+            currency: '',
+            updatedAt: DateTime.utc(2026, 1, 1),
+            extra: const {'body': 'hello'},
+          ),
+        },
+      );
+      await tester.pumpWidget(CryptoFloatApp(controller: controller));
+      await tester.pumpAndSettle();
+
+      void expectNumericRight(String rowKey, String label, String value) {
+        final row = tester.getRect(find.byKey(ValueKey(rowKey)));
+        final labelRect = tester.getRect(find.text(label));
+        final valueRect = tester.getRect(find.text(value));
+        expect(labelRect.left, closeTo(row.left, 24), reason: label);
+        expect(valueRect.right, greaterThan(row.center.dx), reason: value);
+        expect(row.right - valueRect.right, lessThan(80), reason: value);
+      }
+
+      expectNumericRight('panel-asset:OKX:BTC-USDT', 'BTC', '+2.50%');
+      expectNumericRight(
+        'panel-field:custom:weather|temperature',
+        'Temperature',
+        '23.50',
+      );
+      final price = tester.getRect(find.text('101.00'));
+      final label = tester.getRect(find.text('BTC'));
+      expect(price.left, greaterThan(label.right));
+      final noteRow = tester.getRect(
+        find.byKey(const ValueKey('panel-field:custom:notes|body')),
+      );
+      final hello = tester.getRect(find.text('hello'));
+      expect(hello.left, closeTo(noteRow.left, 24));
+      expect(hello.right, lessThan(noteRow.center.dx));
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
     'vertical entries put market, custom and metric names above values',
     (tester) async {
       final controller = _Controller(
@@ -214,22 +301,107 @@ void main() {
   );
 
   testWidgets(
-    'hidden change percentage colors price using the selected convention',
+    'price color follows the previous refresh and ignores the 24h change',
     (tester) async {
+      final t0 = DateTime.utc(2026, 1, 1);
       final controller = _Controller(
         AppConfig.defaults.copyWith(
           selectedAssetIds: ['OKX:BTC-USDT'],
           showChangePercent: false,
-          marketColorStyle: 'redUp',
+          priceColorMode: 'redUp',
           themeMode: 'light',
         ),
+        quotes: {
+          'OKX:BTC-USDT': MarketQuote(
+            assetId: 'OKX:BTC-USDT',
+            price: 101,
+            changePercent: -4,
+            currency: 'USDT',
+            updatedAt: t0,
+          ),
+        },
       );
       await tester.pumpWidget(CryptoFloatApp(controller: controller));
       await tester.pumpAndSettle();
-      expect(find.text('+2.50%'), findsNothing);
+      controller.rememberQuotes(controller.quotes);
+      await tester.pump();
+      final context = tester.element(find.text('101.00'));
+      expect(find.text('-4.00%'), findsNothing);
       expect(
         tester.widget<Text>(find.text('101.00')).style?.color,
+        Theme.of(context).colorScheme.onSurface,
+      );
+
+      controller.quotes['OKX:BTC-USDT'] = MarketQuote(
+        assetId: 'OKX:BTC-USDT',
+        price: 110,
+        changePercent: -4,
+        currency: 'USDT',
+        updatedAt: t0.add(const Duration(seconds: 15)),
+      );
+      controller.rememberQuotes(controller.quotes);
+      await tester.pump();
+      expect(
+        tester.widget<Text>(find.text('110.00')).style?.color,
         const Color(0xFFC50F1F),
+      );
+
+      controller.quotes['OKX:BTC-USDT'] = MarketQuote(
+        assetId: 'OKX:BTC-USDT',
+        price: 90,
+        changePercent: 9,
+        currency: 'USDT',
+        updatedAt: t0.add(const Duration(seconds: 30)),
+      );
+      controller.rememberQuotes(controller.quotes);
+      await tester.pump();
+      expect(
+        tester.widget<Text>(find.text('90.00')).style?.color,
+        const Color(0xFF107C10),
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  testWidgets(
+    'visible 24h changes keep their own sign colors when price direction differs',
+    (tester) async {
+      final t0 = DateTime.utc(2026, 1, 1);
+      final controller = _Controller(
+        AppConfig.defaults.copyWith(
+          selectedAssetIds: ['OKX:BTC-USDT'],
+          priceColorMode: 'redUp',
+          themeMode: 'light',
+        ),
+        quotes: {
+          'OKX:BTC-USDT': MarketQuote(
+            assetId: 'OKX:BTC-USDT',
+            price: 100,
+            changePercent: 4,
+            currency: 'USDT',
+            updatedAt: t0,
+          ),
+        },
+      );
+      await tester.pumpWidget(CryptoFloatApp(controller: controller));
+      await tester.pumpAndSettle();
+      controller.rememberQuotes(controller.quotes);
+      controller.quotes['OKX:BTC-USDT'] = MarketQuote(
+        assetId: 'OKX:BTC-USDT',
+        price: 110,
+        changePercent: 4,
+        currency: 'USDT',
+        updatedAt: t0.add(const Duration(seconds: 15)),
+      );
+      controller.rememberQuotes(controller.quotes);
+      await tester.pump();
+      expect(
+        tester.widget<Text>(find.text('110.00')).style?.color,
+        const Color(0xFFC50F1F),
+      );
+      expect(
+        tester.widget<Text>(find.text('+4.00%')).style?.color,
+        const Color(0xFF107C10),
       );
       await tester.pumpWidget(const SizedBox.shrink());
     },
@@ -251,8 +423,9 @@ void main() {
   );
 
   testWidgets(
-    'custom market templates honor the selected rise and fall colors',
+    '24h change templates retain their sign color independently of price ticks',
     (tester) async {
+      final t0 = DateTime.utc(2026, 1, 1);
       final controller = _Controller(
         AppConfig.defaults.copyWith(
           selectedAssetIds: [],
@@ -268,27 +441,83 @@ void main() {
               ],
             ),
           ],
-          marketColorStyle: 'redUp',
+          priceColorMode: 'redUp',
           themeMode: 'light',
+        ),
+        quotes: {
+          'OKX:BTC-USDT': MarketQuote(
+            assetId: 'OKX:BTC-USDT',
+            price: 101,
+            changePercent: 2.5,
+            currency: 'USDT',
+            updatedAt: t0,
+          ),
+        },
+      );
+      await tester.pumpWidget(CryptoFloatApp(controller: controller));
+      await tester.pumpAndSettle();
+      controller.rememberQuotes(controller.quotes);
+      await tester.pump();
+      Color? color() =>
+          ((tester
+                              .widget<Text>(
+                                find
+                                    .descendant(
+                                      of: find.byKey(
+                                        const ValueKey('panel-row:change'),
+                                      ),
+                                      matching: find.byType(Text),
+                                    )
+                                    .first,
+                              )
+                              .textSpan!
+                          as TextSpan)
+                      .children!
+                      .first
+                  as TextSpan)
+              .style
+              ?.color;
+      expect(color(), const Color(0xFF107C10));
+
+      controller.quotes['OKX:BTC-USDT'] = MarketQuote(
+        assetId: 'OKX:BTC-USDT',
+        price: 110,
+        changePercent: -2.5,
+        currency: 'USDT',
+        updatedAt: t0.add(const Duration(seconds: 15)),
+      );
+      controller.rememberQuotes(controller.quotes);
+      await tester.pump();
+      expect(color(), const Color(0xFFC50F1F));
+      await tester.pumpWidget(const SizedBox.shrink());
+    },
+  );
+
+  for (final layout in ['horizontal', 'vertical']) {
+    testWidgets('long currency labels fit a narrow $layout value row', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(220, 420));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final controller = _Controller(
+        AppConfig.defaults.copyWith(
+          panelItemLayout: layout,
+          selectedAssetIds: ['OKX:BTC-USDT'],
+          showChangePercent: false,
+          unitLabelMode: 'custom',
+          unitLabels: {'USDT': 'Very long currency name ' * 8},
         ),
       );
       await tester.pumpWidget(CryptoFloatApp(controller: controller));
       await tester.pumpAndSettle();
-      final text = tester.widget<Text>(
-        find
-            .descendant(
-              of: find.byKey(const ValueKey('panel-row:change')),
-              matching: find.byType(Text),
-            )
-            .first,
-      );
+      expect(tester.takeException(), isNull);
       expect(
-        (text.textSpan! as TextSpan).children!.first.style?.color,
-        const Color(0xFFC50F1F),
+        tester.getSize(find.byType(FittedBox).first).width,
+        greaterThan(0),
       );
       await tester.pumpWidget(const SizedBox.shrink());
-    },
-  );
+    });
+  }
 
   for (final columns in [1, 2, 4, 8]) {
     for (final layout in ['horizontal', 'vertical']) {
@@ -315,30 +544,44 @@ void main() {
 }
 
 class _Controller extends AppController {
-  _Controller(AppConfig config)
-    : super(
+  _Controller(AppConfig config, {Map<String, MarketQuote>? quotes})
+    : quotes =
+          quotes ??
+          {
+            'OKX:BTC-USDT': MarketQuote(
+              assetId: 'OKX:BTC-USDT',
+              price: 101,
+              changePercent: 2.5,
+              currency: 'USDT',
+              updatedAt: DateTime.now(),
+            ),
+            'custom:weather': MarketQuote(
+              assetId: 'custom:weather',
+              price: null,
+              currency: '',
+              updatedAt: DateTime.now(),
+              extra: const {'temperature': 23.5},
+            ),
+          },
+      super(
         config: config.copyWith(language: 'en', proxyEnabled: false),
         store: _Store(),
         host: _Host(),
         secrets: _Secrets(),
       );
+  final Map<String, MarketQuote> quotes;
+  RefreshPriceMemory _prices = const RefreshPriceMemory();
+
+  void rememberQuotes(Map<String, MarketQuote> quotes) {
+    _prices = _prices.observeAll(quotes);
+    notifyListeners();
+  }
+
   @override
-  Map<String, MarketQuote> get displayQuotes => {
-    'OKX:BTC-USDT': MarketQuote(
-      assetId: 'OKX:BTC-USDT',
-      price: 101,
-      changePercent: 2.5,
-      currency: 'USDT',
-      updatedAt: DateTime.now(),
-    ),
-    'custom:weather': MarketQuote(
-      assetId: 'custom:weather',
-      price: null,
-      currency: '',
-      updatedAt: DateTime.now(),
-      extra: const {'temperature': 23.5},
-    ),
-  };
+  PriceTick priceTickFor(String assetId) => _prices.tickFor(assetId);
+
+  @override
+  Map<String, MarketQuote> get displayQuotes => quotes;
 }
 
 class _Store extends ConfigStore {

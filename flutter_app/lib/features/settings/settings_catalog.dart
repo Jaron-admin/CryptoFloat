@@ -47,6 +47,7 @@ class SettingLocation {
     'sources' => l10n.settingCatalogApi,
     'default-rows' => l10n.settingDefaultRows,
     'panel-layout' => l10n.settingLayout,
+    'price-color' => l10n.settingPriceColor,
     'custom-rows' => l10n.settingCatalogRows,
     'language' => l10n.settingLanguage,
     'fonts' => l10n.settingCatalogFonts,
@@ -77,7 +78,7 @@ const settingsLocations = [
     2,
     'panel-layout',
     '列数与行情布局',
-    '单列 双列 多列 横向 纵向 24h 涨跌幅 涨跌颜色 红涨绿跌 绿涨红跌 columns horizontal vertical orientation price change percent layout colors',
+    '单列 双列 多列 横向 纵向 24h 涨跌幅 columns horizontal vertical orientation price change percent layout',
   ),
   SettingLocation(
     6,
@@ -121,7 +122,13 @@ const settingsLocations = [
     '语言',
     '中文 英文 跟随系统 简体 language English Chinese system',
   ),
-  SettingLocation(3, 'fonts', '文字与数字字体', '系统字体 中文 数字 text number system fonts'),
+  SettingLocation(
+    3,
+    'price-color',
+    '价格颜色',
+    '涨跌 红绿 黑白 主题文字 上次刷新 price color red green neutral last refresh',
+  ),
+  SettingLocation(3, 'fonts', '文字与数字字体', '系统字体 中文 数字 等宽 monospace text number system fonts'),
   SettingLocation(3, 'font-size', '字号与行间距', '文字大小 大小 间隔 font size row spacing'),
   SettingLocation(
     3,
@@ -163,7 +170,7 @@ const settingsLocations = [
     0,
     'storage',
     '导入与数据位置',
-    '旧版 Python 设置文件 配置 文件夹 路径 import legacy storage data location config folder path',
+    '旧版 Python 设置文件 配置 文件夹 路径 便携 系统应用数据 import legacy storage data location config folder path portable system app data',
   ),
 ];
 

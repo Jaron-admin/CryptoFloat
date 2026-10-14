@@ -71,7 +71,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Bridge tests did not compile.' }
 if ($LASTEXITCODE -ne 0) { throw 'Isolated bridge checks failed.' }
 if ($CompileHelper) {
   # Compile only. The real desktop helper is deliberately never launched here.
-  & $compiler @common ('/Fe' + (Join-Path $outputDirectory 'metricperch_taskbar.exe')) @sources (Join-Path $appRoot 'windows\runner\taskbar_main.cpp') @libraries '/SUBSYSTEM:WINDOWS'
+  & $compiler @common ('/Fe' + (Join-Path $outputDirectory 'duomonitor_taskbar.exe')) @sources (Join-Path $appRoot 'windows\runner\taskbar_main.cpp') @libraries '/SUBSYSTEM:WINDOWS'
   if ($LASTEXITCODE -ne 0) { throw 'Taskbar helper did not compile.' }
   & $compiler @common '/c' (Join-Path $appRoot 'windows\runner\taskbar_host.cpp')
   if ($LASTEXITCODE -ne 0) { throw 'Taskbar bridge did not compile.' }

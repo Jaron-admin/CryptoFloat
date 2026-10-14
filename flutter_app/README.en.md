@@ -1,4 +1,4 @@
-# MetricPerch · 数栖 1.4.1 · Portable Windows app
+# DuoMonitor 1.5.0 · Portable Windows app
 
 [简体中文](README.md) · **English**
 
@@ -8,9 +8,9 @@ The current release supports Windows x64. macOS and Linux project scaffolds are 
 
 ## Start and control the panel
 
-Extract the entire release archive and run `metricperch.exe`. Keep `metricperch_taskbar.exe`, the libraries, and the `data` folder beside it. The main app manages the taskbar helper, which receives display text and style rather than API addresses or secrets. The Windows build starts as a graphical application without a command window.
+Extract the entire release archive and run `duomonitor.exe`. Keep `duomonitor_taskbar.exe`, the libraries, and the `data` folder beside it. The main app manages the taskbar helper, which receives display text and style rather than API addresses or secrets. The Windows build starts as a graphical application without a command window.
 
-Extract to a writable directory. Personal data lives in `user_data` beside the EXE; an unwritable folder produces an error. Only one instance runs for the current Windows user in the current login session, including launches from different portable folders. Launching again brings the existing window forward and restores it if hidden in the tray. Exit the old app and back up `user_data` before upgrading.
+Extract to a writable directory. Personal data lives in `user_data` beside the EXE by default; an unwritable folder produces an error. **Import & data location** in Settings can switch to `%APPDATA%\DuoMonitor`, with an option to copy the current data. Only one instance runs for the current Windows user in the current login session, including launches from different portable folders. Launching again brings the existing window forward and restores it if hidden in the tray. Exit the old app and back up the complete active data folder before upgrading; in portable mode, keep `user_data` beside the new app.
 
 - Drag the title area to move the panel; drag a window edge to resize it.
 - Right-click the panel for its standard Windows context menu. The native popup can extend beyond a small panel's edges.
@@ -64,7 +64,9 @@ The settings interface uses Flutter Material 3. Native windows, the tray, and cr
 
 The floating market panel and taskbar monitoring are enabled by default. The taskbar's default selection is CPU, memory percentage, upload, and download rates. Select **Floating panel** or **Taskbar** in Settings, then edit that display's watchlist, custom fields, templates, metrics, order, text and numeric fonts, theme, and units. Each can show different content; changing only the order does not request all quotes again.
 
-**Display layout** supports 1–8 floating columns, with horizontal or vertical entries. When the columns exceed the available width, scroll horizontally. Hide the 24h percentage to color the price by its change direction, using custom theme colors, red-up/green-down, or green-up/red-down.
+**Display layout** supports 1–8 floating columns, with horizontal or vertical entries. When the columns exceed the available width, scroll horizontally. Labels align left; numeric values and prices align right. The numeric font control recommends monospace fonts and marks installed common monospace families.
+
+**Price color** applies to both the floating panel and taskbar, with default theme text, theme up/down colors, green-up/red-down, and red-up/green-down options. Direction compares consecutive successful price refreshes. The first successful refresh, an unchanged price, or a failed refresh is neutral. Failures keep the last successful price as the next comparison baseline. The 24h percentage retains its own value and sign color and can be hidden independently; it does not determine the price color. Section captions identify settings shared by both displays or limited to one display.
 
 **Taskbar layout** has its own enable switch, maximum width, one/two rows, transparent background, and item spacing. The background is transparent by default, or can use the taskbar's palette. Floating transparency does not affect the taskbar. Maximum width is a limit: short content uses its actual text width, two rows share the wider entry's column width, and long text is shortened when space is limited.
 
@@ -109,29 +111,31 @@ The weather template uses [Open-Meteo](https://open-meteo.com/en/docs), subject 
 
 ## Settings, storage, and import
 
-All personal data lives in `user_data` beside `metricperch.exe`. Settings use `user_data/settings.json`; saving retains a `.bak` copy, which the app tries to recover if the main file is damaged. Catalog caches, imported icons, and protected secret files also live in this directory. Keep the whole directory when moving or backing up the app.
+Personal data lives in `user_data` beside `duomonitor.exe` by default, or in `%APPDATA%\DuoMonitor` when system storage is selected. The active data folder contains `settings.json`; saving retains a `.bak` copy, which the app tries to recover if the main file is damaged. Catalog caches, imported icons, and protected secret files follow the selected folder. Preserve the complete active data folder when moving or backing up the app.
 
-Taskbar diagnostics are also stored in `user_data`, in `taskbar-bridge.log` and `taskbar-helper.log`. They contain only fixed status labels, error codes, and counts, with no quote content, API addresses, or secrets. Each log is limited to 64 KiB and keeps one rotated backup.
+The current draft is saved before switching. **Copy current data** copies settings, icons, backups, caches, secrets, and logs while retaining the source folder. Conflicting destination files are preserved in `migration-backups`. Switching without copying loads the destination's settings, or defaults when empty; a failure keeps the current location. A `duomonitor_storage.json` file beside the app records the choice, with support for the old `metricperch_storage.json`. Read-only app folders use a system-folder selection record tied to that app path. Data actively stored in the old `%APPDATA%\MetricPerch` location is copied to the new system folder while retaining the original.
 
-Existing CryptoFloat portable settings migrate to the two-display format with an original pre-migration backup. Floating watchlists, templates, order, fonts, themes, custom titles, and icons are retained; migration adds taskbar monitoring enabled by default. A saved explicit taskbar-off choice remains off on later starts. Configurations from a newer unsupported schema are not overwritten with defaults. Legacy single-instance and secret-reference identifiers are retained for compatibility; exit the old app before starting the renamed version.
+Taskbar diagnostics are also stored in the active data folder, in `taskbar-bridge.log` and `taskbar-helper.log`. They contain only fixed status labels, error codes, and counts, with no quote content, API addresses, or secrets. Each log is limited to 64 KiB and keeps one rotated backup.
 
-Without `user_data`, the app starts with default settings. It does not automatically read, copy, or migrate the old Windows profile data. The old `%APPDATA%\CryptoFloatFlutter` and `%LOCALAPPDATA%\CryptoFloat\secrets` remain unchanged. Windows DPAPI still binds secrets to the current user and computer; enter API keys again after moving to another account or computer.
+Existing CryptoFloat portable settings migrate to the two-display format with an original pre-migration backup. Floating watchlists, templates, order, fonts, themes, custom titles, and icons are retained; migration adds taskbar monitoring enabled by default. MetricPerch settings remain readable, and saved titles are not replaced by the new brand. A saved explicit taskbar-off choice remains off on later starts. Configurations from a newer unsupported schema are not overwritten with defaults. Legacy single-instance and secret-reference identifiers are retained for compatibility; exit the old app before starting the renamed version.
 
-Release ZIPs contain no personal data. To share the app, use the original release ZIP or remove `user_data` from a separate sharing copy of your app folder.
+The app remembers the selected data location. Existing portable installs continue to use their own `user_data` until a choice is saved. An active folder without settings starts with defaults. Old `%APPDATA%\CryptoFloatFlutter` and `%LOCALAPPDATA%\CryptoFloat\secrets` data is not automatically read, copied, or migrated. Windows DPAPI still binds secrets to the current user and computer; enter API keys again after moving to another account or computer.
+
+Release ZIPs contain no personal data or storage-location markers. Share the original release ZIP; copy the active data folder separately when backing up personal settings.
 
 The import section on the Watchlist page accepts a legacy `crypto_config.json`. Import creates a settings draft; Save or leaving Settings commits and applies it. The old file is not modified. Compatible watchlists, ordering, fonts, and display rows can be migrated. Old API secrets must be entered again.
 
 The app saves window size and position. The Windows runner uses PerMonitorV2 DPI awareness. If the saved monitor is disconnected or the window is completely offscreen, it returns to a visible area on the primary monitor. Behavior across mixed-DPI displays also depends on the monitor and operating-system configuration.
 
-v1.4.1 corrects a transition in which the old monitor's minimum size constrained the new-DPI rectangle; its native regression passes. See the [DPI investigation](https://github.com/Jaron-admin/MetricPerch/blob/main/docs/verification/dpi-investigation.md) for live observations and verification limits.
+v1.4.1 corrects a transition in which the old monitor's minimum size constrained the new-DPI rectangle; its native regression passes. See the [DPI investigation](https://github.com/Jaron-admin/DuoMonitor/blob/main/docs/verification/dpi-investigation.md) for live observations and verification limits.
 
 ## Build from source
 
 Use Flutter 3.47.5 / Dart 3.13.4 on Windows x64, with Visual Studio desktop development with C++, MSVC, CMake, and the Windows SDK. See the [Flutter Windows setup guide](https://docs.flutter.dev/platform-integration/windows/setup).
 
 ```powershell
-git clone https://github.com/Jaron-admin/MetricPerch.git
-cd MetricPerch/flutter_app
+git clone https://github.com/Jaron-admin/DuoMonitor.git
+cd DuoMonitor/flutter_app
 flutter pub get
 flutter run -d windows
 ```
@@ -147,10 +151,10 @@ flutter build windows --release
 Create a distributable folder and ZIP:
 
 ```powershell
-./tool/build_windows.ps1 -PackageName MetricPerch-Windows-x64-1.4.1
+./tool/build_windows.ps1 -PackageName DuoMonitor-Windows-x64-1.5.0
 ```
 
-Output is written under `dist/`. The package contains `metricperch.exe`, `metricperch_taskbar.exe`, Chinese and English usage guides, the changelog, the project license, and third-party license texts. Packaging starts in a new staging directory and copies only allowlisted executables, libraries, and Flutter resources; it excludes `user_data`, logs, and temporary test files. A missing required helper fails packaging. An existing target directory or ZIP causes an error: choose a new `-PackageName` instead. Existing app directories are never overwritten or emptied. Debugging information is kept in a separate directory; distribute the generated ZIP. If Flutter is not on PATH, pass its command path with `-Flutter`.
+Output is written under `dist/`. The package contains `duomonitor.exe`, `duomonitor_taskbar.exe`, Chinese and English usage guides, the changelog, the project license, and third-party license texts. Packaging starts in a new staging directory and copies only allowlisted executables, libraries, and Flutter resources; it excludes `user_data`, logs, and temporary test files. A missing required helper fails packaging. An existing target directory or ZIP causes an error: choose a new `-PackageName` instead. Existing app directories are never overwritten or emptied. Debugging information is kept in a separate directory; distribute the generated ZIP. If Flutter is not on PATH, pass its command path with `-Flutter`.
 
 Build public releases from a neutral path and inspect the final bundle for personal paths and sensitive data. You can map the source root to an unused drive letter with `subst M: <source-root>` and build from `M:\flutter_app`; remove it afterward with `subst M: /D`. Mapping reduces build-path exposure but does not replace a privacy audit of the final ZIP and a SHA256 checksum. Keep the debug-symbol directory out of the release upload.
 
@@ -158,6 +162,6 @@ If Windows symbolic-link permissions are unavailable, the script creates plugin 
 
 ## License
 
-MetricPerch's own source code uses the [MIT License](../LICENSE). Use, modification, distribution, and commercial use are permitted while retaining the license and copyright notice.
+DuoMonitor's own source code uses the [MIT License](../LICENSE). Use, modification, distribution, and commercial use are permitted while retaining the license and copyright notice.
 
 Dependencies, icon fonts, and external data remain subject to their own licenses and service terms. See [Third-party notices](../THIRD_PARTY_NOTICES.md). Windows release packages keep Flutter's `data/flutter_assets/NOTICES.Z` and include its uncompressed contents as `THIRD_PARTY_LICENSES.txt`.

@@ -1,4 +1,5 @@
 #include "dpi_diagnostics.h"
+#include "storage_paths.h"
 
 #include <algorithm>
 #include <cmath>
@@ -91,6 +92,7 @@ void DpiDiagnostics::Initialize(bool enabled,
                                 const std::filesystem::path& directory) {
   std::lock_guard<std::mutex> lock(mutex_);
   enabled_ = false;
+  process_directory_ = false;
   file_.clear();
   sequence_ = 0;
   render_deadline_millis_ = 0;
@@ -112,12 +114,10 @@ void DpiDiagnostics::Initialize(bool enabled,
 
 void DpiDiagnostics::InitializeForProcess(bool enabled) {
   if (!enabled) return;
-  std::vector<wchar_t> module(32768);
-  const DWORD length = GetModuleFileNameW(nullptr, module.data(),
-      static_cast<DWORD>(module.size()));
-  if (length == 0 || length >= module.size()) return;
-  Initialize(true, std::filesystem::path(std::wstring(module.data(), length))
-                       .parent_path() / "user_data");
+  const auto root = storage_paths::ForProcess();
+  if (root.empty()) return;
+  Initialize(true, root);
+  process_directory_ = true;
 }
 
 bool DpiDiagnostics::ReportDart(const Value& value) {
@@ -279,6 +279,14 @@ void DpiDiagnostics::Write(const std::string& fields) {
   if (!enabled_) return;
   std::lock_guard<std::mutex> lock(mutex_);
   try {
+    if (process_directory_) {
+      const auto root = storage_paths::ForProcess();
+      if (root.empty()) return;
+      std::error_code directory_error;
+      std::filesystem::create_directories(root, directory_error);
+      if (directory_error) return;
+      file_ = root / "dpi-diagnostics.log";
+    }
     std::ostringstream line;
     line.imbue(std::locale::classic());
     line << "{\"seq\":" << ++sequence_ << ",\"micros\":" << TimestampMicros()

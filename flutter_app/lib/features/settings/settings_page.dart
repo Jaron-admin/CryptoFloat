@@ -13,6 +13,9 @@ import '../../l10n/metrics_strings.dart';
 import 'system_monitor_settings.dart';
 import 'taskbar_settings.dart';
 import 'panel_layout_settings.dart';
+import 'price_color_settings.dart';
+import '../../data/storage_location.dart';
+import '../../domain/refresh_price.dart';
 import '../../l10n/l10n.dart';
 import '../../platform/system_fonts.dart';
 import '../../platform/header_image_store.dart';
@@ -100,6 +103,8 @@ class _SettingsPageState extends State<SettingsPage> {
   String _settingsQuery = '';
   String? _highlightedAnchor;
   bool _storageExpanded = false;
+  int _storageRevision = 0;
+  bool _storageChanging = false;
   List<String> _fonts = [
     'Segoe UI',
     'Microsoft YaHei',
@@ -172,7 +177,11 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<bool> _requestLeave({required bool exitApp}) async {
-    if (!mounted || _closing || _pickingImage || _loadingDraft) {
+    if (!mounted ||
+        _closing ||
+        _pickingImage ||
+        _loadingDraft ||
+        _storageChanging) {
       return false;
     }
     // Editors and pickers own their draft until they return a result.
@@ -629,16 +638,19 @@ class _SettingsPageState extends State<SettingsPage> {
         context.l10n.settingUnitsTitle,
         context.l10n.settingUnitsDescription,
       ),
+      _scopeCaption(_surfaceScope),
       _anchor('units', _unitOptions()),
     ]),
     5 =>
       _target == DisplayTarget.taskbar
           ? _page([
+              _scopeCaption(context.l10n.settingScopeTaskbar),
               TaskbarSettingsView(
                 config: _draft,
                 snapshot: widget.controller.metrics.snapshot,
                 quotes: widget.controller.displayQuotes,
                 rates: widget.controller.data.exchangeRates,
+                priceTicks: _priceTicks,
                 status: widget.controller.taskbar.state,
                 onChanged: _preview,
               ),
@@ -650,11 +662,33 @@ class _SettingsPageState extends State<SettingsPage> {
         SystemMonitorSettingsView(
           config: _draft,
           snapshot: widget.controller.metrics.snapshot,
+          scopeCaption: _surfaceScope,
           onChanged: _preview,
         ),
       ),
     ]),
   };
+
+  String get _surfaceScope => _target == DisplayTarget.taskbar
+      ? context.l10n.settingScopeTaskbar
+      : context.l10n.settingScopePanel;
+
+  Map<String, PriceTick> get _priceTicks => {
+    for (final quote in widget.controller.displayQuotes.values)
+      quote.assetId: widget.controller.priceTickFor(quote.assetId),
+  };
+
+  Widget _scopeCaption(String text) => Padding(
+    padding: const EdgeInsets.only(top: 2, bottom: 12),
+    child: Text(
+      text,
+      style: TextStyle(
+        color: Theme.of(context).colorScheme.primary,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
+    ),
+  );
 
   void _selectSection(int section, {String? anchor}) {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -761,6 +795,37 @@ class _SettingsPageState extends State<SettingsPage> {
     childrenPadding: const EdgeInsets.only(bottom: 8),
     title: Text(context.l10n.settingStorage, style: TextStyle(fontSize: 12)),
     children: [
+      _scopeCaption(context.l10n.settingScopeShared),
+      KeyedSubtree(
+        key: ValueKey(
+          'storage-mode-$_storageRevision-${widget.controller.storageMode.name}',
+        ),
+        child: FDropdown<DataStorageMode>(
+          key: const ValueKey('data-storage-mode'),
+          initialValue: widget.controller.storageMode,
+          decoration: InputDecoration(
+            labelText: context.l10n.settingStorageMode,
+          ),
+          items: [
+            FDropdownItem(
+              value: DataStorageMode.portable,
+              child: Text(context.l10n.settingStoragePortable),
+            ),
+            FDropdownItem(
+              value: DataStorageMode.system,
+              child: Text(context.l10n.settingStorageSystem),
+            ),
+          ],
+          onChanged: (value) {
+            if (value != null) unawaited(_changeStorage(value));
+          },
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        context.l10n.settingStorageModeHint,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
       Align(
         alignment: Alignment.centerLeft,
         child: FTextButton.icon(
@@ -778,6 +843,81 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     ],
   );
+
+  Future<void> _changeStorage(DataStorageMode mode) async {
+    if (_saving || _storageChanging || mode == widget.controller.storageMode) {
+      return;
+    }
+    _storageChanging = true;
+    final migrate = await showDialog<bool>(
+      context: context,
+      builder: (context) => FAlertDialog(
+        title: Text(context.l10n.settingStorageMigrateTitle),
+        content: Text(context.l10n.settingStorageMigrateBody),
+        actions: [
+          FTextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(context.l10n.settingCancel),
+          ),
+          FTextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(context.l10n.settingStorageSwitchOnly),
+          ),
+          FFilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(context.l10n.settingStorageMigrate),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    if (migrate == null) {
+      setState(() {
+        _storageRevision++;
+        _storageChanging = false;
+      });
+      return;
+    }
+    // Preserve pending edits in the current store before selecting another one.
+    if (_dirty && !await _save(closeSettings: false)) {
+      if (mounted) {
+        setState(() {
+          _storageRevision++;
+          _storageChanging = false;
+        });
+      }
+      return;
+    }
+    if (!mounted) return;
+    setState(() {
+      _storageChanging = true;
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.controller.switchStorage(mode, migrate: migrate);
+      if (mounted) {
+        setState(() {
+          _rootDraft = widget.controller.config;
+          _draftRevision++;
+          _storageRevision++;
+        });
+      }
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _storageRevision++;
+        _error = context.l10n.settingStorageSwitchFailed;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _storageChanging = false;
+          _saving = false;
+        });
+      }
+    }
+  }
 
   Widget _intro(String title, String description) => Padding(
     padding: const EdgeInsets.only(top: 4, bottom: 16),
@@ -842,6 +982,7 @@ class _SettingsPageState extends State<SettingsPage> {
         context.l10n.settingWatchlist,
         context.l10n.settingWatchlistDescription,
       ),
+      _scopeCaption(_surfaceScope),
       _anchor('asset-order', _watchlistOrder()),
       const SizedBox(height: 18),
       _anchor(
@@ -1409,6 +1550,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _sources() => _page([
+    _scopeCaption(context.l10n.settingScopeShared),
     _anchor(
       'sources',
       _intro(
@@ -1591,6 +1733,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _rows() => _page([
     _intro(context.l10n.settingLayout, context.l10n.settingLayoutDescription),
+    _scopeCaption(_surfaceScope),
     _anchor(
       'panel-layout',
       _card(
@@ -1726,6 +1869,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 config: _draft,
                 quotes: widget.controller.displayQuotes,
                 rates: widget.controller.data.exchangeRates,
+                priceTicks: _priceTicks,
                 showFreshness: false,
               ),
             ),
@@ -1836,6 +1980,7 @@ class _SettingsPageState extends State<SettingsPage> {
       context.l10n.settingAppearance,
       context.l10n.settingAppearanceDescription,
     ),
+    _scopeCaption(context.l10n.settingScopeShared),
     _anchor(
       'language',
       _card(
@@ -1858,6 +2003,11 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     ),
+    _anchor(
+      'price-color',
+      _card(PriceColorSettings(config: _draft, onChanged: _preview)),
+    ),
+    _scopeCaption(_surfaceScope),
     if (_target == DisplayTarget.floating)
       _anchor(
         'opacity',
@@ -1900,6 +2050,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 onPressed: () => _pickFont(true),
                 child: Text(context.l10n.settingChooseFont),
               ),
+            ),
+            Text(
+              context.l10n.settingNumberFontHint,
+              style: Theme.of(context).textTheme.bodySmall,
             ),
             const Divider(height: 1),
             _anchor(
@@ -1973,6 +2127,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _window() => _page([
     _intro(context.l10n.settingWindow, context.l10n.settingWindowDescription),
+    _scopeCaption(context.l10n.settingScopePanel),
     _card(
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
@@ -2603,6 +2758,8 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (context) => _FontDialog(
         fonts: _fonts,
         current: numbers ? _draft.numberFontFamily : _draft.fontFamily,
+        hint: numbers ? context.l10n.settingNumberFontHint : null,
+        highlightMonospace: numbers,
       ),
     );
     if (font != null && mounted) {

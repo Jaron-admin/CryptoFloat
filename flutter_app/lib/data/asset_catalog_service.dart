@@ -34,7 +34,14 @@ class AssetCatalogService extends ChangeNotifier {
   };
 
   final HttpTransport transport;
-  final Directory _cacheDirectory;
+  Directory _cacheDirectory;
+
+  Future<void> useDirectory(String directory) async {
+    await _refreshTask;
+    _cacheDirectory = Directory(directory);
+  }
+
+  Future<void> flush() async => _refreshTask;
   final Map<String, _CatalogSnapshot> _snapshots = {};
   final Map<String, DateTime> _lastAttempts = {};
   final Map<String, String> _errors = {};

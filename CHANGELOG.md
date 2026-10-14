@@ -1,4 +1,24 @@
-# MetricPerch · 数栖更新记录 / Changelog
+# DuoMonitor 更新记录 / Changelog
+
+## 1.5.0
+
+### 简体中文
+
+- 软件与公开仓库由 MetricPerch 改名为 DuoMonitor，Windows 程序改为 `duomonitor.exe` 与 `duomonitor_taskbar.exe`，发行包为 `DuoMonitor-Windows-x64-1.5.0.zip`。保留 Git 历史、历史发行记录、旧版单实例协议和密钥引用；已保存的自定义标题不被改名覆盖。
+- 设置可以选择数据保存在系统应用目录，或继续使用程序旁边的便携 `user_data`。切换时可以选择复制现有配置、图标和备份。未做选择时仍使用原来的便携目录。
+- 悬浮窗的数字和价格靠右对齐，名称保持靠左。
+- 数字字体旁提示等宽字体更适合数字，字体列表会标出已安装的常见等宽字体。
+- 价格颜色可在默认主题文字、主题涨跌色、绿涨红跌和红涨绿跌之间选择，并同时作用于悬浮窗和任务栏。红绿比较的是上一次成功刷新的价格，不是 24 小时涨跌；启动或更换品种后的第一次刷新为中性色。24 小时涨跌幅数字本身不变。
+- 设置分区标明“同时作用于悬浮窗与任务栏”“仅影响悬浮窗”或“仅影响任务栏”。
+
+### English
+
+- Renamed the app and public repository from MetricPerch to DuoMonitor. Windows executables are `duomonitor.exe` and `duomonitor_taskbar.exe`; the archive is `DuoMonitor-Windows-x64-1.5.0.zip`. Git history, historical releases, legacy single-instance identifiers, and secret references are preserved. Saved custom titles are unchanged.
+- Settings can store data in the system app directory or keep the portable `user_data` folder beside the app. Switching can copy the current settings, icons, and backups. Existing portable installs stay portable until a choice is saved.
+- Numeric values and prices in the floating panel are right-aligned, while labels stay on the left.
+- The number-font control suggests monospace fonts, and installed monospace families are marked in the picker.
+- Price color can be default theme text, theme up/down colors, green-up, or red-up, and the choice applies to both the floating panel and the taskbar. Red and green compare with the previous successful refresh, not the 24-hour change. The first refresh after launch or a symbol change stays neutral. The 24-hour percentage text is unchanged.
+- Settings sections are captioned as shared, floating-panel only, or taskbar only.
 
 ## 1.4.1
 

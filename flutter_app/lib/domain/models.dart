@@ -618,11 +618,12 @@ class AppConfig {
     this.panelItemLayout = 'horizontal',
     this.showChangePercent = true,
     this.marketColorStyle = 'theme',
+    this.priceColorMode = 'plain',
     this.unitLabelMode = 'full',
     this.unitLabels = const {},
     this.displayCurrency = '',
     this.unitRules = const [],
-    this.headerName = 'MetricPerch',
+    this.headerName = 'DuoMonitor',
     this.headerIcon = 'chart',
     this.headerImagePath = '',
     this.showHeaderName = true,
@@ -672,6 +673,7 @@ class AppConfig {
   final String panelItemLayout;
   final bool showChangePercent;
   final String marketColorStyle;
+  final String priceColorMode;
   final String unitLabelMode;
   final Map<String, String> unitLabels;
   final String displayCurrency;
@@ -749,6 +751,7 @@ class AppConfig {
       proxyEnabled: view.proxyEnabled,
       proxyHost: view.proxyHost,
       proxyPort: view.proxyPort,
+      priceColorMode: view.priceColorMode,
     );
     if (target == DisplayTarget.floating) {
       return DisplayProfile.fromConfig(view)
@@ -800,6 +803,7 @@ class AppConfig {
     String? panelItemLayout,
     bool? showChangePercent,
     String? marketColorStyle,
+    String? priceColorMode,
     String? unitLabelMode,
     Map<String, String>? unitLabels,
     String? displayCurrency,
@@ -845,6 +849,7 @@ class AppConfig {
     panelItemLayout: panelItemLayout ?? this.panelItemLayout,
     showChangePercent: showChangePercent ?? this.showChangePercent,
     marketColorStyle: marketColorStyle ?? this.marketColorStyle,
+    priceColorMode: priceColorMode ?? this.priceColorMode,
     unitLabelMode: unitLabelMode ?? this.unitLabelMode,
     unitLabels: unitLabels ?? this.unitLabels,
     displayCurrency: displayCurrency ?? this.displayCurrency,
@@ -867,6 +872,7 @@ class AppConfig {
     'taskbar': taskbar.toJson(),
 
     'language': language,
+    'priceColorMode': priceColorMode,
     'selectedAssetIds': selectedAssetIds,
     'customAssets': customAssets.map((asset) => asset.toJson()).toList(),
     'customSources': customSources.map((source) => source.toJson()).toList(),
@@ -1027,6 +1033,10 @@ class AppConfig {
           ['theme', 'greenUp', 'redUp'].contains(display['marketColorStyle'])
           ? display['marketColorStyle'] as String
           : 'theme',
+      priceColorMode: _priceColorMode(
+        json['priceColorMode'],
+        display['marketColorStyle'],
+      ),
       // Existing installations retain their saved dark custom background.
       lightBackgroundColor: _color(
         appearance['lightBackgroundColor'],
@@ -1049,7 +1059,7 @@ class AppConfig {
           .toList(),
       headerName: appearance['headerName'] is String
           ? appearance['headerName'] as String
-          : 'MetricPerch',
+          : 'DuoMonitor',
       headerIcon: _string(appearance['headerIcon'], 'chart'),
       headerImagePath: _string(appearance['headerImagePath'], ''),
       showHeaderName: _bool(appearance['showHeaderName'], true),
@@ -1133,6 +1143,16 @@ int _color(Object? value, int fallback) {
     return 0xFF000000 | int.parse(value.substring(1), radix: 16);
   }
   return fallback;
+}
+
+String _priceColorMode(Object? value, Object? legacy) {
+  const modes = {'plain', 'theme', 'greenUp', 'redUp'};
+  if (value is String && modes.contains(value)) return value;
+  if (value != null) return 'plain';
+  if (legacy is String && const {'theme', 'greenUp', 'redUp'}.contains(legacy)) {
+    return legacy;
+  }
+  return 'plain';
 }
 
 String _string(Object? value, String fallback) =>

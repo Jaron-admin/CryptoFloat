@@ -108,9 +108,16 @@ class _AssetDialogState extends State<_AssetDialog> {
 }
 
 class _FontDialog extends StatefulWidget {
-  const _FontDialog({required this.fonts, required this.current});
+  const _FontDialog({
+    required this.fonts,
+    required this.current,
+    this.hint,
+    this.highlightMonospace = false,
+  });
   final List<String> fonts;
   final String current;
+  final String? hint;
+  final bool highlightMonospace;
   @override
   State<_FontDialog> createState() => _FontDialogState();
 }
@@ -138,6 +145,16 @@ class _FontDialogState extends State<_FontDialog> {
               ),
               onChanged: (value) => setState(() => _search = value),
             ),
+            if (widget.hint != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  widget.hint!,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Expanded(
               child: fonts.isEmpty
@@ -173,7 +190,11 @@ class _FontDialogState extends State<_FontDialog> {
                                   ),
                                 ),
                           trailing:
-                              snapshot.connectionState == ConnectionState.done
+                              widget.highlightMonospace &&
+                                  isMonospaceFontFamily(fonts[index])
+                              ? Text(context.l10n.settingMonospaceFont)
+                              : snapshot.connectionState ==
+                                    ConnectionState.done
                               ? null
                               : const SizedBox(
                                   width: 14,

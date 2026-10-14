@@ -8,12 +8,22 @@ import 'portable_paths.dart';
 
 /// Each portable folder has its own settings; legacy profile data stays untouched.
 class ConfigStore {
-  ConfigStore({String? directory})
-    : configPath =
-          '${directory ?? portableDataDirectory()}${Platform.pathSeparator}settings.json';
+  ConfigStore({String? directory}) : this._(directory);
 
-  final String configPath;
-  String get directory => File(configPath).parent.path;
+  ConfigStore._(this._directory);
+
+  String? _directory;
+  String get directory => _directory ?? portableDataDirectory();
+  String get configPath => '$directory${Platform.pathSeparator}settings.json';
+
+  Future<void> useDirectory(String directory) async {
+    await _writeQueue;
+    _directory = directory;
+    loadWarning = null;
+    _saveBlockedReason = null;
+  }
+
+  Future<void> flush() => _writeQueue;
   String? resourcePath(String reference) =>
       portableResourcePath(directory, reference);
   String? loadWarning;

@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 
 import '../data/config_store.dart';
+import '../data/storage_location.dart';
+import '../domain/refresh_price.dart';
 import '../data/asset_catalog_service.dart';
 import '../data/http_transport.dart';
 import '../data/market_data_service.dart';
@@ -17,6 +19,7 @@ import 'market_change_colors.dart';
 import '../platform/floating_window_host.dart';
 import '../platform/secret_store.dart';
 import '../platform/system_proxy.dart';
+import '../platform/system_fonts.dart';
 import '../platform/tray_host.dart';
 import '../platform/context_menu_host.dart';
 
@@ -28,6 +31,9 @@ class AppController extends ChangeNotifier {
     required this.secrets,
     this.startupMessage,
     AssetCatalogService? assetCatalog,
+    MarketDataService? marketData,
+    this.dataRoot,
+    this.storageMode = DataStorageMode.portable,
   }) : _config = config {
     catalog =
         assetCatalog ??
@@ -38,11 +44,14 @@ class AppController extends ChangeNotifier {
           cacheDirectory: File(store.configPath).parent.path,
         );
     catalog.addListener(notifyListeners);
-    data = MarketDataService(
-      config,
-      secrets,
-      systemProxyResolver: PlatformSystemProxyResolver(),
-    )..addListener(notifyListeners);
+    data =
+        (marketData ??
+              MarketDataService(
+                config,
+                secrets,
+                systemProxyResolver: PlatformSystemProxyResolver(),
+              ))
+          ..addListener(_onData);
     metrics.addListener(_metricsChanged);
     taskbar.addListener(notifyListeners);
     unawaited(configureMonitoring());
@@ -60,6 +69,78 @@ class AppController extends ChangeNotifier {
     );
   }
   final ConfigStore store;
+  final DataRoot? dataRoot;
+  DataStorageMode storageMode;
+  RefreshPriceMemory _prices = const RefreshPriceMemory();
+  PriceTick priceTickFor(String assetId) => _prices.tickFor(assetId);
+
+  void _onData() {
+    if (_disposed) return;
+    _prices = _prices.observeAll(data.quotes);
+    notifyListeners();
+  }
+
+  Future<void> switchStorage(
+    DataStorageMode mode, {
+    required bool migrate,
+  }) async {
+    final root = dataRoot;
+    if (root == null) throw const FormatException('storage_mode_unwritable');
+    if (mode == storageMode) return;
+    if (_saving) throw StateError('设置正在保存，请稍候。');
+    _saving = true;
+    try {
+      String? fontWarning;
+      await store.flush();
+      await catalog.flush();
+      final directory = await migrateDataStorage(
+        root: root,
+        from: storageMode,
+        to: mode,
+        migrate: migrate,
+        validate: (path) async {
+          final destination = ConfigStore(directory: path);
+          final config = await destination.load();
+          if (!destination.canSave) {
+            throw const FormatException('config_future_schema');
+          }
+          try {
+            await Future.wait([
+              SystemFonts.ensureLoaded(config.fontFamily),
+              SystemFonts.ensureLoaded(config.numberFontFamily),
+            ]);
+          } catch (_) {
+            // As at startup, a font absent on this computer uses fallback glyphs.
+            // It does not invalidate the selected data directory or its contents.
+            fontWarning = '已保存的字体无法加载，请在外观设置中重新选择字体。';
+          }
+        },
+      );
+      await store.useDirectory(directory);
+      _config = await store.load();
+      await catalog.useDirectory(directory);
+      _appearancePreview = null;
+      storageMode = mode;
+      final warnings = [
+        store.loadWarning,
+        fontWarning,
+      ].whereType<String>().toList();
+      startupMessage = warnings.isEmpty ? null : warnings.join(' ');
+      data.updateConfig(_config);
+      unawaited(configureMonitoring());
+      unawaited(publishTaskbar());
+      try {
+        await host.setAlwaysOnTop(_config.alwaysOnTop);
+      } catch (_) {}
+      try {
+        await host.setOpacity(_config.opacity);
+      } catch (_) {}
+      if (!_disposed) notifyListeners();
+    } finally {
+      _saving = false;
+    }
+  }
+
   final FloatingWindowHost host;
   final SecretStore secrets;
   final TrayHost tray = TrayHost();
@@ -126,24 +207,23 @@ class AppController extends ChangeNotifier {
       _ => WidgetsBinding.instance.platformDispatcher.platformBrightness,
     };
     final palette = resolveAppPalette(view, brightness: brightness);
-    final changeColors = resolveMarketChangeColors(
-      view,
-      brightness: brightness,
-      themeColors: MarketColors(
-        positive: palette.positive,
-        negative: palette.negative,
-      ),
-    );
     Color cellColor(DisplayText cell) {
-      if (cell.stale) return palette.secondary;
-      final change = cell.change;
-      if (view.showChangePercent ||
-          change == null ||
-          !change.isFinite ||
-          change == 0) {
-        return palette.foreground;
-      }
-      return change > 0 ? changeColors.positive : changeColors.negative;
+      final assetId = cell.id.startsWith('asset:')
+          ? cell.id.substring('asset:'.length)
+          : '';
+      return taskbarPriceColor(
+        cellId: cell.id,
+        stale: cell.stale,
+        priceColorMode: _config.priceColorMode,
+        tick: _prices.tickFor(assetId),
+        foreground: palette.foreground,
+        secondary: palette.secondary,
+        brightness: brightness,
+        themeColors: MarketColors(
+          positive: palette.positive,
+          negative: palette.negative,
+        ),
+      );
     }
 
     final chinese =
@@ -246,7 +326,7 @@ class AppController extends ChangeNotifier {
     metrics.dispose();
     taskbar.removeListener(notifyListeners);
     taskbar.dispose();
-    data.removeListener(notifyListeners);
+    data.removeListener(_onData);
     data.dispose();
     catalog.removeListener(notifyListeners);
     catalog.dispose();

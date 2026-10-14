@@ -412,7 +412,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get editRepoName => 'Repository name';
 
   @override
-  String get editRepoNameHint => 'For example: MetricPerch';
+  String get editRepoNameHint => 'For example: DuoMonitor';
 
   @override
   String editHeaderMissingSecret(String name) {
@@ -1081,7 +1081,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingReturnToPanel => 'Return to panel';
 
   @override
-  String get settingTitle => 'MetricPerch Settings';
+  String get settingTitle => 'DuoMonitor Settings';
 
   @override
   String get settingSaving => 'Saving…';
@@ -1613,6 +1613,72 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingCatalogTray => 'Hide & restore from tray';
+
+  @override
+  String get settingScopeShared =>
+      'Applies to the floating panel and the taskbar';
+
+  @override
+  String get settingScopePanel => 'Floating panel only';
+
+  @override
+  String get settingScopeTaskbar => 'Taskbar only';
+
+  @override
+  String get settingNumberFontHint =>
+      'Monospace fonts are easier to read for numbers.';
+
+  @override
+  String get settingMonospaceFont => 'Monospace';
+
+  @override
+  String get settingStorageMode => 'Data storage location';
+
+  @override
+  String get settingStoragePortable => 'Portable (beside the app)';
+
+  @override
+  String get settingStorageSystem => 'System app data';
+
+  @override
+  String get settingStorageModeHint =>
+      'Portable keeps user_data next to the app. System app data stays in your user profile.';
+
+  @override
+  String get settingStorageMigrateTitle => 'Copy existing data?';
+
+  @override
+  String get settingStorageMigrateBody =>
+      'Copy settings, icons, and backups to the new location so nothing is lost.';
+
+  @override
+  String get settingStorageMigrate => 'Copy and switch';
+
+  @override
+  String get settingStorageSwitchOnly => 'Switch without copying';
+
+  @override
+  String get settingStorageSwitchFailed =>
+      'Could not save the storage location. Choose a writable folder, or keep the current location.';
+
+  @override
+  String get settingPriceColor => 'Price color';
+
+  @override
+  String get settingPriceColorPlain => 'Default (theme text)';
+
+  @override
+  String get settingPriceColorTheme => 'Theme rise and fall colors';
+
+  @override
+  String get settingPriceColorGreenUp => 'Green up, red down';
+
+  @override
+  String get settingPriceColorRedUp => 'Red up, green down';
+
+  @override
+  String get settingPriceColorHint =>
+      'Red and green compare with the previous successful refresh, not the 24h change. The first refresh after launch or a symbol change stays neutral.';
 
   @override
   String get theme120Saturation => 'Saturation';

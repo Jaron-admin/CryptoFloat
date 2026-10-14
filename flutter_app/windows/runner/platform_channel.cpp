@@ -1,4 +1,5 @@
 #include "platform_channel.h"
+#include "storage_paths.h"
 
 #include "notification_tray.h"
 #include "system_proxy.h"
@@ -382,19 +383,12 @@ bool CredentialFile(const std::string& key, std::wstring* path) {
   if (provider) CryptReleaseContext(provider, 0);
   if (!success) return false;
 
-  std::vector<wchar_t> module(32768);
-  const DWORD length = GetModuleFileNameW(nullptr, module.data(),
-                                         static_cast<DWORD>(module.size()));
-  if (length == 0 || length >= module.size()) return false;
-  const std::wstring executable(module.data(), length);
-  const auto separator = executable.find_last_of(L"\\/");
-  if (separator == std::wstring::npos) return false;
-  std::wstring directory = executable.substr(0, separator) + L"\\user_data";
-  if (!CreateDirectoryW(directory.c_str(), nullptr) &&
-      GetLastError() != ERROR_ALREADY_EXISTS) return false;
-  directory += L"\\secrets";
-  if (!CreateDirectoryW(directory.c_str(), nullptr) &&
-      GetLastError() != ERROR_ALREADY_EXISTS) return false;
+  const auto root = storage_paths::ForProcess();
+  if (root.empty()) return false;
+  const std::wstring directory = (root / "secrets").wstring();
+  std::error_code directory_error;
+  std::filesystem::create_directories(directory, directory_error);
+  if (directory_error) return false;
 
   constexpr wchar_t hex[] = L"0123456789abcdef";
   std::wstring filename;

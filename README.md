@@ -1,10 +1,10 @@
-# MetricPerch · 数栖
+# DuoMonitor
 
 **简体中文** · [English](README.en.md)
 
 在桌面悬浮窗和 Windows 任务栏中显示行情、自定义 API 字段与本机系统数据。两处独立选择内容和外观。使用 Flutter 和 Material 3 构建，支持简体中文和 English。
 
-![MetricPerch 悬浮窗外观示例](docs/images/panel-preview.png)
+![DuoMonitor 悬浮窗外观示例](docs/images/panel-preview.png)
 
 v1.1 外观示例：名称、字体、配色、透明度和显示内容均可自定义；新版设置界面有所调整。
 
@@ -16,11 +16,11 @@ v1.1 外观示例：名称、字体、配色、透明度和显示内容均可自
 
 ## 下载与启动
 
-前往 [Releases](https://github.com/Jaron-admin/MetricPerch/releases) 下载 **MetricPerch-Windows-x64-1.4.1.zip**。
+前往 [Releases](https://github.com/Jaron-admin/DuoMonitor/releases) 下载 **DuoMonitor-Windows-x64-1.5.0.zip**。
 
-解压整个压缩包，双击 `metricperch.exe` 启动。请保留同目录的 `metricperch_taskbar.exe`、运行库和 `data` 文件夹，不能只复制主 EXE。任务栏宿主随主程序启动和退出。
+解压整个压缩包，双击 `duomonitor.exe` 启动。请保留同目录的 `duomonitor_taskbar.exe`、运行库和 `data` 文件夹，不能只复制主 EXE。任务栏宿主随主程序启动和退出。
 
-这是便携版：设置、缓存、导入图标、受保护的密钥和任务栏诊断日志保存在程序旁的 `user_data` 文件夹。解压到可写目录；移动程序时带上整个目录。同一 Windows 用户的当前登录会话只运行一个实例，再次启动会唤回已有窗口。升级前退出旧版，在新程序目录中保留自己的 `user_data`；原 CryptoFloat 便携设置会迁移，自定义标题、图标、主题和显示内容保留。
+默认使用便携模式：设置、缓存、导入图标、受保护的密钥和诊断日志保存在程序旁的 `user_data` 文件夹。“设置 → 导入与数据位置”可切换到 Windows 系统应用目录 `%APPDATA%\DuoMonitor`，并选择是否复制当前数据。同一 Windows 用户的当前登录会话只运行一个实例，再次启动会唤回已有窗口。升级前退出旧版并备份当前数据目录；便携模式需把 `user_data` 保留在新程序旁。MetricPerch/CryptoFloat 的自定义标题、图标、主题和显示内容继续保留。
 
 当前发行版支持 **Windows x64**。macOS/Linux 已有项目骨架，尚未完成原生窗口和受保护存储适配；Android/iOS 暂无可用发行版。
 
@@ -37,12 +37,13 @@ v1.1 外观示例：名称、字体、配色、透明度和显示内容均可自
 - 单位简写、参考汇率换算、自定义倍率；提供天气、汇率、公开仓库统计和文字提醒模板。
 - 浅色、深色与跟随系统主题，多套命名配色预设和可视化取色器。
 - 系统字体及数字字体、透明度、字号、间距、名称和图标自定义。
-- 悬浮窗支持 1–8 列，每项可横向或纵向排列；24h 涨跌幅可隐藏，价格用自定义涨跌颜色表示方向。
+- 悬浮窗支持 1–8 列，每项可横向或纵向排列，数值靠右对齐；24h 涨跌幅可独立隐藏。
+- 两处共享价格颜色设置：默认文字、主题涨跌色、绿涨红跌或红涨绿跌；方向比较相邻两次成功刷新的价格，首次刷新为中性色。
 - 右键菜单、窗口置顶、双击隐藏到托盘、单击托盘恢复，多显示器 DPI 适配。
 
 右键悬浮窗打开设置。在 **设置 → 外观 → 语言** 中选择简体中文、English 或跟随系统；悬浮窗透明度也位于“外观”中。
 
-在设置中先选择 **悬浮窗** 或 **任务栏**，再编辑当前显示的内容和外观。“显示布局”提供列数、项目排列方式和涨跌显示选项。“任务栏布局”可单独启停，调整最大宽度、单行/双行、透明背景、项目间距和名称显示。短内容按实际宽度收窄；自定义简写只影响任务栏，不修改原始数据。系统设备和采样间隔对两处共享。
+在设置中先选择 **悬浮窗** 或 **任务栏**，再编辑当前显示的内容和外观。“显示布局”提供列数、项目排列方式和 24h 涨跌幅开关；价格颜色按每次刷新比较，不使用 24h 涨跌幅。“任务栏布局”可单独启停，调整最大宽度、单行/双行、透明背景、项目间距和名称显示。短内容按实际宽度收窄；自定义简写只影响任务栏，不修改原始数据。设置分区标明影响范围，价格颜色、系统设备和采样间隔对两处共享。数字字体列表会标出已安装的常见等宽字体，便于数字对齐。
 
 点击 **保存** 会提交更改并留在设置页；点击设置窗口外或返回悬浮窗仍会自动保存，成功后短暂提示。保存中收到关闭请求会等待当前保存完成；失败保留草稿供重试。Alt+Tab 和取色、字体、文件选择窗口不会触发自动关闭。设置页显示独立的任务栏按钮；关闭设置窗口会保存后返回悬浮窗，关闭悬浮窗会隐藏到托盘，需要结束程序时使用 **退出**。
 
@@ -54,7 +55,7 @@ v1.4.1 修正了跨屏 DPI 过渡中沿用旧屏最小尺寸、导致窗口逻�
 
 ## 数据与配置
 
-没有 `user_data` 时使用默认配置，不会自动读取或迁移 Windows 用户目录中的旧版数据，旧文件保持原样。已使用过的便携版下次启动继续读取自己的 `user_data`。分享程序请使用发行 ZIP，或先移除分享副本中的 `user_data`，避免分享个人配置。
+程序会记住所选数据位置；未选择位置的既有便携版继续读取自己的 `user_data`。所选目录没有设置时使用默认配置，不会自动读取旧 `%APPDATA%\CryptoFloatFlutter` 或 `%LOCALAPPDATA%\CryptoFloat\secrets`。移动或备份软件时保留完整的当前数据目录。分享请使用原始发行 ZIP，其中不含个人数据与数据位置标记。
 
 API 请求头密钥由 Windows 当前用户的 DPAPI 保护；换电脑或 Windows 账户后需要重新输入密钥。网络自动跟随 Windows 系统网络设置。
 
@@ -69,8 +70,8 @@ API 请求头密钥由 Windows 当前用户的 DPAPI 保护；换电脑或 Windo
 需要 Flutter 3.47.5 / Dart 3.13.4，以及支持 C++ 桌面开发的 Visual Studio 工具链。
 
 ```powershell
-git clone https://github.com/Jaron-admin/MetricPerch.git
-cd MetricPerch/flutter_app
+git clone https://github.com/Jaron-admin/DuoMonitor.git
+cd DuoMonitor/flutter_app
 flutter pub get
 flutter build windows --release
 ```
@@ -78,11 +79,11 @@ flutter build windows --release
 工具链安装步骤见 [Flutter Windows 配置文档](https://docs.flutter.dev/platform-integration/windows/setup)。生成包含使用说明与许可证的发布目录和 ZIP：
 
 ```powershell
-./tool/build_windows.ps1 -PackageName MetricPerch-Windows-x64-1.4.1
+./tool/build_windows.ps1 -PackageName DuoMonitor-Windows-x64-1.5.0
 ```
 
 ## 开源协议
 
-MetricPerch 自有源码使用 [MIT License](LICENSE)，允许使用、修改、分发和商业使用，分发时保留许可证与版权声明。
+DuoMonitor 自有源码使用 [MIT License](LICENSE)，允许使用、修改、分发和商业使用，分发时保留许可证与版权声明。
 
 第三方依赖和字体分别遵循各自的条款，详见 [第三方许可说明](THIRD_PARTY_NOTICES.md)。发布包附带项目许可证及第三方完整许可文本。

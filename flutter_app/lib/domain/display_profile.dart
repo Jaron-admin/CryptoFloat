@@ -29,7 +29,7 @@ class DisplayProfile {
     this.unitLabels = const {},
     this.displayCurrency = '',
     this.unitRules = const [],
-    this.headerName = 'MetricPerch',
+    this.headerName = 'DuoMonitor',
     this.headerIcon = 'chart',
     this.headerImagePath = '',
     this.showHeaderName = true,
