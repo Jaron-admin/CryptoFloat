@@ -4,6 +4,8 @@ import '../../domain/display_formatter.dart';
 import '../../domain/models.dart';
 import '../../platform/system_fonts.dart';
 import '../../app/market_change_colors.dart';
+import '../../app/theme_presets.dart';
+import '../../domain/refresh_price.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/metrics_strings.dart';
 
@@ -16,12 +18,14 @@ class DisplayRowView extends StatelessWidget {
     required this.quotes,
     this.rates = const {},
     this.showFreshness = true,
+    this.priceTicks = const {},
   });
   final DisplayRow row;
   final AppConfig config;
   final Map<String, MarketQuote> quotes;
   final Map<String, double> rates;
   final bool showFreshness;
+  final Map<String, PriceTick> priceTicks;
 
   String _name(String id, AppLocalizations l10n) {
     if (id == 'system') {
@@ -63,9 +67,19 @@ class DisplayRowView extends StatelessWidget {
         numeric ? config.numberFontFamily : config.fontFamily,
       ),
       fontFeatures: numeric ? const [FontFeature.tabularFigures()] : null,
-      color: segment.fieldId == 'change' && value is num
-          ? marketChangeColor(context, config, value)
-          : null,
+      color: _segmentColor(context, segment),
+    );
+  }
+
+  Color? _segmentColor(BuildContext context, DisplaySegment segment) {
+    if (segment.fieldId != 'price' && segment.fieldId != 'change') return null;
+    if (config.priceColorMode == 'plain') return null;
+    return priceTickColor(
+      priceColorMode: config.priceColorMode,
+      tick: priceTicks[segment.assetId] ?? PriceTick.neutral,
+      neutral: Theme.of(context).colorScheme.onSurface,
+      brightness: Theme.of(context).brightness,
+      themeColors: marketColorsOf(context),
     );
   }
 

@@ -59,11 +59,8 @@ void main() {
       );
       expect(find.byKey(const ValueKey('panel-column-count')), findsNothing);
       expect(find.byKey(const ValueKey('panel-item-layout')), findsNothing);
-      await tester.tap(find.byKey(const ValueKey('market-color-style')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Red up, green down').last);
-      await tester.pumpAndSettle();
-      expect(draft.marketColorStyle, 'redUp');
+      expect(find.byKey(const ValueKey('market-color-style')), findsNothing);
+      expect(find.text('Show 24h change percentage'), findsOneWidget);
       expect(draft.showChangePercent, isTrue);
     },
   );

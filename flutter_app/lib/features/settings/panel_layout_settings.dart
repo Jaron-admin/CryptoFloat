@@ -75,24 +75,6 @@ class PanelLayoutSettings extends StatelessWidget {
           onChanged: (value) =>
               onChanged(config.copyWith(showChangePercent: value)),
         ),
-        const SizedBox(height: 16),
-        FDropdown<String>(
-          key: const ValueKey('market-color-style'),
-          initialValue: config.marketColorStyle,
-          decoration: InputDecoration(labelText: strings.changeColors),
-          items: [
-            FDropdownItem(value: 'theme', child: Text(strings.themeColors)),
-            FDropdownItem(value: 'greenUp', child: Text(strings.greenUp)),
-            FDropdownItem(value: 'redUp', child: Text(strings.redUp)),
-          ],
-          onChanged: (value) {
-            if (value != null) {
-              onChanged(config.copyWith(marketColorStyle: value));
-            }
-          },
-        ),
-        const SizedBox(height: 8),
-        Text(strings.colorHint, style: Theme.of(context).textTheme.bodySmall),
       ],
     );
   }

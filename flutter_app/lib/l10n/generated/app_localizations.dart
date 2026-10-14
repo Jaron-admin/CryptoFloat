@@ -2900,6 +2900,126 @@ abstract class AppLocalizations {
   /// **'Hide & restore from tray'**
   String get settingCatalogTray;
 
+  /// No description provided for @settingScopeShared.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to the floating panel and the taskbar'**
+  String get settingScopeShared;
+
+  /// No description provided for @settingScopePanel.
+  ///
+  /// In en, this message translates to:
+  /// **'Floating panel only'**
+  String get settingScopePanel;
+
+  /// No description provided for @settingScopeTaskbar.
+  ///
+  /// In en, this message translates to:
+  /// **'Taskbar only'**
+  String get settingScopeTaskbar;
+
+  /// No description provided for @settingNumberFontHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Monospace fonts are easier to read for numbers.'**
+  String get settingNumberFontHint;
+
+  /// No description provided for @settingMonospaceFont.
+  ///
+  /// In en, this message translates to:
+  /// **'Monospace'**
+  String get settingMonospaceFont;
+
+  /// No description provided for @settingStorageMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Data storage location'**
+  String get settingStorageMode;
+
+  /// No description provided for @settingStoragePortable.
+  ///
+  /// In en, this message translates to:
+  /// **'Portable (beside the app)'**
+  String get settingStoragePortable;
+
+  /// No description provided for @settingStorageSystem.
+  ///
+  /// In en, this message translates to:
+  /// **'System app data'**
+  String get settingStorageSystem;
+
+  /// No description provided for @settingStorageModeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Portable keeps user_data next to the app. System app data stays in your user profile.'**
+  String get settingStorageModeHint;
+
+  /// No description provided for @settingStorageMigrateTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy existing data?'**
+  String get settingStorageMigrateTitle;
+
+  /// No description provided for @settingStorageMigrateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy settings, icons, and backups to the new location so nothing is lost.'**
+  String get settingStorageMigrateBody;
+
+  /// No description provided for @settingStorageMigrate.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy and switch'**
+  String get settingStorageMigrate;
+
+  /// No description provided for @settingStorageSwitchOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch without copying'**
+  String get settingStorageSwitchOnly;
+
+  /// No description provided for @settingStorageSwitchFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save the storage location. Choose a writable folder, or keep the current location.'**
+  String get settingStorageSwitchFailed;
+
+  /// No description provided for @settingPriceColor.
+  ///
+  /// In en, this message translates to:
+  /// **'Price color'**
+  String get settingPriceColor;
+
+  /// No description provided for @settingPriceColorPlain.
+  ///
+  /// In en, this message translates to:
+  /// **'Default (theme text)'**
+  String get settingPriceColorPlain;
+
+  /// No description provided for @settingPriceColorTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme rise and fall colors'**
+  String get settingPriceColorTheme;
+
+  /// No description provided for @settingPriceColorGreenUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Green up, red down'**
+  String get settingPriceColorGreenUp;
+
+  /// No description provided for @settingPriceColorRedUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Red up, green down'**
+  String get settingPriceColorRedUp;
+
+  /// No description provided for @settingPriceColorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Red and green compare with the previous successful refresh, not the 24h change. The first refresh after launch or a symbol change stays neutral.'**
+  String get settingPriceColorHint;
+
   /// No description provided for @theme120Saturation.
   ///
   /// In en, this message translates to:

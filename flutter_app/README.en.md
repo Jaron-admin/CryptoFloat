@@ -10,7 +10,7 @@ The current release supports Windows x64. macOS and Linux project scaffolds are 
 
 Extract the entire release archive and run `metricperch.exe`. Keep `metricperch_taskbar.exe`, the libraries, and the `data` folder beside it. The main app manages the taskbar helper, which receives display text and style rather than API addresses or secrets. The Windows build starts as a graphical application without a command window.
 
-Extract to a writable directory. Personal data lives in `user_data` beside the EXE; an unwritable folder produces an error. Only one instance runs for the current Windows user in the current login session, including launches from different portable folders. Launching again brings the existing window forward and restores it if hidden in the tray. Exit the old app and back up `user_data` before upgrading.
+Extract to a writable directory. Personal data lives in `user_data` beside the EXE by default; an unwritable folder produces an error. Import & data location in Settings can switch to the system app-data folder and copy the current data. Only one instance runs for the current Windows user in the current login session, including launches from different portable folders. Launching again brings the existing window forward and restores it if hidden in the tray. Exit the old app and back up `user_data` before upgrading.
 
 - Drag the title area to move the panel; drag a window edge to resize it.
 - Right-click the panel for its standard Windows context menu. The native popup can extend beyond a small panel's edges.
@@ -109,7 +109,7 @@ The weather template uses [Open-Meteo](https://open-meteo.com/en/docs), subject 
 
 ## Settings, storage, and import
 
-All personal data lives in `user_data` beside `metricperch.exe`. Settings use `user_data/settings.json`; saving retains a `.bak` copy, which the app tries to recover if the main file is damaged. Catalog caches, imported icons, and protected secret files also live in this directory. Keep the whole directory when moving or backing up the app.
+Personal data lives in `user_data` beside `metricperch.exe` by default, or in the system app-data folder when that storage location is selected. Settings use `user_data/settings.json`; saving retains a `.bak` copy, which the app tries to recover if the main file is damaged. Catalog caches, imported icons, and protected secret files also live in this directory. Keep the whole directory when moving or backing up the app.
 
 Taskbar diagnostics are also stored in `user_data`, in `taskbar-bridge.log` and `taskbar-helper.log`. They contain only fixed status labels, error codes, and counts, with no quote content, API addresses, or secrets. Each log is limited to 64 KiB and keeps one rotated backup.
 

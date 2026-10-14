@@ -11,10 +11,12 @@ class SystemMonitorSettingsView extends StatelessWidget {
     required this.config,
     required this.snapshot,
     required this.onChanged,
+    this.scopeCaption,
   });
   final AppConfig config;
   final SystemMetricSnapshot snapshot;
   final ValueChanged<AppConfig> onChanged;
+  final String? scopeCaption;
 
   void _toggle(String id, bool enabled) => onChanged(
     config.copyWith(
@@ -75,6 +77,17 @@ class SystemMonitorSettingsView extends StatelessWidget {
         Text(strings.system, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 6),
         Text(strings.monitorDescription),
+        if (scopeCaption != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            scopeCaption!,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
         const SizedBox(height: 16),
         if (config.selectedMetricIds.isNotEmpty) ...[
           Text(

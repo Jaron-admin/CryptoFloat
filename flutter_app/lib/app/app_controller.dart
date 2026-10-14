@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 
 import '../data/config_store.dart';
+import '../data/storage_location.dart';
+import '../domain/refresh_price.dart';
 import '../data/asset_catalog_service.dart';
 import '../data/http_transport.dart';
 import '../data/market_data_service.dart';
@@ -28,6 +30,8 @@ class AppController extends ChangeNotifier {
     required this.secrets,
     this.startupMessage,
     AssetCatalogService? assetCatalog,
+    this.dataRoot,
+    this.storageMode = DataStorageMode.portable,
   }) : _config = config {
     catalog =
         assetCatalog ??
@@ -42,7 +46,7 @@ class AppController extends ChangeNotifier {
       config,
       secrets,
       systemProxyResolver: PlatformSystemProxyResolver(),
-    )..addListener(notifyListeners);
+    )..addListener(_onData);
     metrics.addListener(_metricsChanged);
     taskbar.addListener(notifyListeners);
     unawaited(configureMonitoring());
@@ -60,6 +64,40 @@ class AppController extends ChangeNotifier {
     );
   }
   final ConfigStore store;
+  final DataRoot? dataRoot;
+  DataStorageMode storageMode;
+  RefreshPriceMemory _prices = const RefreshPriceMemory();
+  PriceTick priceTickFor(String assetId) => _prices.tickFor(assetId);
+
+  void rememberQuotes(Map<String, MarketQuote> quotes) {
+    final next = _prices.observeAll(quotes);
+    if (identical(next, _prices)) return;
+    _prices = next;
+    if (!_disposed) notifyListeners();
+  }
+
+  void _onData() {
+    if (_disposed) return;
+    _prices = _prices.observeAll(data.quotes);
+    notifyListeners();
+  }
+
+  Future<void> switchStorage(
+    DataStorageMode mode, {
+    required bool migrate,
+  }) async {
+    final root = dataRoot;
+    if (root == null) throw const FormatException('storage_mode_unwritable');
+    final directory = await migrateDataStorage(
+      root: root,
+      from: storageMode,
+      to: mode,
+      migrate: migrate,
+    );
+    store.useDirectory(directory);
+    storageMode = mode;
+    if (!_disposed) notifyListeners();
+  }
   final FloatingWindowHost host;
   final SecretStore secrets;
   final TrayHost tray = TrayHost();
@@ -126,24 +164,23 @@ class AppController extends ChangeNotifier {
       _ => WidgetsBinding.instance.platformDispatcher.platformBrightness,
     };
     final palette = resolveAppPalette(view, brightness: brightness);
-    final changeColors = resolveMarketChangeColors(
-      view,
-      brightness: brightness,
-      themeColors: MarketColors(
-        positive: palette.positive,
-        negative: palette.negative,
-      ),
-    );
     Color cellColor(DisplayText cell) {
-      if (cell.stale) return palette.secondary;
-      final change = cell.change;
-      if (view.showChangePercent ||
-          change == null ||
-          !change.isFinite ||
-          change == 0) {
-        return palette.foreground;
-      }
-      return change > 0 ? changeColors.positive : changeColors.negative;
+      final assetId = cell.id.startsWith('asset:')
+          ? cell.id.substring('asset:'.length)
+          : '';
+      return taskbarPriceColor(
+        cellId: cell.id,
+        stale: cell.stale,
+        priceColorMode: _config.priceColorMode,
+        tick: _prices.tickFor(assetId),
+        foreground: palette.foreground,
+        secondary: palette.secondary,
+        brightness: brightness,
+        themeColors: MarketColors(
+          positive: palette.positive,
+          negative: palette.negative,
+        ),
+      );
     }
 
     final chinese =

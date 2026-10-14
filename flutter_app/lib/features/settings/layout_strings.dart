@@ -17,13 +17,6 @@ class LayoutStrings {
   String get showChangePercent =>
       chinese ? '显示 24h 涨跌幅' : 'Show 24h change percentage';
   String get hiddenPercentHint => chinese
-      ? '关闭后，行情价格以涨跌颜色显示。'
-      : 'When hidden, market prices use the rise or fall color.';
-  String get changeColors => chinese ? '涨跌颜色' : 'Rise and fall colors';
-  String get themeColors => chinese ? '使用主题颜色' : 'Use theme colors';
-  String get greenUp => chinese ? '绿涨红跌' : 'Green up, red down';
-  String get redUp => chinese ? '红涨绿跌' : 'Red up, green down';
-  String get colorHint => chinese
-      ? '选择“使用主题颜色”可沿用主题中自定义的上涨、下跌颜色。'
-      : 'Use theme colors to keep the custom rise and fall colors in your theme.';
+      ? '关闭后只显示价格。价格是否着色由共享的价格颜色决定。'
+      : 'When hidden, only the price is shown. Color follows the shared price color setting.';
 }

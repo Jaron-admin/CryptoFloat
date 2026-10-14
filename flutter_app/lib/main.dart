@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'app/app_controller.dart';
 import 'app/theme.dart';
 import 'data/config_store.dart';
+import 'data/storage_location.dart';
 import 'domain/models.dart';
 import 'features/panel/panel_page.dart';
 import 'features/settings/settings_page.dart';
@@ -17,7 +19,13 @@ import 'l10n/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final store = ConfigStore();
+  final root = DataRoot.resolve(
+    executable: Platform.resolvedExecutable,
+    operatingSystem: Platform.operatingSystem,
+    environment: Platform.environment,
+  );
+  final storageMode = await readStoredStorageMode(root);
+  final store = ConfigStore(directory: root.directoryFor(storageMode));
   var config = AppConfig.defaults;
   String? startupMessage;
   try {
@@ -55,6 +63,8 @@ Future<void> main() async {
     host: host,
     secrets: PlatformSecretStore(),
     startupMessage: startupMessage,
+    dataRoot: root,
+    storageMode: storageMode,
   );
   runApp(CryptoFloatApp(controller: controller));
 }

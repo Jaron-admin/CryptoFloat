@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../app/theme_presets.dart';
 import '../../app/market_change_colors.dart';
+import '../../domain/refresh_price.dart';
 import '../../domain/models.dart';
 import '../../domain/system_metric.dart';
 import '../../domain/display_snapshot.dart';
@@ -19,6 +20,7 @@ class TaskbarSettingsView extends StatelessWidget {
     required this.onChanged,
     this.quotes = const {},
     this.rates = const {},
+    this.priceTicks = const {},
   });
   final AppConfig config;
   final SystemMetricSnapshot snapshot;
@@ -26,6 +28,7 @@ class TaskbarSettingsView extends StatelessWidget {
   final ValueChanged<AppConfig> onChanged;
   final Map<String, MarketQuote> quotes;
   final Map<String, double> rates;
+  final Map<String, PriceTick> priceTicks;
   @override
   Widget build(BuildContext context) {
     final strings = context.metrics;
@@ -36,24 +39,23 @@ class TaskbarSettingsView extends StatelessWidget {
       _ => MediaQuery.platformBrightnessOf(context),
     };
     final palette = resolveAppPalette(config, brightness: brightness);
-    final changeColors = resolveMarketChangeColors(
-      config,
-      brightness: brightness,
-      themeColors: MarketColors(
-        positive: palette.positive,
-        negative: palette.negative,
-      ),
-    );
     Color cellColor(DisplayText cell) {
-      if (cell.stale) return palette.secondary;
-      final change = cell.change;
-      if (config.showChangePercent ||
-          change == null ||
-          !change.isFinite ||
-          change == 0) {
-        return palette.foreground;
-      }
-      return change > 0 ? changeColors.positive : changeColors.negative;
+      final assetId = cell.id.startsWith('asset:')
+          ? cell.id.substring('asset:'.length)
+          : '';
+      return taskbarPriceColor(
+        cellId: cell.id,
+        stale: cell.stale,
+        priceColorMode: config.priceColorMode,
+        tick: priceTicks[assetId] ?? PriceTick.neutral,
+        foreground: palette.foreground,
+        secondary: palette.secondary,
+        brightness: brightness,
+        themeColors: MarketColors(
+          positive: palette.positive,
+          negative: palette.negative,
+        ),
+      );
     }
 
     final allCells = buildDisplayTexts(config, quotes, snapshot, rates: rates);
