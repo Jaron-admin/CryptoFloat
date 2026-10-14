@@ -3,12 +3,18 @@
 #include <windows.h>
 
 #include "flutter_window.h"
+#include "dpi_diagnostics.h"
 #include "single_instance.h"
 #include "utils.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
                       _In_ wchar_t *command_line, _In_ int show_command) {
-  SingleInstance single_instance;
+  const auto command_line_arguments = GetCommandLineArguments();
+  const auto diagnostics = DpiDiagnostics::ParseArguments(command_line_arguments);
+  // An explicitly isolated probe never activates an already running real app.
+  SingleInstance single_instance(diagnostics.isolated
+      ? L"MetricPerch.DpiProbe.v1." + std::to_wstring(GetCurrentProcessId())
+      : L"CryptoFloat.SingleInstance.v1");
   const auto instance_result = single_instance.Start();
   if (instance_result == SingleInstance::StartResult::kForwarded) {
     return EXIT_SUCCESS;
@@ -23,6 +29,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
         L"MetricPerch · 数栖", MB_OK | MB_ICONERROR);
     return EXIT_FAILURE;
   }
+  DpiDiagnostics::Process().InitializeForProcess(diagnostics.enabled);
 
   // Console support belongs to development builds. A release opens only the panel.
 #ifndef NDEBUG
@@ -37,10 +44,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   flutter::DartProject project(L"data");
 
-  std::vector<std::string> command_line_arguments =
-      GetCommandLineArguments();
-
-  project.set_dart_entrypoint_arguments(std::move(command_line_arguments));
+  project.set_dart_entrypoint_arguments(command_line_arguments);
 
   FlutterWindow window(project, single_instance);
   Win32Window::Point origin(40, 40);

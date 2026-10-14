@@ -111,6 +111,7 @@ class Win32Window {
                                            DWORD_PTR reference_data);
   LRESULT ResizeHitTest(LPARAM screen_point) const;
   bool ApplyOpacity();
+  void RecordDpiMessage(UINT message, WPARAM wparam, LPARAM lparam, bool child);
   SIZE ScaledWindowSize(UINT dpi) const;
   void ApplyLogicalBounds(const Bounds& bounds, double width, double height);
   void StartSettingsMouseHook();
@@ -140,6 +141,8 @@ class Win32Window {
   double logical_height_ = 0;
   UINT current_dpi_ = 96;
   bool applying_bounds_ = false;
+  unsigned dpi_message_depth_ = 0;
+  bool dpi_trace_click_pending_ = false;
   std::function<void()> settings_outside_click_;
   HHOOK settings_mouse_hook_ = nullptr;
   UINT_PTR settings_click_generation_ = 0;

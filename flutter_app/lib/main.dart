@@ -10,6 +10,7 @@ import 'domain/models.dart';
 import 'features/panel/panel_page.dart';
 import 'features/settings/settings_page.dart';
 import 'platform/floating_window_host.dart';
+import 'platform/dpi_diagnostics_host.dart';
 import 'platform/secret_store.dart';
 import 'platform/system_fonts.dart';
 import 'l10n/l10n.dart';
@@ -215,7 +216,10 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
               );
             }
           });
-          return child ?? const SizedBox.shrink();
+          return DpiDiagnosticsHost(
+            fontSize: config.fontSize,
+            child: child ?? const SizedBox.shrink(),
+          );
         },
         home: _settings
             ? SettingsPage(

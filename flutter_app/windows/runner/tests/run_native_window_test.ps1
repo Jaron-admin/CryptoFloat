@@ -20,7 +20,8 @@ $arguments = @('/nologo', '/std:c++17', '/EHsc', '/W4', '/WX', '/wd4100', '/utf-
   ('/I' + (Join-Path $sdkVersion.FullName 'shared')), ('/I' + (Join-Path $sdkVersion.FullName 'um')),
   "/I$ephemeral", "/I$ephemeral\cpp_client_wrapper\include",
   (Join-Path $PSScriptRoot 'native_window_test.cpp'),
-  "/Fe:$outputDirectory\native_window_test.exe", "/Fo:$outputDirectory\native_window_test.obj",
+  (Join-Path $PSScriptRoot '..\dpi_diagnostics.cpp'),
+  "/Fe:$outputDirectory\native_window_test.exe", "/Fo:$outputDirectory\",
   '/link', ('/LIBPATH:' + (Join-Path $CompilerRoot 'lib\x64')),
   ('/LIBPATH:' + (Join-Path $sdkLib 'ucrt\x64')), ('/LIBPATH:' + (Join-Path $sdkLib 'um\x64')),
   'user32.lib', 'gdi32.lib', 'dwmapi.lib', 'advapi32.lib', 'comctl32.lib', 'shell32.lib')

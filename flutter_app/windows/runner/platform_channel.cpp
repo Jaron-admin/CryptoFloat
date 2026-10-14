@@ -4,6 +4,7 @@
 #include "system_proxy.h"
 #include "context_menu.h"
 #include "monitor_channel.h"
+#include "dpi_diagnostics.h"
 
 #include <flutter/standard_method_codec.h>
 #include <shlobj.h>
@@ -559,7 +560,15 @@ void PlatformChannel::HandleMethod(const flutter::MethodCall<Value>& call,
   const Value* arguments = call.arguments();
   const Map* values = AsMap(arguments);
 
-  if (method == "metrics.configure") {
+  if (method == "window.dpiDiagnosticsEnabled") {
+    result->Success(Value(DpiDiagnostics::Process().enabled()));
+  } else if (method == "window.reportDpiSnapshot") {
+    if (!arguments || !DpiDiagnostics::Process().ReportDart(*arguments)) {
+      InvalidArguments(result.get());
+      return;
+    }
+    result->Success();
+  } else if (method == "metrics.configure") {
     SystemMetricsOptions options;
     if (!DecodeMetricsOptions(values, &options)) { InvalidArguments(result.get()); return; }
     metrics_->Configure(options);

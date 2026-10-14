@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include "resource.h"
+#include "dpi_diagnostics.h"
 
 namespace {
 
@@ -37,6 +38,17 @@ constexpr const wchar_t kGetPreferredBrightnessRegValue[] = L"AppsUseLightTheme"
 
 // The number of Win32Window objects that currently exist.
 static int g_active_window_count = 0;
+
+class DpiDepthScope {
+ public:
+  DpiDepthScope(unsigned& depth, bool increment) : depth_(depth), increment_(increment) {
+    if (increment_) ++depth_;
+  }
+  ~DpiDepthScope() { if (increment_) --depth_; }
+ private:
+  unsigned& depth_;
+  bool increment_;
+};
 
 using EnableNonClientDpiScaling = BOOL __stdcall(HWND hwnd);
 
@@ -246,6 +258,8 @@ Win32Window::MessageHandler(HWND hwnd,
                             UINT const message,
                             WPARAM const wparam,
                             LPARAM const lparam) noexcept {
+  const DpiDepthScope dpi_depth(dpi_message_depth_, message == WM_DPICHANGED);
+  RecordDpiMessage(message, wparam, lparam, false);
   switch (message) {
     case kSettingsOutsideClick: {
       if (wparam != settings_click_generation_) return 0;
@@ -397,6 +411,7 @@ LRESULT CALLBACK Win32Window::ChildSubclassProc(
     HWND window, UINT message, WPARAM wparam, LPARAM lparam,
     UINT_PTR subclass_id, DWORD_PTR reference_data) {
   auto owner = reinterpret_cast<Win32Window*>(reference_data);
+  owner->RecordDpiMessage(message, wparam, lparam, true);
   if (message == WM_NCHITTEST && owner->ResizeHitTest(lparam) != HTCLIENT) {
     return HTTRANSPARENT;
   }
@@ -404,6 +419,60 @@ LRESULT CALLBACK Win32Window::ChildSubclassProc(
     RemoveWindowSubclass(window, ChildSubclassProc, subclass_id);
   }
   return DefSubclassProc(window, message, wparam, lparam);
+}
+
+void Win32Window::RecordDpiMessage(UINT message, WPARAM wparam, LPARAM lparam,
+                                  bool child) {
+  auto& diagnostics = DpiDiagnostics::Process();
+  if (!diagnostics.enabled()) return;
+  DpiNativeEvent event;
+  UINT message_dpi = 0;
+  const RECT* suggested = nullptr;
+  switch (message) {
+    case WM_DPICHANGED:
+      if (child) return;
+      event = DpiNativeEvent::kParentDpi;
+      message_dpi = LOWORD(wparam);
+      suggested = reinterpret_cast<const RECT*>(lparam);
+      dpi_trace_click_pending_ = true;
+      break;
+    case WM_SIZE:
+      event = child ? DpiNativeEvent::kChildSize : DpiNativeEvent::kParentSize;
+      break;
+    case WM_ENTERSIZEMOVE:
+      if (child) return;
+      event = DpiNativeEvent::kEnterMove;
+      dpi_trace_click_pending_ = true;
+      break;
+    case WM_EXITSIZEMOVE:
+      if (child) return;
+      event = DpiNativeEvent::kExitMove;
+      break;
+    case WM_WINDOWPOSCHANGED:
+      if (child) return;
+      event = DpiNativeEvent::kWindowPosition;
+      break;
+    case 0x02E2:  // WM_DPICHANGED_BEFOREPARENT
+      if (!child) return;
+      event = DpiNativeEvent::kChildBeforeParent;
+      break;
+    case 0x02E3:  // WM_DPICHANGED_AFTERPARENT
+      if (!child) return;
+      event = DpiNativeEvent::kChildAfterParent;
+      break;
+    case WM_LBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    case WM_MBUTTONDOWN:
+    case WM_NCLBUTTONDOWN:
+      if (!dpi_trace_click_pending_) return;
+      dpi_trace_click_pending_ = false;
+      event = DpiNativeEvent::kMouseDown;
+      break;
+    default:
+      return;
+  }
+  diagnostics.RecordNative(event, window_handle_, child_content_, current_dpi_,
+      applying_bounds_, dpi_message_depth_, message_dpi, suggested);
 }
 
 LRESULT Win32Window::ResizeHitTest(LPARAM screen_point) const {
