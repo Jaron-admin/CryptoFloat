@@ -61,6 +61,28 @@ int main() {
   data = Frame();
   Check(DecodeTaskbarFrame(&data, &frame) && frame.transparent_background && frame.item_gap == 6,
         "missing surface options use portable defaults");
+  data[V("labelValueGap")] = V(24); data[V("overflowMode")] = V("manual");
+  data[V("carouselIntervalSeconds")] = V(60);
+  auto& segmented = std::get<M>(std::get<L>(data.at(V("cells")))[0]);
+  segmented[V("label")] = V("BTC"); segmented[V("value")] = V("123");
+  segmented[V("suffix")] = V("-5%"); segmented[V("suffixColor")] = V(int64_t{0xFFFF0000});
+  Check(DecodeTaskbarFrame(&data, &frame) && frame.label_value_gap == 24 && !frame.auto_carousel &&
+        frame.carousel_interval_seconds == 60 && frame.cells[0].segmented && frame.cells[0].label == L"BTC" &&
+        frame.cells[0].suffix_color == 0xFFFF0000,
+        "structured text separate suffix color and carousel preferences decode");
+  segmented.erase(V("value"));
+  Check(!DecodeTaskbarFrame(&data, &frame), "partial structured text is rejected");
+  data = Frame(); data[V("labelValueGap")] = V(24.5);
+  Check(!DecodeTaskbarFrame(&data, &frame), "fractional label value gap is rejected");
+  data = Frame(); data[V("overflowMode")] = V("unknown");
+  Check(!DecodeTaskbarFrame(&data, &frame), "unknown carousel mode is rejected");
+  data = Frame(); data[V("carouselIntervalSeconds")] = V(1);
+  Check(!DecodeTaskbarFrame(&data, &frame), "carousel interval below minimum is rejected");
+  data[V("carouselIntervalSeconds")] = V(61);
+  Check(!DecodeTaskbarFrame(&data, &frame), "carousel interval above maximum is rejected");
+  data[V("carouselIntervalSeconds")] = V(5.5);
+  Check(!DecodeTaskbarFrame(&data, &frame), "fractional carousel interval is rejected");
+  data = Frame();
   data[V("width")] = V(360.5);
   Check(!DecodeTaskbarFrame(&data, &frame), "fractional width rejected rather than truncated");
   data = Frame(); data[V("fontSize")] = V(std::numeric_limits<double>::quiet_NaN());
@@ -80,7 +102,9 @@ int main() {
   std::get<M>(cells[0])[V("text")] = V(std::string(2049, 'x'));
   Check(!DecodeTaskbarFrame(&data, &frame), "oversized cell text rejected");
   data = Frame(); auto entry = std::get<L>(data.at(V("cells")))[0];
-  data[V("cells")] = V(L(33, entry));
+  data[V("cells")] = V(L(256, entry));
+  Check(DecodeTaskbarFrame(&data, &frame) && frame.cells.size() == 256, "bounded 256 cell frames reach native carousel");
+  data[V("cells")] = V(L(257, entry));
   Check(!DecodeTaskbarFrame(&data, &frame), "excessive cells rejected");
   frame.enabled = false; frame.width = 600; frame.cells.clear();
   data = Frame(); data[V("foreground")] = V(-1);

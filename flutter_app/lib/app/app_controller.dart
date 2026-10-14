@@ -246,6 +246,16 @@ class AppController extends ChangeNotifier {
         background: palette.background.toARGB32(),
         foreground: palette.foreground.toARGB32(),
         colorFor: (cell) => cellColor(cell).toARGB32(),
+        suffixColorFor: (cell) => marketChangeColorValue(
+          change: cell.change,
+          config: view,
+          neutral: palette.secondary,
+          brightness: brightness,
+          themeColors: MarketColors(
+            positive: palette.positive,
+            negative: palette.negative,
+          ),
+        ).toARGB32(),
       ),
     );
   }

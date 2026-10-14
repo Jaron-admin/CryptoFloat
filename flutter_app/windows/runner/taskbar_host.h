@@ -10,6 +10,9 @@ struct TaskbarCell {
   std::wstring text;
   uint32_t color = 0;  // Zero inherits the frame foreground; opaque black is 0xFF000000.
   std::wstring tooltip;
+  std::wstring label, value, suffix;
+  uint32_t suffix_color = 0;
+  bool segmented = false;
 };
 struct TaskbarFrame {
   bool enabled = true, chinese = true;
@@ -21,6 +24,9 @@ struct TaskbarFrame {
   std::wstring number_font_family = L"Segoe UI";
   bool transparent_background = true;
   int item_gap = 6;  // Logical pixels, applied between content-sized columns.
+  int label_value_gap = 4;
+  bool auto_carousel = true;
+  int carousel_interval_seconds = 5;
 };
 class TaskbarHost {
  public:

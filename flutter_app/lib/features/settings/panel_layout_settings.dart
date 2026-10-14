@@ -65,6 +65,30 @@ class PanelLayoutSettings extends StatelessWidget {
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
+          Text(
+            '${strings.chinese ? '名称与数值间距' : 'Name/value spacing'} · ${config.panelLabelValueGap.round()} px',
+          ),
+          Slider(
+            key: const ValueKey('panel-label-value-gap'),
+            value: config.panelLabelValueGap,
+            min: 0,
+            max: 48,
+            divisions: 48,
+            onChanged: (value) =>
+                onChanged(config.copyWith(panelLabelValueGap: value)),
+          ),
+          Text(
+            '${strings.chinese ? '列间距' : 'Column spacing'} · ${config.panelColumnGap.round()} px',
+          ),
+          Slider(
+            key: const ValueKey('panel-column-gap'),
+            value: config.panelColumnGap,
+            min: 0,
+            max: 48,
+            divisions: 48,
+            onChanged: (value) =>
+                onChanged(config.copyWith(panelColumnGap: value)),
+          ),
         ],
         FSwitchListTile(
           key: const ValueKey('show-change-percent'),

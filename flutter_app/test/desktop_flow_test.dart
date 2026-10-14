@@ -232,6 +232,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('设置…'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('添加代码'));
       await tester.tap(find.text('添加代码'));
       await tester.pumpAndSettle();
       await tester.tap(

@@ -77,6 +77,11 @@ struct Host {
   HFONT text_font = nullptr, number_font = nullptr;
   UINT font_dpi = 0;
   SIZE painted_size{};
+  std::vector<taskbar::ColumnPage> pages;
+  size_t page_index = 0;
+  ULONGLONG next_page_at = 0;
+  bool hovered = false, paging_dirty = false;
+  int wheel_remainder = 0;
   bool surface_diagnostics = SurfaceDiagnosticsEnabled();
   unsigned surface_diagnostic_count = 0;
   std::wstring tooltip_text;
@@ -167,6 +172,7 @@ struct Host {
     if (display && IsWindow(display)) DestroyWindow(display);
     display = nullptr; tooltip = nullptr; own_window.store(nullptr);
     painted_size = {};
+    hovered = false; wheel_remainder = 0; next_page_at = 0;
   }
   void Fonts(UINT dpi) {
     if (text_font) DeleteObject(text_font);
@@ -180,6 +186,7 @@ struct Host {
   }
   void Tooltip() {
     tooltip_text.clear();
+    if (pages.size() > 1) tooltip_text = std::to_wstring(page_index + 1) + L" / " + std::to_wstring(pages.size());
     for (const auto& cell : frame.cells) {
       if (!tooltip_text.empty()) tooltip_text += L"\n";
       tooltip_text += cell.tooltip.empty() ? cell.text : cell.tooltip;
@@ -210,7 +217,10 @@ struct Host {
       next = incoming_frame; next_revision = revision; layout = snapshot; bar = snapshot_bar; time = snapshot_time;
     }
     const bool changed = next_revision != painted_revision;
+    const bool paging_options_changed = frame.auto_carousel != next.auto_carousel ||
+        frame.carousel_interval_seconds != next.carousel_interval_seconds || frame.line_count != next.line_count;
     frame = std::move(next);
+    if (paging_options_changed) next_page_at = 0;
     if (!frame.enabled) { RemoveDisplay(); SetStatus(taskbar::Status::disabled, "disabledByConfig"); return; }
     if (next_revision == 0 || !bar || !IsWindow(bar) || GetTickCount64() - time > 1000) {
       const char* reason = next_revision == 0 ? "awaitingFrame" : time == 0 ? "awaitingDiscovery" :
@@ -274,12 +284,16 @@ struct Host {
       RemoveDisplay(); SetStatus(taskbar::Status::error, "positionDisplayFailed", error); return;
     }
     RECT client{}; GetClientRect(display, &client);
-    if (changed || font_changed || created || painted_size.cx != client.right || painted_size.cy != client.bottom) {
+    UpdatePagination(client.right);
+    const bool page_changed = AdvancePage(GetTickCount64());
+    if (page_changed || paging_dirty) Tooltip();
+    if (changed || font_changed || created || page_changed || paging_dirty || painted_size.cx != client.right || painted_size.cy != client.bottom) {
       if (!Present()) {
         const DWORD error = GetLastError();
         RemoveDisplay(); SetStatus(taskbar::Status::error, "presentSurfaceFailed", error); return;
       }
       painted_size = {client.right, client.bottom};
+      paging_dirty = false;
     }
     painted_revision = next_revision;
     SetStatus(taskbar::Status::displaying, "ready", 0, &layout, GetTickCount64() - time);
@@ -305,10 +319,18 @@ struct Host {
     }
     return width;
   }
+  int CellWidth(HDC dc, const TaskbarCell& cell) {
+    if (!cell.segmented) return TextWidth(dc, cell.text);
+    int width = TextWidth(dc, cell.label) + TextWidth(dc, cell.value) + TextWidth(dc, cell.suffix);
+    if (!cell.label.empty() && (!cell.value.empty() || !cell.suffix.empty()))
+      width += MulDiv(frame.label_value_gap, static_cast<int>(font_dpi), 96);
+    if (!cell.value.empty() && !cell.suffix.empty()) width += MulDiv(4, static_cast<int>(font_dpi), 96);
+    return width;
+  }
   std::vector<int> DesiredColumns(HDC dc) {
     std::vector<int> widths((frame.cells.size() + frame.line_count - 1) / frame.line_count, 1);
     for (size_t i = 0; i < frame.cells.size(); ++i) {
-      auto& width = widths[i / frame.line_count]; width = (std::max)(width, TextWidth(dc, frame.cells[i].text));
+      auto& width = widths[i / frame.line_count]; width = (std::max)(width, CellWidth(dc, frame.cells[i]));
     }
     return widths;
   }
@@ -322,7 +344,48 @@ struct Host {
     for (int width : widths) pixels += width;
     if (!widths.empty()) pixels += static_cast<int>(widths.size() - 1) * MulDiv(frame.item_gap, static_cast<int>(font_dpi), 96);
     SelectObject(dc, previous); DeleteDC(dc);
-    return (std::clamp)((pixels * 96 + static_cast<int>(font_dpi) - 1) / static_cast<int>(font_dpi), 64, frame.width);
+    return (std::max)(64, (pixels * 96 + static_cast<int>(font_dpi) - 1) / static_cast<int>(font_dpi));
+  }
+  void UpdatePagination(int width) {
+    HDC dc = CreateCompatibleDC(nullptr);
+    if (!dc) return;
+    const auto previous = GetCurrentObject(dc, OBJ_FONT);
+    const int padding = MulDiv(4, static_cast<int>(font_dpi), 96);
+    auto next = taskbar::PaginateColumns(DesiredColumns(dc), (std::max)(0, width - 2 * padding),
+        MulDiv(frame.item_gap, static_cast<int>(font_dpi), 96));
+    SelectObject(dc, previous); DeleteDC(dc);
+    bool equal = next.size() == pages.size();
+    for (size_t i = 0; equal && i < next.size(); ++i)
+      equal = next[i].first == pages[i].first && next[i].widths == pages[i].widths;
+    if (equal) return;
+    const size_t anchor = page_index < pages.size() ? pages[page_index].first : 0;
+    pages = std::move(next); page_index = 0;
+    for (size_t i = 0; i < pages.size() && pages[i].first <= anchor; ++i) page_index = i;
+    paging_dirty = true;
+    if (pages.size() <= 1) { page_index = 0; next_page_at = 0; }
+  }
+  ULONGLONG CarouselInterval() const { return static_cast<ULONGLONG>(frame.carousel_interval_seconds) * 1000; }
+  bool AdvancePage(ULONGLONG now) {
+    if (pages.size() <= 1 || !frame.auto_carousel || hovered) {
+      next_page_at = now + CarouselInterval(); return false;
+    }
+    if (next_page_at == 0) { next_page_at = now + CarouselInterval(); return false; }
+    if (now < next_page_at) return false;
+    page_index = (page_index + 1) % pages.size(); next_page_at = now + CarouselInterval(); return true;
+  }
+  void SetHovered(bool value, ULONGLONG now) {
+    hovered = value; next_page_at = now + CarouselInterval();
+  }
+  bool ScrollPages(int delta, ULONGLONG now) {
+    if (pages.size() <= 1) return false;
+    next_page_at = now + CarouselInterval();
+    wheel_remainder += delta;
+    const int steps = wheel_remainder / WHEEL_DELTA;
+    wheel_remainder %= WHEEL_DELTA;
+    if (steps == 0) return false;
+    const int count = static_cast<int>(pages.size());
+    page_index = static_cast<size_t>((static_cast<int>(page_index) - steps % count + count) % count);
+    paging_dirty = true; return true;
   }
   std::vector<uint32_t> RenderPixels(int width, int height) {
     PixelSurface mask(width, height);
@@ -336,41 +399,60 @@ struct Host {
     SetBkMode(mask.dc, TRANSPARENT); SetTextColor(mask.dc, RGB(255, 255, 255));
     const int padding = MulDiv(4, static_cast<int>(font_dpi), 96);
     const int gap = MulDiv(frame.item_gap, static_cast<int>(font_dpi), 96);
-    const auto desired = DesiredColumns(mask.dc);
+    UpdatePagination(width);
+    if (pages.empty()) return pixels;
+    const auto& page = pages[page_index];
     SelectObject(mask.dc, text_font); SIZE ellipsis_size{}; GetTextExtentPoint32W(mask.dc, L"…", 1, &ellipsis_size);
-    const auto widths = taskbar::CompactColumns(desired, (std::max)(0, width - 2 * padding), gap, (std::max)(1L, ellipsis_size.cx));
-    int left = padding;
-    for (size_t col = 0; col < widths.size(); ++col) {
-      for (int row = 0; row < frame.line_count; ++row) {
-        const size_t i = col * frame.line_count + row;
-        if (i >= frame.cells.size() || widths[col] <= 0) continue;
-        const auto& cell = frame.cells[i];
-        const RECT r{left, row * height / frame.line_count, left + widths[col], (row + 1) * height / frame.line_count};
-        std::wstring text = cell.text;
-        if (col + 1 == widths.size() && widths.size() < desired.size()) text += L" …";
-        const bool clipped = TextWidth(mask.dc, text, &r) > widths[col];
-        if (clipped) {
-          SelectObject(mask.dc, text_font);
-          RECT tail{(std::max)(r.left, r.right - ellipsis_size.cx), r.top, r.right, r.bottom};
-          FillRect(mask.dc, &tail, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
-          DrawTextW(mask.dc, L"…", 1, &tail, DT_SINGLELINE | DT_VCENTER | DT_RIGHT);
+    const auto draw_run = [&](const std::wstring& text, uint32_t color, const RECT& r) {
+      if (text.empty() || r.right <= r.left) return;
+      FillRect(mask.dc, &r, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+      TextWidth(mask.dc, text, &r); GdiFlush();
+      for (int y = r.top; y < r.bottom; ++y) for (int x = r.left; x < r.right; ++x) {
+        const auto index = static_cast<size_t>(y) * width + x;
+        const uint32_t coverage = mask.pixels[index] & 255;
+        const uint32_t inverse = 255 - coverage;
+        const uint32_t alpha = coverage + (((background >> 24) * inverse + 127) / 255);
+        uint32_t result = alpha << 24;
+        for (int shift = 0; shift <= 16; shift += 8) {
+          const uint32_t channel = ((((color >> shift) & 255) * coverage + ((background >> shift) & 255) * inverse + 127) / 255);
+          result |= channel << shift;
         }
-        GdiFlush();
+        pixels[index] = result;
+      }
+    };
+    int left = padding;
+    for (size_t col = 0; col < page.widths.size(); ++col) {
+      for (int row = 0; row < frame.line_count; ++row) {
+        const size_t i = (page.first + col) * frame.line_count + row;
+        if (i >= frame.cells.size() || page.widths[col] <= 0) continue;
+        const auto& cell = frame.cells[i];
+        const RECT r{left, row * height / frame.line_count, left + page.widths[col], (row + 1) * height / frame.line_count};
+        const bool clipped = CellWidth(mask.dc, cell) > page.widths[col];
+        const LONG content_right = clipped ? (std::max)(r.left, r.right - ellipsis_size.cx) : r.right;
         const uint32_t color = cell.color == 0 ? frame.foreground : cell.color;
-        for (int y = r.top; y < r.bottom; ++y) for (int x = r.left; x < r.right; ++x) {
-          const auto index = static_cast<size_t>(y) * width + x;
-          const uint32_t coverage = mask.pixels[index] & 255; // Grayscale glyph mask; no ClearType fringe.
-          const uint32_t inverse = 255 - coverage;
-          const uint32_t alpha = coverage + (((background >> 24) * inverse + 127) / 255);
-          uint32_t result = alpha << 24;
-          for (int shift = 0; shift <= 16; shift += 8) {
-            const uint32_t channel = ((((color >> shift) & 255) * coverage + ((background >> shift) & 255) * inverse + 127) / 255);
-            result |= channel << shift;
+        if (!cell.segmented) {
+          draw_run(cell.text, color, {r.left, r.top, content_right, r.bottom});
+        } else {
+          LONG x = r.left;
+          const auto segment = [&](const std::wstring& text, uint32_t segment_color) {
+            const int measured = TextWidth(mask.dc, text);
+            const LONG end = (std::min)(content_right, x + measured);
+            if (x < content_right) draw_run(text, segment_color, {x, r.top, end, r.bottom});
+            x += measured;
+          };
+          segment(cell.label, frame.foreground);
+          if (!cell.label.empty() && (!cell.value.empty() || !cell.suffix.empty())) {
+            x += MulDiv(frame.label_value_gap, static_cast<int>(font_dpi), 96);
           }
-          pixels[index] = result;
+          segment(cell.value, color);
+          if (!cell.value.empty() && !cell.suffix.empty()) x += MulDiv(4, static_cast<int>(font_dpi), 96);
+          segment(cell.suffix, cell.suffix_color == 0 ? frame.foreground : cell.suffix_color);
+        }
+        if (clipped) {
+          draw_run(L"…", frame.foreground, {content_right, r.top, r.right, r.bottom});
         }
       }
-      left += widths[col] + gap;
+      left += page.widths[col] + gap;
     }
     return pixels;
   }
@@ -470,6 +552,23 @@ LRESULT CALLBACK DisplayProc(HWND hwnd, UINT message, WPARAM wparam, LPARAM lpar
       case WM_NOTIFY: if (host->TooltipNotification(reinterpret_cast<NMHDR*>(lparam))) return 0; break;
       case WM_CONTEXTMENU: host->Menu(lparam); return 0;
       case WM_MOUSEACTIVATE: return MA_NOACTIVATE;
+      case WM_MOUSEMOVE: {
+        if (!host->hovered) {
+          TRACKMOUSEEVENT track{sizeof(track), TME_LEAVE, hwnd, 0};
+          if (TrackMouseEvent(&track)) host->SetHovered(true, GetTickCount64());
+        }
+        return 0;
+      }
+      case WM_MOUSELEAVE: host->SetHovered(false, GetTickCount64()); return 0;
+      case WM_MOUSEWHEEL:
+      case WM_MOUSEHWHEEL: {
+        const int delta = static_cast<short>(HIWORD(wparam)) * (message == WM_MOUSEHWHEEL ? -1 : 1);
+        if (host->ScrollPages(delta, GetTickCount64()) && host->display) {
+          host->Tooltip();
+          if (host->Present()) host->paging_dirty = false;
+        }
+        return 0;
+      }
       case WM_LBUTTONDBLCLK: {
         std::lock_guard<std::mutex> lock(host->mutex);
         if (host->actions.size() < 32) host->actions.push_back(taskbar::Action::settings);

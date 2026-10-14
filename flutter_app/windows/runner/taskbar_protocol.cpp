@@ -87,11 +87,14 @@ bool ValidateFrame(const TaskbarFrame& f) {
   if (f.width < 64 || f.width > 1600 || (f.line_count != 1 && f.line_count != 2) ||
       !std::isfinite(f.font_size) || f.font_size < 6 || f.font_size > 32 ||
       !TextValid(f.font_family, 128, false) || !TextValid(f.number_font_family, 128, false) ||
-      f.cells.size() > 32 || f.item_gap < 0 || f.item_gap > 24) return false;
-  size_t size = 64 + 2 * (f.font_family.size() + f.number_font_family.size());
+      f.cells.size() > 256 || f.item_gap < 0 || f.item_gap > 24 ||
+      f.label_value_gap < 0 || f.label_value_gap > 24 ||
+      f.carousel_interval_seconds < 2 || f.carousel_interval_seconds > 60) return false;
+  size_t size = 68 + 2 * (f.font_family.size() + f.number_font_family.size());
   for (const auto& cell : f.cells) {
-    if (!TextValid(cell.text, 2048) || !TextValid(cell.tooltip, 4096)) return false;
-    size += 12 + 2 * (cell.text.size() + cell.tooltip.size());
+    if (!TextValid(cell.text, 2048) || !TextValid(cell.tooltip, 4096) ||
+        !TextValid(cell.label, 2048) || !TextValid(cell.value, 2048) || !TextValid(cell.suffix, 2048)) return false;
+    size += 32 + 2 * (cell.text.size() + cell.tooltip.size() + cell.label.size() + cell.value.size() + cell.suffix.size());
   }
   return size <= kMaxPacket - 16;
 }
@@ -106,6 +109,12 @@ bool EncodeFrame(const TaskbarFrame& f, std::vector<uint8_t>* out) {
   Put(out, static_cast<uint32_t>(f.cells.size()));
   for (const auto& cell : f.cells) { Put(out, cell.color); PutText(out, cell.text); PutText(out, cell.tooltip); }
   Put(out, f.transparent_background ? 1 : 0); Put(out, static_cast<uint32_t>(f.item_gap));
+  Put(out, static_cast<uint32_t>(f.label_value_gap)); Put(out, f.auto_carousel ? 1 : 0);
+  Put(out, static_cast<uint32_t>(f.carousel_interval_seconds)); Put(out, static_cast<uint32_t>(f.cells.size()));
+  for (const auto& cell : f.cells) {
+    Put(out, cell.segmented ? 1 : 0); PutText(out, cell.label); PutText(out, cell.value);
+    PutText(out, cell.suffix); Put(out, cell.suffix_color);
+  }
   return true;
 }
 bool DecodeFrame(const std::vector<uint8_t>& bytes, TaskbarFrame* out) {
@@ -115,7 +124,7 @@ bool DecodeFrame(const std::vector<uint8_t>& bytes, TaskbarFrame* out) {
       !r.Number(&width) || !r.Number(&rows) || !r.Number(&lo) || !r.Number(&hi) ||
       !r.Number(&f.background) || !r.Number(&f.foreground) ||
       !r.Text(&f.font_family, 128) || !r.Text(&f.number_font_family, 128) ||
-      !r.Number(&count) || count > 32 || width > 1600 || rows > 2) return false;
+      !r.Number(&count) || count > 256 || width > 1600 || rows > 2) return false;
   f.enabled = enabled == 1; f.chinese = chinese == 1;
   f.width = static_cast<int>(width); f.line_count = static_cast<int>(rows);
   uint64_t bits = lo | (static_cast<uint64_t>(hi) << 32);
@@ -130,6 +139,20 @@ bool DecodeFrame(const std::vector<uint8_t>& bytes, TaskbarFrame* out) {
     uint32_t transparent, gap;
     if (!r.Number(&transparent) || transparent > 1 || !r.Number(&gap) || gap > 24) return false;
     f.transparent_background = transparent == 1; f.item_gap = static_cast<int>(gap);
+  }
+  if (r.pos != bytes.size()) {
+    uint32_t gap, automatic, interval, segmented_count;
+    if (!r.Number(&gap) || gap > 24 || !r.Number(&automatic) || automatic > 1 ||
+        !r.Number(&interval) || interval < 2 || interval > 60 ||
+        !r.Number(&segmented_count) || segmented_count != count) return false;
+    f.label_value_gap = static_cast<int>(gap); f.auto_carousel = automatic == 1;
+    f.carousel_interval_seconds = static_cast<int>(interval);
+    for (auto& cell : f.cells) {
+      uint32_t segmented;
+      if (!r.Number(&segmented) || segmented > 1 || !r.Text(&cell.label, 2048) ||
+          !r.Text(&cell.value, 2048) || !r.Text(&cell.suffix, 2048) || !r.Number(&cell.suffix_color)) return false;
+      cell.segmented = segmented == 1;
+    }
   }
   if (r.pos != bytes.size() || !ValidateFrame(f)) return false;
   *out = std::move(f); return true;

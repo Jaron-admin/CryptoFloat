@@ -1,5 +1,23 @@
 # DuoMonitor 更新记录 / Changelog
 
+## 1.6.0
+
+### 简体中文
+
+- 设置页固定显示当前目标的实时预览，调整字体、颜色、布局、间距或价格精度后立即看到草稿效果；保留保存和关闭时自动保存的行为。
+- 修复任务栏将价格与 24h 涨跌幅统一着色的问题。价格继续比较上次刷新，24h 百分比按自身正负独立着色。
+- 悬浮窗横向布局改为紧凑的名称与数值列，保留数字右对齐；增加名称与数值间距、列间距设置。任务栏增加名称与数值间距，保留项目间距。
+- 任务栏宽度自动使用检测到的空白区域，移除人为的最大宽度限制；空间不足时按完整项目组分页，支持滚轮和自动轮播。轮播间隔可设 2–60 秒，默认 5 秒；悬停或手动滚动时暂停，也可选择仅滚轮模式。
+- 每个行情项目可独立选择普通数字或 K/M/B 缩写，以及自动或 0–8 位小数。例如 BTC 可显示为 `81.7K`。悬浮窗和任务栏独立保存，原始数据与涨跌计算不受影响。
+
+### English
+
+- Added a fixed live preview for the selected display in Settings. Draft font, color, layout, spacing, and precision changes render immediately; Save and save-on-close behavior are preserved.
+- Fixed taskbar prices and 24h percentages sharing one color. Prices compare with the previous refresh; each 24h percentage uses its own sign.
+- Floating horizontal rows now use compact label/value columns with right-aligned numbers. Label/value and column spacing are configurable; the taskbar adds label/value spacing alongside item spacing.
+- Taskbar width uses verified free space without an arbitrary maximum. Overflow pages keep complete item groups and support the mouse wheel or automatic rotation. The interval is configurable from 2–60 seconds (default 5); hover or manual scrolling pauses rotation, and manual-only mode is available.
+- Per-asset price formatting supports standard or K/M/B notation and automatic or 0–8 decimal places, such as `81.7K` for BTC. Each display stores its own choices; source prices and change calculations remain unchanged.
+
 ## 1.5.0
 
 ### 简体中文

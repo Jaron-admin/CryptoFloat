@@ -1,4 +1,4 @@
-# DuoMonitor 1.5.0 · Portable Windows app
+# DuoMonitor 1.6.0 · Portable Windows app
 
 [简体中文](README.md) · **English**
 
@@ -68,13 +68,13 @@ The floating market panel and taskbar monitoring are enabled by default. The tas
 
 **Price color** applies to both the floating panel and taskbar, with default theme text, theme up/down colors, green-up/red-down, and red-up/green-down options. Direction compares consecutive successful price refreshes. The first successful refresh, an unchanged price, or a failed refresh is neutral. Failures keep the last successful price as the next comparison baseline. The 24h percentage retains its own value and sign color and can be hidden independently; it does not determine the price color. Section captions identify settings shared by both displays or limited to one display.
 
-**Taskbar layout** has its own enable switch, maximum width, one/two rows, transparent background, and item spacing. The background is transparent by default, or can use the taskbar's palette. Floating transparency does not affect the taskbar. Maximum width is a limit: short content uses its actual text width, two rows share the wider entry's column width, and long text is shortened when space is limited.
+**Taskbar layout** controls enablement, one/two rows, background, label/value spacing, item spacing and overflow behavior. Width follows actual text and verified free space without an arbitrary cap. Overflow pages keep complete columns and support the mouse wheel or automatic rotation. The interval is configurable from 2–60 seconds (default 5); hover and manual scrolling pause rotation. A single item wider than the available space is shortened, with details available on hover.
 
-With centered Windows taskbar icons, data starts in the far-left available space, avoiding weather, widgets, and other controls. Insufficient space on that side pauses the display. Left-aligned Windows taskbars use the right-side gap.
+With centered Windows taskbar icons, data prefers sufficient far-left space, otherwise the widest verified gap, avoiding weather, widgets and other controls. Unreliable space detection pauses the display.
 
 **Labels** offers short or full labels. Automatic cryptocurrency labels remove a recognized quote-currency suffix, such as BTC-USDT → BTC. **Custom labels** lets you name individual quotes, metrics, API fields, and display rows in the taskbar; leave a label blank to restore its automatic name. These labels preserve source names, field identifiers, and data. Tooltips retain original names and values.
 
-Preview draft changes in Settings, then save manually or leave Settings to apply them. A failed save retains the draft. Before deleting shared sources or fields, remove references in both displays, including a disabled display.
+The fixed Settings preview renders the selected display using its current draft and available live data. Font, palette, spacing, layout and precision changes appear immediately. Save manually or leave Settings to apply them; a failed save retains the draft. **Display layout → Price display precision** offers standard or K/M/B notation and automatic or 0–8 decimals per asset: `81,678.42` can display as `81.7K`. K means thousand, M million, and B billion. Each display stores its own choices; source prices and change calculations remain unchanged. Newly added assets awaiting data show `—`. Before deleting shared sources or fields, remove references in both displays, including a disabled display.
 
 Taskbar integration targets the standard primary Windows taskbar using a separate native text helper. Secondary taskbars and third-party replacements are outside the current scope. Windows 11 has no supported reserved slot for third-party content. The helper attempts to display only when a usable region is confirmed, without moving shell controls. Insufficient space or an unknown layout pauses it and retains settings. Settings shows the helper's reported disabled, displaying, waiting, no-space, unsupported, or error state; “Displaying” alone does not verify visible content. v1.4 fixes the reproduced Windows 11 composition issue that hid taskbar content, with visible metrics confirmed on one real desktop setup. Other Windows versions and desktop layouts still need compatibility testing.
 
@@ -151,7 +151,7 @@ flutter build windows --release
 Create a distributable folder and ZIP:
 
 ```powershell
-./tool/build_windows.ps1 -PackageName DuoMonitor-Windows-x64-1.5.0
+./tool/build_windows.ps1 -PackageName DuoMonitor-Windows-x64-1.6.0
 ```
 
 Output is written under `dist/`. The package contains `duomonitor.exe`, `duomonitor_taskbar.exe`, Chinese and English usage guides, the changelog, the project license, and third-party license texts. Packaging starts in a new staging directory and copies only allowlisted executables, libraries, and Flutter resources; it excludes `user_data`, logs, and temporary test files. A missing required helper fails packaging. An existing target directory or ZIP causes an error: choose a new `-PackageName` instead. Existing app directories are never overwritten or emptied. Debugging information is kept in a separate directory; distribute the generated ZIP. If Flutter is not on PATH, pass its command path with `-Flutter`.

@@ -2,6 +2,41 @@ import 'models.dart';
 import 'unit_conversion.dart';
 import 'system_metric.dart';
 
+String formatAssetPrice(Object? value, String assetId, AppConfig config) =>
+    formatPriceValue(
+      value,
+      format: config.priceFormats[assetId] ?? const PriceDisplayFormat(),
+    );
+
+/// Display formatting only; quote storage, conversions and tick comparisons
+/// always keep their original values.
+String formatPriceValue(
+  Object? value, {
+  PriceDisplayFormat format = const PriceDisplayFormat(),
+}) {
+  final number = value is num ? value : num.tryParse('$value');
+  if (value == null || number == null || !number.isFinite) return '—';
+  final requested = format.decimalPlaces?.clamp(0, 8);
+  if (!format.compact || number.abs() < 1000) {
+    return formatValue(number, requested == null ? '' : '.${requested}f');
+  }
+  const divisors = [1.0, 1000.0, 1000000.0, 1000000000.0];
+  const suffixes = ['', 'K', 'M', 'B'];
+  var index = number.abs() >= divisors[3]
+      ? 3
+      : number.abs() >= divisors[2]
+      ? 2
+      : 1;
+  final digits = requested ?? 1;
+  // Carry rounded 999.95K into 1.0M rather than displaying 1,000.0K.
+  if (index < 3 &&
+      double.parse((number / divisors[index]).abs().toStringAsFixed(digits)) >=
+          1000) {
+    index++;
+  }
+  return '${formatValue(number / divisors[index], '.${digits}f')}${suffixes[index]}';
+}
+
 String formatValue(Object? value, [String format = '']) {
   if (value == null) return '—';
   if (format == 'raw') return '$value';
@@ -109,7 +144,12 @@ String renderSegment(
       return displayUnitLabel(converted.unit, config);
     }
   }
-  final text = formatValue(value, segment.format);
+  final text =
+      segment.fieldId == 'price' &&
+          segment.format.isEmpty &&
+          !segment.assetId!.startsWith('custom:')
+      ? formatAssetPrice(value, segment.assetId!, config)
+      : formatValue(value, segment.format);
   return unit.isEmpty ? text : '$text ${displayUnitLabel(unit, config)}';
 }
 

@@ -161,6 +161,10 @@ void main() {
         'text': 'Ether 2,000 USDT',
         'tooltip': 'ETH-USDT 2,000 USDT +2.50%',
         'color': 0xff123456,
+        'label': 'Ether',
+        'value': '2,000 USDT',
+        'suffix': '',
+        'suffixColor': 0xffaabbcc,
       },
     ]);
     expect(jsonEncode(frame), isNot(contains('asset:OKX:ETH-USDT')));

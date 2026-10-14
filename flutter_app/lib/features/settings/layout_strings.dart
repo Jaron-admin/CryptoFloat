@@ -17,6 +17,6 @@ class LayoutStrings {
   String get showChangePercent =>
       chinese ? '显示 24h 涨跌幅' : 'Show 24h change percentage';
   String get hiddenPercentHint => chinese
-      ? '关闭后只显示价格。价格是否着色由共享的价格颜色决定。'
-      : 'When hidden, only the price is shown. Color follows the shared price color setting.';
+      ? '百分比按 24h 涨跌独立着色；价格比较上次刷新。关闭后只显示价格。'
+      : 'Percentage color follows its own 24h change; price color compares refreshes. Hide to show only the price.';
 }

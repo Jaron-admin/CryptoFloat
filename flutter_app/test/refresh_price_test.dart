@@ -6,6 +6,7 @@ import 'package:cryptofloat/data/market_data_service.dart';
 import 'package:cryptofloat/domain/models.dart';
 import 'package:cryptofloat/domain/refresh_price.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/settings_fakes.dart';
@@ -32,6 +33,74 @@ class _QuoteTransport extends HttpTransport {
 
 void main() {
   final t0 = DateTime.utc(2026, 1, 1);
+
+  testWidgets('published taskbar keeps negative 24h color when price rises', (
+    tester,
+  ) async {
+    const channel = MethodChannel('cryptofloat/platform');
+    final frames = <Map<Object?, Object?>>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+      call,
+    ) async {
+      if (call.method == 'taskbar.update') {
+        frames.add(Map<Object?, Object?>.from(call.arguments as Map));
+        return {'state': 'displaying'};
+      }
+      return null;
+    });
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        channel,
+        null,
+      ),
+    );
+    final config = AppConfig.defaults.copyWith(
+      selectedAssetIds: [],
+      priceColorMode: 'greenUp',
+      taskbar: const TaskbarConfig(
+        profile: DisplayProfile(
+          selectedAssetIds: ['OKX:BTC-USDT'],
+          themeMode: 'light',
+          marketColorStyle: 'greenUp',
+        ),
+      ),
+    );
+    final transport = _QuoteTransport()..price = 80;
+    final service = MarketDataService(
+      config,
+      SettingsSecrets(),
+      transport: transport,
+    );
+    final controller = AppController(
+      config: config,
+      store: SettingsStore(),
+      host: SettingsHost(),
+      secrets: SettingsSecrets(),
+      assetCatalog: SettingsCatalog(),
+      marketData: service,
+    );
+    try {
+      await tester.pump();
+      transport.price = 85;
+      await service.refresh(force: true);
+      await tester.pump();
+      expect(controller.priceTickFor('OKX:BTC-USDT'), PriceTick.up);
+      await controller.publishTaskbar();
+      final cell = (frames.last['cells'] as List).single as Map;
+      expect(cell['color'], const Color(0xFF107C10).toARGB32());
+      expect(cell['suffixColor'], const Color(0xFFC50F1F).toARGB32());
+      expect(cell['suffix'], startsWith('-'));
+      await controller.apply(config.copyWith(priceColorMode: 'plain'));
+      await tester.pump();
+      await controller.publishTaskbar();
+      final plain = (frames.last['cells'] as List).single as Map;
+      expect(plain['color'], isNot(const Color(0xFF107C10).toARGB32()));
+      expect(plain['suffixColor'], const Color(0xFFC50F1F).toARGB32());
+    } finally {
+      controller.dispose();
+      await tester.pump();
+    }
+  }, variant: TargetPlatformVariant({TargetPlatform.windows}));
 
   MarketQuote quote(
     String id,

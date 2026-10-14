@@ -25,6 +25,8 @@ import 'row_editor.dart';
 import 'template_picker.dart';
 import 'settings_catalog.dart';
 import 'settings_theme_picker.dart';
+import 'settings_live_preview.dart';
+import 'price_format_settings.dart';
 
 part 'settings_dialogs.dart';
 
@@ -50,6 +52,7 @@ class _SettingsPageState extends State<SettingsPage> {
   late AppConfig _rootDraft;
   DisplayTarget _target = DisplayTarget.floating;
   AppConfig get _draft => _rootDraft.displayFor(_target);
+  bool get _compactHeight => MediaQuery.sizeOf(context).height < 480;
   set _draft(AppConfig value) {
     final before = _draft;
     var updated = value;
@@ -315,15 +318,23 @@ class _SettingsPageState extends State<SettingsPage> {
                     segments: [
                       ButtonSegment(
                         value: DisplayTarget.floating,
-                        icon: const Icon(
-                          Icons.picture_in_picture_alt,
-                          size: 18,
+                        icon: _compactHeight
+                            ? null
+                            : const Icon(
+                                Icons.picture_in_picture_alt,
+                                size: 18,
+                              ),
+                        label: Text(
+                          _compactHeight && !context.metrics.chinese
+                              ? 'Floating'
+                              : context.metrics.floating,
                         ),
-                        label: Text(context.metrics.floating),
                       ),
                       ButtonSegment(
                         value: DisplayTarget.taskbar,
-                        icon: const Icon(Icons.dock_outlined, size: 18),
+                        icon: _compactHeight
+                            ? null
+                            : const Icon(Icons.dock_outlined, size: 18),
                         label: Text(context.metrics.taskbar),
                       ),
                     ],
@@ -372,6 +383,18 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                 ),
+              SizedBox(
+                height: MediaQuery.sizeOf(context).height >= 740
+                    ? 190
+                    : MediaQuery.sizeOf(context).height < 480
+                    ? 104
+                    : 150,
+                child: SettingsLivePreview(
+                  controller: widget.controller,
+                  config: _draft,
+                  target: _target,
+                ),
+              ),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -385,6 +408,50 @@ class _SettingsPageState extends State<SettingsPage> {
                           ? _sectionBody()
                           : _searchResults(),
                     );
+                    if (narrow && constraints.maxHeight < 200) {
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Row(
+                              children: [
+                                Expanded(child: _searchField()),
+                                PopupMenuButton<int>(
+                                  key: const ValueKey(
+                                    'compact-settings-categories',
+                                  ),
+                                  tooltip: context.metrics.chinese
+                                      ? '设置分类'
+                                      : 'Settings sections',
+                                  icon: const Icon(
+                                    Icons.tune_rounded,
+                                    size: 20,
+                                  ),
+                                  initialValue: _section,
+                                  onSelected: (value) => _selectSection(value),
+                                  itemBuilder: (context) => [
+                                    for (
+                                      var i = 0;
+                                      i < settingsCategories.length;
+                                      i++
+                                    )
+                                      PopupMenuItem(
+                                        value: i,
+                                        child: Text(
+                                          settingsCategories[i].title(
+                                            context.l10n,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(child: body),
+                        ],
+                      );
+                    }
                     if (narrow) {
                       return Column(
                         children: [
@@ -459,7 +526,7 @@ class _SettingsPageState extends State<SettingsPage> {
   );
 
   Widget _settingsHeader() => SizedBox(
-    height: 56,
+    height: _compactHeight ? 40 : 56,
     child: Row(
       children: [
         const SizedBox(width: 8),
@@ -575,7 +642,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _settingsFooter() => Container(
-    padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
+    padding: _compactHeight
+        ? const EdgeInsets.fromLTRB(12, 4, 12, 6)
+        : const EdgeInsets.fromLTRB(20, 10, 20, 14),
     child: Row(
       children: [
         Icon(
@@ -1745,6 +1814,14 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     ),
     _displayOrder(),
+    _card(
+      PriceFormatSettings(
+        config: _draft,
+        onChanged: _preview,
+        quotes: widget.controller.displayQuotes,
+        rates: widget.controller.data.exchangeRates,
+      ),
+    ),
     _anchor(
       'default-rows',
       _card(

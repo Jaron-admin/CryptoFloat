@@ -520,6 +520,7 @@ void main() {
       ),
       findsWidgets,
     );
+    await tester.ensureVisible(find.text('股票 / ETF'));
     await tester.tap(find.text('股票 / ETF'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);

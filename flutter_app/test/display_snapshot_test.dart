@@ -95,11 +95,11 @@ void main() {
   test(
     'taskbar overflow is explicit without losing the saved display content',
     () {
-      final cells = List.generate(40, (i) => DisplayText('Item', '$i'));
+      final cells = List.generate(300, (i) => DisplayText('Item', '$i'));
       final shown = taskbarVisibleCells(cells, chinese: false);
-      expect(shown.length, 32);
-      expect(shown.last.text, '+9 more');
-      expect(cells.length, 40);
+      expect(shown.length, 256);
+      expect(shown.last.text, '+45 more');
+      expect(cells.length, 300);
     },
   );
 }

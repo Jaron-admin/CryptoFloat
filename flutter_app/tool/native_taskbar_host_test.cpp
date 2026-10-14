@@ -14,6 +14,14 @@ int main() {
         clipped[0] + clipped[1] + clipped[2] + 12 == 100, "tight layout shrinks long columns without equal-width waste");
   const auto tiny = taskbar::CompactColumns({20, 100, 35}, 25, 6, 10);
   Check(tiny.size() == 1 && tiny[0] <= 25, "very narrow layout omits whole trailing columns safely");
+  const auto pages = taskbar::PaginateColumns({20, 60, 35, 150}, 100, 6);
+  Check(pages.size() == 3 && pages[0].first == 0 && pages[0].widths == std::vector<int>({20, 60}) &&
+        pages[1].first == 2 && pages[1].widths == std::vector<int>({35}) &&
+        pages[2].first == 3 && pages[2].widths == std::vector<int>({100}),
+        "pages keep full columns and isolate oversized columns without dropping any");
+  const auto many_pages = taskbar::PaginateColumns(std::vector<int>(256, 50), 106, 6);
+  Check(many_pages.size() == 128 && many_pages.back().first == 254,
+        "all 256 source columns remain reachable at narrow widths");
   Check(taskbar::IsOwnProcess(GetCurrentProcessId()) && !taskbar::IsOwnProcess(0) &&
         !taskbar::IsOwnProcess(GetCurrentProcessId() + 1), "self-process exclusion rejects only helper elements");
   TaskbarFrame frame;
@@ -30,12 +38,50 @@ int main() {
         decoded.font_size == 11 && decoded.cells[0].color == 0xFF00FF00 &&
         !decoded.transparent_background && decoded.item_gap == 13,
         "frame roundtrip preserves text and styles");
-  auto legacy = payload; legacy.resize(legacy.size() - 8);
+  auto legacy = payload;
+  size_t legacy_size = 44 + 2 * (frame.font_family.size() + frame.number_font_family.size());
+  for (const auto& cell : frame.cells) legacy_size += 12 + 2 * (cell.text.size() + cell.tooltip.size());
+  legacy.resize(legacy_size);
   Check(taskbar::DecodeFrame(legacy, &decoded) && decoded.transparent_background && decoded.item_gap == 6,
         "legacy wire frame gets transparent compact defaults");
   frame.item_gap = 25;
   Check(!taskbar::ValidateFrame(frame), "wire gap is bounded");
   frame.item_gap = 6;
+  auto extended = legacy;
+  const auto append_number = [&extended](uint32_t value) {
+    for (int i = 0; i < 4; ++i) extended.push_back(static_cast<uint8_t>(value >> (i * 8)));
+  };
+  const auto append_text = [&extended, &append_number](const std::wstring& value) {
+    append_number(static_cast<uint32_t>(value.size()));
+    for (wchar_t ch : value) {
+      extended.push_back(static_cast<uint8_t>(ch));
+      extended.push_back(static_cast<uint8_t>(ch >> 8));
+    }
+  };
+  append_number(1); append_number(6);  // Existing transparent/gap extension.
+  append_number(4); append_number(1); append_number(5); append_number(2);
+  for (int i = 0; i < 2; ++i) {
+    append_number(1); append_text(L"BTC"); append_text(L"123");
+    append_text(L"-1.5%"); append_number(0xFFFF0000);
+  }
+  Check(taskbar::DecodeFrame(extended, &decoded) && decoded.label_value_gap == 4 && decoded.auto_carousel &&
+        decoded.carousel_interval_seconds == 5 && decoded.cells[0].segmented && decoded.cells[0].label == L"BTC" &&
+        decoded.cells[0].value == L"123" && decoded.cells[0].suffix == L"-1.5%" && decoded.cells[0].suffix_color == 0xFFFF0000,
+        "segmented colors and carousel wire extension is accepted");
+  decoded.label_value_gap = 24; decoded.auto_carousel = false; decoded.carousel_interval_seconds = 60;
+  Check(taskbar::EncodeFrame(decoded, &payload) && payload.size() == extended.size() &&
+        taskbar::DecodeFrame(payload, &decoded) && !decoded.auto_carousel && decoded.carousel_interval_seconds == 60 &&
+        decoded.label_value_gap == 24 && decoded.cells[1].suffix_color == 0xFFFF0000,
+        "segmented roundtrip preserves separate color spacing and manual paging interval");
+  decoded.carousel_interval_seconds = 1;
+  Check(!taskbar::ValidateFrame(decoded), "carousel interval below two seconds is rejected");
+  decoded.carousel_interval_seconds = 61;
+  Check(!taskbar::ValidateFrame(decoded), "carousel interval above sixty seconds is rejected");
+  decoded.carousel_interval_seconds = 5; decoded.label_value_gap = 25;
+  Check(!taskbar::ValidateFrame(decoded), "label value gap is bounded independently");
+  frame.cells.assign(64, {L"CPU", 0, L"CPU usage"});
+  Check(taskbar::ValidateFrame(frame), "more than 32 bounded cells remain accessible to carousel");
+  frame.cells = {{L"CPU 23.5%", 0xFF00FF00, L"Processor usage"}, {L"内存 —", 0xFFFFFFFF, L"完整文字"}};
   frame.font_size = std::numeric_limits<double>::quiet_NaN();
   Check(!taskbar::ValidateFrame(frame), "reject NaN font");
   frame.font_size = std::numeric_limits<double>::infinity();
@@ -70,7 +116,7 @@ int main() {
   Check(!taskbar::ConsumePackets(&packet, &packets), "refuse oversized claimed length before allocation");
   frame.cells[0].text.assign(1, wchar_t{0xD800});
   Check(!taskbar::ValidateFrame(frame), "reject dangling UTF16 surrogate");
-  frame.cells[0].text = L"CPU"; frame.cells.assign(33, frame.cells[0]);
+  frame.cells[0].text = L"CPU"; frame.cells.assign(257, frame.cells[0]);
   Check(!taskbar::ValidateFrame(frame), "reject excessive cell count");
   frame.cells.resize(32);
   for (auto& cell : frame.cells) { cell.text.assign(2048, L'x'); cell.tooltip.assign(4096, L'y'); }
@@ -83,6 +129,12 @@ int main() {
   auto fit = taskbar::FitFreeRegion(layout, 360, 32);
   Check(fit.status == taskbar::Status::displaying && fit.rect.left == 1152 &&
         fit.rect.right == 1512 && fit.rect.top == 1008, "fits padded true free region");
+  auto wide_layout = layout;
+  wide_layout.bounds = {0, 1000, 3840, 1048};
+  wide_layout.occupied = {{0, 1000, 200, 1048}, {3500, 1000, 3840, 1048}};
+  const auto wide_fit = taskbar::FitFreeRegion(wide_layout, 2800, 32, 64);
+  Check(wide_fit.status == taskbar::Status::displaying && wide_fit.rect.right - wide_fit.rect.left == 2800,
+        "auto width uses verified wide gap without legacy 1600 pixel cap");
   auto compact_layout = layout;
   compact_layout.occupied = {{0, 1000, 1300, 1048}, {1520, 1000, 1920, 1048}};
   const auto compact_fit = taskbar::FitFreeRegion(compact_layout, 360, 32, 64);
@@ -104,11 +156,12 @@ int main() {
         centered_fit.rect.right == 568, "far-left placement avoids weather widgets with padding");
   centered.occupied = {{0, 1000, 400, 1048}, {600, 1000, 1100, 1048}, {1520, 1000, 1920, 1048}};
   centered_fit = taskbar::FitFreeRegion(centered, 360, 32, 64);
-  Check(centered_fit.status == taskbar::Status::displaying && centered_fit.rect.left == 408 &&
-        centered_fit.rect.right == 592, "centered taskbar compacts in far-left gap instead of choosing larger right gap");
+  Check(centered_fit.status == taskbar::Status::displaying && centered_fit.rect.left == 1108 &&
+        centered_fit.rect.right == 1468, "centered taskbar uses a verified complete fit when the far-left gap is too narrow");
   centered.occupied = {{0, 1000, 900, 1048}, {1520, 1000, 1920, 1048}};
-  Check(taskbar::FitFreeRegion(centered, 360, 32, 64).status == taskbar::Status::noSpace,
-        "centered taskbar does not cross midpoint or fall back right when left region is full");
+  centered_fit = taskbar::FitFreeRegion(centered, 360, 32, 64);
+  Check(centered_fit.status == taskbar::Status::displaying && centered_fit.rect.left == 908,
+        "centered taskbar uses verified free space beyond midpoint without covering icons");
   centered.occupied = {{0, 1000, 200, 1048}, {240, 1000, 340, 1048},
                        {700, 1000, 1200, 1048}, {1520, 1000, 1920, 1048}};
   centered_fit = taskbar::FitFreeRegion(centered, 360, 32, 64);

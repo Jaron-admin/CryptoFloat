@@ -33,6 +33,14 @@ class MetricsStrings {
   String get taskbarLayout => chinese ? '任务栏布局' : 'Taskbar layout';
   String get width => chinese ? '宽度' : 'Width';
   String get maximumWidth => chinese ? '最大宽度' : 'Maximum width';
+  String get adaptiveWidth => chinese
+      ? '宽度随内容自适应，自动使用任务栏可用空白区域。'
+      : 'Width fits the content and available taskbar space.';
+  String get overflowBehavior => chinese ? '空间不足时' : 'When space is limited';
+  String get autoCarousel => chinese ? '自动轮播' : 'Auto carousel';
+  String get manualWheel => chinese ? '手动滚轮翻页' : 'Mouse wheel';
+  String get carouselInterval => chinese ? '轮播间隔' : 'Carousel interval';
+  String get labelValueGap => chinese ? '名称与数值间距' : 'Label / value spacing';
   String get transparentBackground =>
       chinese ? '透明背景' : 'Transparent background';
   String get itemGap => chinese ? '项目间距' : 'Item spacing';

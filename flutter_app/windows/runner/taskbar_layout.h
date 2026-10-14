@@ -22,6 +22,13 @@ bool IsOwnProcess(DWORD process);
 // Desired physical text widths; keeps short columns small and caps only long ones.
 std::vector<int> CompactColumns(const std::vector<int>& desired, int available,
                                 int gap, int minimum);
+struct ColumnPage {
+  size_t first = 0;
+  std::vector<int> widths;
+};
+// Pack whole columns (including their paired rows); only an oversized single
+// column may be clipped. Every source column belongs to exactly one page.
+std::vector<ColumnPage> PaginateColumns(const std::vector<int>& desired, int available, int gap);
 // Helper-only discovery. Never invoked by the Flutter process or isolated tests.
 LayoutSnapshot DiscoverTaskbar(HWND taskbar, HWND own_window);
 }

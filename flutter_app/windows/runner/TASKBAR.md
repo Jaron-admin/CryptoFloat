@@ -17,13 +17,15 @@ right-anchored free-gap selection. It never writes Windows settings. The DWORD
 is an observed Explorer storage detail, not the different backup-data registry
 representation in Microsoft's Windows settings reference.
 
-With centered taskbar icons, placement scans padded occupied spans from the
-far-left edge and uses the first gap that meets the minimum width. Weather,
-widgets and every other discovered control remain occupied. A narrow gap can
-compact the data; eligibility ends at the taskbar midpoint, so insufficient
-left-side space pauses the surface rather than moving it into a right-side gap.
-Left-aligned icons retain the previous largest-useful-gap policy, anchored at
-the right edge of that gap. DPI-scaled padding and minimum widths are unchanged.
+Placement samples occupied spans every 200 ms and measures the complete text.
+The legacy configured width no longer caps the surface: it uses the measured
+content width or the widest usable verified gap, whichever is smaller. With
+centered taskbar icons it prefers the first gap that fits the content completely;
+otherwise it uses the widest verified gap. There is no arbitrary midpoint limit.
+Weather, widgets and every other discovered control remain occupied. Ties remain
+at the leftmost gap so equally sized alternatives do not cause jumping. With
+left-aligned icons, the chosen gap remains right-anchored. DPI-scaled padding,
+minimum widths, and the one-second discovery freshness requirement are unchanged.
 
 When the value is absent, the documented Windows 11 centered default is used
 only after a successful build >= 22000 query. A confirmed earlier build uses
@@ -57,12 +59,26 @@ bitmap rendering, and upload, then restores the caller's context and error code.
 This keeps the explicit size in the child's units: passing it from a PMv2 caller
 to an unaware child without the guard expanded a 64-pixel fixture to 112 pixels.
 
-`itemGap` is a logical pixel interval from 0 through 24, default 6. Column widths
-use the measured text and numeric fonts; two-row columns use the larger row.
-The configured width is a maximum. Short columns retain their measured widths;
-long columns are capped only when necessary. If even the ellipsis widths cannot
-fit, trailing columns are omitted and the final visible cell carries an ellipsis.
-Tooltips retain all full source text, including omitted cells.
+`itemGap` is a logical pixel interval from 0 through 24, default 6.
+`labelValueGap` independently controls the label/value interval, default 4 and
+also bounded to 0 through 24. Structured cells render their label in the neutral
+foreground, their value in the refresh-price color, and their 24-hour suffix in
+its own sign color. Legacy flattened text frames remain accepted.
+
+Column widths use the measured text and numeric fonts; two-row columns use the
+larger row. Overflow is paginated in complete columns, retaining each two-row
+pair. A single column wider than the entire available region occupies its own
+page and is ellipsized; no later column is discarded. The protocol accepts up to
+256 cells within the existing 64 KiB packet limit. Tooltips retain full transmitted
+source text and show the current page count.
+
+`overflowMode` accepts `auto` (default) or `manual`. Automatic paging defaults to
+five seconds and `carouselIntervalSeconds` accepts integers from 2 through 60.
+Hover pauses automatic paging; leaving or using the wheel grants a full interval
+before automatic paging resumes. Wheel input moves between pages in both modes,
+accumulates high-resolution deltas, and wraps at either end. Ordinary quote
+updates do not restart the carousel timer. No global input hooks are installed;
+wheel routing uses the display window's own Win32 mouse messages.
 
 ## Verification and boundaries
 

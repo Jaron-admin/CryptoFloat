@@ -13,6 +13,9 @@ class DisplayProfile {
     this.showDefaultRows = true,
     this.panelColumnCount = 1,
     this.panelItemLayout = 'horizontal',
+    this.panelLabelValueGap = 8,
+    this.panelColumnGap = 12,
+    this.priceFormats = const {},
     this.showChangePercent = true,
     this.marketColorStyle = 'theme',
     this.fontSize = 15,
@@ -44,6 +47,9 @@ class DisplayProfile {
   final bool showDefaultRows;
   final int panelColumnCount;
   final String panelItemLayout;
+  final double panelLabelValueGap;
+  final double panelColumnGap;
+  final Map<String, PriceDisplayFormat> priceFormats;
   final bool showChangePercent;
   final String marketColorStyle;
   final double fontSize;
@@ -87,6 +93,9 @@ class DisplayProfile {
     showDefaultRows: config.showDefaultRows,
     panelColumnCount: config.panelColumnCount,
     panelItemLayout: config.panelItemLayout,
+    panelLabelValueGap: config.panelLabelValueGap,
+    panelColumnGap: config.panelColumnGap,
+    priceFormats: config.priceFormats,
     showChangePercent: config.showChangePercent,
     marketColorStyle: config.marketColorStyle,
     fontSize: config.fontSize,
@@ -118,6 +127,9 @@ class DisplayProfile {
     showDefaultRows: showDefaultRows,
     panelColumnCount: panelColumnCount,
     panelItemLayout: panelItemLayout,
+    panelLabelValueGap: panelLabelValueGap,
+    panelColumnGap: panelColumnGap,
+    priceFormats: priceFormats,
     showChangePercent: showChangePercent,
     marketColorStyle: marketColorStyle,
     fontSize: fontSize,
@@ -149,6 +161,9 @@ class DisplayProfile {
     bool? showDefaultRows,
     int? panelColumnCount,
     String? panelItemLayout,
+    double? panelLabelValueGap,
+    double? panelColumnGap,
+    Map<String, PriceDisplayFormat>? priceFormats,
     bool? showChangePercent,
     String? marketColorStyle,
     double? fontSize,
@@ -180,6 +195,12 @@ class DisplayProfile {
     showDefaultRows: showDefaultRows ?? this.showDefaultRows,
     panelColumnCount: panelColumnCount ?? this.panelColumnCount,
     panelItemLayout: panelItemLayout ?? this.panelItemLayout,
+    panelLabelValueGap: _spacing(
+      panelLabelValueGap ?? this.panelLabelValueGap,
+      8,
+    ),
+    panelColumnGap: _spacing(panelColumnGap ?? this.panelColumnGap, 12),
+    priceFormats: priceFormats ?? this.priceFormats,
     showChangePercent: showChangePercent ?? this.showChangePercent,
     marketColorStyle: marketColorStyle ?? this.marketColorStyle,
     fontSize: fontSize ?? this.fontSize,
@@ -211,6 +232,11 @@ class DisplayProfile {
     'showDefaultRows': showDefaultRows,
     'panelColumnCount': panelColumnCount,
     'panelItemLayout': panelItemLayout,
+    'panelLabelValueGap': panelLabelValueGap,
+    'panelColumnGap': panelColumnGap,
+    'priceFormats': priceFormats.map(
+      (id, value) => MapEntry(id, value.toJson()),
+    ),
     'showChangePercent': showChangePercent,
     'marketColorStyle': marketColorStyle,
     'fontSize': fontSize,
@@ -246,6 +272,9 @@ class DisplayProfile {
           'showDefaultRows',
           'panelColumnCount',
           'panelItemLayout',
+          'panelLabelValueGap',
+          'panelColumnGap',
+          'priceFormats',
           'showChangePercent',
           'marketColorStyle',
           'unitLabelMode',
@@ -288,6 +317,9 @@ class TaskbarConfig {
     this.labelMode = 'short',
     this.labelAliases = const {},
     this.itemGap = 6,
+    this.labelValueGap = 4,
+    this.overflowMode = 'auto',
+    this.carouselIntervalSeconds = 5,
     this.transparentBackground = true,
     this.profile = DisplayProfile.taskbarDefaults,
   });
@@ -297,6 +329,9 @@ class TaskbarConfig {
   final String labelMode;
   final Map<String, String> labelAliases;
   final int itemGap;
+  final int labelValueGap;
+  final String overflowMode;
+  final int carouselIntervalSeconds;
   final bool transparentBackground;
   final DisplayProfile profile;
   TaskbarConfig copyWith({
@@ -306,6 +341,9 @@ class TaskbarConfig {
     String? labelMode,
     Map<String, String>? labelAliases,
     int? itemGap,
+    int? labelValueGap,
+    String? overflowMode,
+    int? carouselIntervalSeconds,
     bool? transparentBackground,
     DisplayProfile? profile,
   }) => TaskbarConfig(
@@ -315,6 +353,12 @@ class TaskbarConfig {
     labelMode: (labelMode ?? this.labelMode) == 'full' ? 'full' : 'short',
     labelAliases: _readTaskbarAliases(labelAliases ?? this.labelAliases),
     itemGap: (itemGap ?? this.itemGap).clamp(0, 24),
+    labelValueGap: (labelValueGap ?? this.labelValueGap).clamp(0, 24),
+    overflowMode: (overflowMode ?? this.overflowMode) == 'manual'
+        ? 'manual'
+        : 'auto',
+    carouselIntervalSeconds:
+        (carouselIntervalSeconds ?? this.carouselIntervalSeconds).clamp(2, 60),
     transparentBackground: transparentBackground ?? this.transparentBackground,
     profile: profile ?? this.profile,
   );
@@ -325,6 +369,9 @@ class TaskbarConfig {
     'labelMode': labelMode == 'full' ? 'full' : 'short',
     'labelAliases': _readTaskbarAliases(labelAliases),
     'itemGap': itemGap.clamp(0, 24),
+    'labelValueGap': labelValueGap.clamp(0, 24),
+    'overflowMode': overflowMode == 'manual' ? 'manual' : 'auto',
+    'carouselIntervalSeconds': carouselIntervalSeconds.clamp(2, 60),
     'transparentBackground': transparentBackground,
     'profile': profile.toJson(),
   };
@@ -335,6 +382,14 @@ class TaskbarConfig {
         : 360,
     lineCount: json['lineCount'] == 1 ? 1 : 2,
     labelMode: json['labelMode'] == 'full' ? 'full' : 'short',
+    labelValueGap: _taskbarInt(json['labelValueGap'], 4, 0, 24),
+    overflowMode: json['overflowMode'] == 'manual' ? 'manual' : 'auto',
+    carouselIntervalSeconds: _taskbarInt(
+      json['carouselIntervalSeconds'],
+      5,
+      2,
+      60,
+    ),
     labelAliases: _readTaskbarAliases(json['labelAliases']),
     itemGap: json['itemGap'] is num && (json['itemGap'] as num).isFinite
         ? (json['itemGap'] as num).toInt().clamp(0, 24)
@@ -347,6 +402,14 @@ class TaskbarConfig {
         : DisplayProfile.taskbarDefaults,
   );
 }
+
+double _spacing(double value, double fallback) =>
+    value.isFinite ? value.clamp(0, 48) : fallback;
+
+int _taskbarInt(Object? value, int fallback, int minimum, int maximum) =>
+    value is num && value.isFinite
+    ? value.toInt().clamp(minimum, maximum)
+    : fallback;
 
 /// Aliases are display-only plain text; identifiers remain byte-for-byte intact.
 String normalizeTaskbarAlias(String value) => String.fromCharCodes(

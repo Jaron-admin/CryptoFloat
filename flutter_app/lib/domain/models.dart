@@ -592,6 +592,28 @@ class UserThemePreset {
   );
 }
 
+class PriceDisplayFormat {
+  const PriceDisplayFormat({this.compact = false, this.decimalPlaces});
+
+  final bool compact;
+  final int? decimalPlaces;
+
+  Map<String, Object?> toJson() => {
+    'compact': compact,
+    'decimalPlaces': decimalPlaces?.clamp(0, 8),
+  };
+
+  factory PriceDisplayFormat.fromJson(Map<String, dynamic> json) =>
+      PriceDisplayFormat(
+        compact: json['compact'] == true,
+        decimalPlaces:
+            json['decimalPlaces'] is num &&
+                (json['decimalPlaces'] as num).isFinite
+            ? (json['decimalPlaces'] as num).toInt().clamp(0, 8)
+            : null,
+      );
+}
+
 class AppConfig {
   const AppConfig({
     required this.selectedAssetIds,
@@ -616,6 +638,9 @@ class AppConfig {
     this.showDefaultRows = true,
     this.panelColumnCount = 1,
     this.panelItemLayout = 'horizontal',
+    this.panelLabelValueGap = 8,
+    this.panelColumnGap = 12,
+    this.priceFormats = const {},
     this.showChangePercent = true,
     this.marketColorStyle = 'theme',
     this.priceColorMode = 'plain',
@@ -671,6 +696,9 @@ class AppConfig {
   final bool showDefaultRows;
   final int panelColumnCount;
   final String panelItemLayout;
+  final double panelLabelValueGap;
+  final double panelColumnGap;
+  final Map<String, PriceDisplayFormat> priceFormats;
   final bool showChangePercent;
   final String marketColorStyle;
   final String priceColorMode;
@@ -801,6 +829,9 @@ class AppConfig {
     bool? showDefaultRows,
     int? panelColumnCount,
     String? panelItemLayout,
+    double? panelLabelValueGap,
+    double? panelColumnGap,
+    Map<String, PriceDisplayFormat>? priceFormats,
     bool? showChangePercent,
     String? marketColorStyle,
     String? priceColorMode,
@@ -847,6 +878,15 @@ class AppConfig {
     showDefaultRows: showDefaultRows ?? this.showDefaultRows,
     panelColumnCount: panelColumnCount ?? this.panelColumnCount,
     panelItemLayout: panelItemLayout ?? this.panelItemLayout,
+    panelLabelValueGap: _double(
+      panelLabelValueGap ?? this.panelLabelValueGap,
+      8,
+    ).clamp(0, 48),
+    panelColumnGap: _double(
+      panelColumnGap ?? this.panelColumnGap,
+      12,
+    ).clamp(0, 48),
+    priceFormats: priceFormats ?? this.priceFormats,
     showChangePercent: showChangePercent ?? this.showChangePercent,
     marketColorStyle: marketColorStyle ?? this.marketColorStyle,
     priceColorMode: priceColorMode ?? this.priceColorMode,
@@ -886,6 +926,11 @@ class AppConfig {
       'showDefaultRows': showDefaultRows,
       'panelColumnCount': panelColumnCount,
       'panelItemLayout': panelItemLayout,
+      'panelLabelValueGap': panelLabelValueGap,
+      'panelColumnGap': panelColumnGap,
+      'priceFormats': priceFormats.map(
+        (id, value) => MapEntry(id, value.toJson()),
+      ),
       'showChangePercent': showChangePercent,
       'marketColorStyle': marketColorStyle,
       'unitLabelMode': unitLabelMode,
@@ -1025,6 +1070,19 @@ class AppConfig {
       ),
       showDefaultRows: _bool(display['showDefaultRows'], true),
       panelColumnCount: _int(display['panelColumnCount'], 1).clamp(1, 8),
+      panelLabelValueGap: _double(
+        display['panelLabelValueGap'],
+        8,
+      ).clamp(0, 48),
+      panelColumnGap: _double(display['panelColumnGap'], 12).clamp(0, 48),
+      priceFormats: Map.unmodifiable({
+        for (final entry in _map(display['priceFormats']).entries)
+          if (entry.key.trim().isNotEmpty &&
+              entry.value is Map<String, dynamic>)
+            normalizeAssetId(entry.key): PriceDisplayFormat.fromJson(
+              entry.value as Map<String, dynamic>,
+            ),
+      }),
       panelItemLayout: display['panelItemLayout'] == 'vertical'
           ? 'vertical'
           : 'horizontal',
@@ -1149,7 +1207,8 @@ String _priceColorMode(Object? value, Object? legacy) {
   const modes = {'plain', 'theme', 'greenUp', 'redUp'};
   if (value is String && modes.contains(value)) return value;
   if (value != null) return 'plain';
-  if (legacy is String && const {'theme', 'greenUp', 'redUp'}.contains(legacy)) {
+  if (legacy is String &&
+      const {'theme', 'greenUp', 'redUp'}.contains(legacy)) {
     return legacy;
   }
   return 'plain';

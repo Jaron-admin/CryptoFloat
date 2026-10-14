@@ -71,9 +71,10 @@ Map<String, Object?> buildTaskbarFrame({
   required int foreground,
   Iterable<Asset> assets = Asset.popular,
   int Function(DisplayText)? colorFor,
+  int Function(DisplayText)? suffixColorFor,
 }) {
   final profile = config.profile;
-  return {
+  final frame = <String, Object?>{
     'enabled': config.enabled,
     'chinese': chinese,
     'width': config.width.isFinite
@@ -81,6 +82,9 @@ Map<String, Object?> buildTaskbarFrame({
         : 360,
     'lineCount': config.lineCount == 1 ? 1 : 2,
     'itemGap': config.itemGap.clamp(0, 24),
+    'labelValueGap': config.labelValueGap.clamp(0, 24),
+    'overflowMode': config.overflowMode == 'manual' ? 'manual' : 'auto',
+    'carouselIntervalSeconds': config.carouselIntervalSeconds.clamp(2, 60),
     'transparentBackground': config.transparentBackground,
     'fontSize': profile.fontSize.isFinite ? profile.fontSize.clamp(6, 32) : 12,
     'fontFamily': boundedTaskbarText(
@@ -95,7 +99,7 @@ Map<String, Object?> buildTaskbarFrame({
     'foreground': foreground,
     'cells': [
       for (final cell in taskbarVisibleCells(cells, chinese: chinese))
-        {
+        <String, Object?>{
           'text': boundedTaskbarText(
             taskbarCellText(
               cell,
@@ -110,9 +114,81 @@ Map<String, Object?> buildTaskbarFrame({
             600,
           ),
           'color': colorFor?.call(cell) ?? foreground,
+          'label': boundedTaskbarText(
+            taskbarCellLabel(cell, config: config, assets: assets),
+            160,
+          ),
+          'value': boundedTaskbarText(taskbarCellValue(cell), 200),
+          'suffix': boundedTaskbarText(
+            taskbarCellSuffix(
+              cell,
+              showChangePercent: profile.showChangePercent,
+            ),
+            64,
+          ),
+          'suffixColor': suffixColorFor?.call(cell) ?? foreground,
         },
     ],
   };
+  _boundTaskbarPacket(frame);
+  return frame;
+}
+
+String taskbarCellValue(DisplayText cell) => DisplayText(
+  '',
+  cell.value,
+  unit: cell.unit,
+).text.replaceAll(RegExp(r'\s+'), ' ').trim();
+
+String taskbarCellSuffix(DisplayText cell, {required bool showChangePercent}) {
+  final change = cell.change;
+  return !showChangePercent || change == null || !change.isFinite
+      ? ''
+      : '${formatValue(change, '+.2f')}%';
+}
+
+// Keep a large carousel within the native 64 KiB packet, including UTF-16
+// strings and field overhead. Trim duplicate/hover text before visible fields.
+void _boundTaskbarPacket(Map<String, Object?> frame) {
+  final cells = frame['cells'] as List<Map<String, Object?>>;
+  int size() =>
+      68 +
+      2 *
+          ((frame['fontFamily'] as String).length +
+              (frame['numberFontFamily'] as String).length) +
+      cells.fold<int>(
+        0,
+        (sum, cell) =>
+            sum +
+            32 +
+            2 *
+                ['text', 'tooltip', 'label', 'value', 'suffix'].fold<int>(
+                  0,
+                  (length, field) => length + (cell[field] as String).length,
+                ),
+      );
+  for (final (field, limit) in const [
+    ('tooltip', 160),
+    ('tooltip', 80),
+    ('tooltip', 0),
+    ('text', 100),
+    ('text', 0),
+    ('label', 64),
+    ('value', 128),
+    ('label', 32),
+    ('value', 64),
+    ('suffix', 32),
+    ('label', 16),
+    ('value', 32),
+    ('suffix', 20),
+  ]) {
+    if (size() <= 65520) return;
+    for (final cell in cells) {
+      cell[field] = limit == 0
+          ? ''
+          : boundedTaskbarText(cell[field] as String, limit);
+    }
+  }
 }
 
 String taskbarCellText(
@@ -134,17 +210,18 @@ String taskbarCellText(
   return '$text ${formatValue(change, '+.2f')}%';
 }
 
-/// Reserve a cell for the undisplayed count instead of rejecting a whole frame.
+/// All normal rows reach the native pager. Extremely large configurations keep
+/// a bounded packet and an explicit undisplayed count without altering settings.
 List<DisplayText> taskbarVisibleCells(
   List<DisplayText> cells, {
   required bool chinese,
-}) => cells.length <= 32
+}) => cells.length <= 256
     ? cells
     : [
-        ...cells.take(31),
+        ...cells.take(255),
         DisplayText(
           '',
-          chinese ? '+${cells.length - 31} 项' : '+${cells.length - 31} more',
+          chinese ? '+${cells.length - 255} 项' : '+${cells.length - 255} more',
         ),
       ];
 
@@ -248,7 +325,7 @@ List<DisplayText> buildDisplayTexts(
       result.add(
         DisplayText(
           asset.symbol,
-          formatValue(converted?.value),
+          formatAssetPrice(converted?.value, asset.id, view),
           id: 'asset:${asset.id}',
           unit: displayUnitLabel(converted?.unit ?? currency, view),
           stale: quote == null || quote.isStale || converted?.error != null,

@@ -68,13 +68,24 @@ void main() {
         'Display layout',
         'Appearance',
         'Units & conversion',
-        'Window & tray',
         'Language',
         'Panel transparency',
         'Saves on close',
       ]) {
         expect(find.text(label), findsWidgets, reason: label);
       }
+      final navigation = find
+          .ancestor(
+            of: find.text('Watchlist'),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      await tester.scrollUntilVisible(
+        find.text('Window & tray'),
+        80,
+        scrollable: navigation,
+      );
+      expect(find.text('Window & tray'), findsWidgets);
       expect(find.text('悬浮窗透明度'), findsNothing);
       expect(
         Localizations.localeOf(tester.element(find.byType(SettingsPage)))

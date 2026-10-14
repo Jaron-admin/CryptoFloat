@@ -16,7 +16,7 @@ The retained v1.2 screenshot illustrates the appearance; v1.3 adds display targe
 
 ## Download and run
 
-Download **DuoMonitor-Windows-x64-1.5.0.zip** from [Releases](https://github.com/Jaron-admin/DuoMonitor/releases).
+Download **DuoMonitor-Windows-x64-1.6.0.zip** from [Releases](https://github.com/Jaron-admin/DuoMonitor/releases).
 
 Extract the entire archive and run `duomonitor.exe`. Keep `duomonitor_taskbar.exe`, the accompanying libraries, and the `data` folder beside it. The taskbar helper starts and exits with the main app.
 
@@ -30,7 +30,7 @@ Right-click the floating panel to open Settings. Select **Settings → Appearanc
 
 - The floating market panel and taskbar monitoring start enabled; the taskbar's default selection is CPU, memory percentage, upload, and download rates.
 - Each display independently selects quotes, API fields, text templates, and system metrics, with its own order, fonts, colors, and units. Data sources and device choices are shared.
-- Transparent taskbar background, compact one/two-row layouts, maximum width, and item spacing. Choose short or custom labels; hover for original names and values.
+- Transparent taskbar background, compact one/two-row layouts, automatic width within verified free space, and configurable label/value and item spacing. Choose short or custom labels; hover for original names and values.
 - CPU, memory, GPU, video memory, network rates, and disk read/write rates, with a 1–60 second sample interval and automatic or manual device selection.
 - Cryptocurrency, US stock, and selected mainland China stock quotes, with prices, changes, units, and update status.
 - Searchable OKX, Binance, and KuCoin trading-pair catalogs. Reorder your watchlist by dragging or using move-up and move-down buttons.
@@ -43,7 +43,7 @@ Right-click the floating panel to open Settings. Select **Settings → Appearanc
 - Context menu, always-on-top window, double-click to hide to the tray, click to restore, and per-monitor DPI support.
 - English and Simplified Chinese interfaces, with manual or system language selection.
 
-Select **Floating panel** or **Taskbar** in Settings before editing its content and appearance. **Display layout** controls columns, entry orientation, and the 24h percentage; price colors compare refreshes instead of the 24h change. **Taskbar layout** controls its own enable switch, maximum width, one/two rows, transparent background, item spacing, and labels. Short content uses less width. Custom labels affect only the taskbar and preserve the source data. Section captions explain the scope; price colors, devices, and the sample interval apply to both displays. The numeric font picker marks installed common monospace families to help align numbers.
+Select **Floating panel** or **Taskbar** in Settings; the fixed live preview renders the current draft. **Display layout** controls columns, orientation, spacing and the 24h percentage. Price colors compare refreshes, while each 24h percentage uses its own sign. **Price display precision** offers standard or K/M/B notation and automatic or 0–8 decimals per asset, such as `81.7K`. **Taskbar layout** controls rows, background, spacing, labels and overflow behavior. Width follows the content and verified free space without an arbitrary cap. Overflow pages support the mouse wheel and automatic rotation, with a configurable 2–60 second interval (default 5). Hover and manual scrolling pause rotation. Formatting and layout are stored separately for each display.
 
 **Save** commits changes and keeps Settings open. Clicking outside Settings or returning to the panel still saves automatically and briefly confirms success. A close request during a save waits for that operation; a failed save keeps the draft for retry. Alt+Tab and color, font, or file pickers do not close Settings. Only Settings has an application taskbar button. Closing Settings saves and returns to the panel; closing the floating panel hides it to the tray. Use **Exit** to end the app.
 
@@ -51,7 +51,7 @@ Taskbar integration targets the standard primary Windows taskbar. It attempts to
 
 Missing metrics and samples establishing a baseline show `—`; only valid zero values show `0`. Automatic network selection uses active physical interfaces; manual selection can include virtual interfaces. GPU usage represents the busiest engine on the selected adapter; a memory percentage is unavailable when its capacity cannot be established. Rates need a new baseline after startup, resume, or a device change. Compatibility with the real taskbar still requires validation for the particular Windows version and desktop layout.
 
-With centered Windows taskbar icons, data uses the far-left available space while avoiding weather and widgets; insufficient room on that side pauses the display. Left-aligned Windows taskbars use the right-side gap.
+With centered Windows taskbar icons, data prefers sufficient far-left free space, otherwise the widest verified gap. Weather, widgets and other controls remain excluded. If free space cannot be reliably verified, the display pauses.
 
 v1.4.1 corrects a DPI transition that reused the old display's minimum size and changed the window's logical width; the native regression passes. See the [DPI investigation](docs/verification/dpi-investigation.md) for live observations and verification limits.
 
@@ -81,7 +81,7 @@ flutter build windows --release
 To create a release folder and ZIP containing the usage guides and licenses:
 
 ```powershell
-./tool/build_windows.ps1 -PackageName DuoMonitor-Windows-x64-1.5.0
+./tool/build_windows.ps1 -PackageName DuoMonitor-Windows-x64-1.6.0
 ```
 
 ## License

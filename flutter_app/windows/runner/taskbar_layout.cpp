@@ -139,6 +139,22 @@ std::vector<int> CompactColumns(const std::vector<int>& desired, int available, 
   }
   return widths;
 }
+std::vector<ColumnPage> PaginateColumns(const std::vector<int>& desired, int available, int gap) {
+  std::vector<ColumnPage> pages;
+  if (available <= 0 || gap < 0) return pages;
+  ColumnPage page;
+  int used = 0;
+  for (size_t i = 0; i < desired.size(); ++i) {
+    const int width = (std::clamp)(desired[i], 1, available);
+    if (!page.widths.empty() && width > available - used - gap) {
+      pages.push_back(std::move(page)); page = {}; page.first = i; used = 0;
+    }
+    if (!page.widths.empty()) used += gap;
+    page.widths.push_back(width); used += width;
+  }
+  if (!page.widths.empty()) pages.push_back(std::move(page));
+  return pages;
+}
 LayoutResult FitFreeRegion(const LayoutSnapshot& s, int width, int height, int minimum_width) {
   LayoutResult result;
   if (!ValidRect(s.bounds) || s.bounds.bottom - s.bounds.top > s.bounds.right - s.bounds.left) {
@@ -146,15 +162,14 @@ LayoutResult FitFreeRegion(const LayoutSnapshot& s, int width, int height, int m
   }
   if (!s.complete || !s.visible || s.occupied.empty() || s.dpi < 48 || s.dpi > 768 ||
       s.alignment == TaskbarAlignment::unknown) return result;
-  if (width < 64 || width > 1600 || height < 8 || height > 128) { result.status = Status::error; return result; }
-  const int w = MulDiv(width, static_cast<int>(s.dpi), 96);
+  if (width < 64 || height < 8 || height > 128) { result.status = Status::error; return result; }
+  const int w = static_cast<int>((std::min)(static_cast<int64_t>(s.bounds.right - s.bounds.left),
+      (static_cast<int64_t>(width) * s.dpi + 48) / 96));
   const int minimum = minimum_width == 0 ? w : MulDiv((std::clamp)(minimum_width, 1, width), static_cast<int>(s.dpi), 96);
   const int h = MulDiv(height, static_cast<int>(s.dpi), 96);
   const int padding = MulDiv(8, static_cast<int>(s.dpi), 96);
   const bool far_left = s.alignment == TaskbarAlignment::centered;
-  // Center-aligned taskbars reserve their left half for this placement policy.
-  // If widgets/controls fill it, refuse placement instead of jumping right.
-  const LONG limit = far_left ? s.bounds.left + (s.bounds.right - s.bounds.left) / 2 : s.bounds.right - padding;
+  const LONG limit = s.bounds.right - padding;
   if (h > s.bounds.bottom - s.bounds.top - 2) { result.status = Status::noSpace; return result; }
   std::vector<std::pair<LONG, LONG>> blocks;
   for (const auto& r : s.occupied) {
@@ -168,10 +183,12 @@ LayoutResult FitFreeRegion(const LayoutSnapshot& s, int width, int height, int m
   for (const auto& block : blocks) {
     if (block.first - start >= minimum) {
       const LONG candidate = (std::min)(static_cast<LONG>(w), block.first - start);
-      if (far_left) { selected = start; selected_width = candidate; found = true; break; }
-      if (!found || candidate >= selected_width) {
-        selected_width = candidate; selected = block.first - selected_width; found = true;
+      // Prefer the leftmost complete fit for centered icons. When no complete
+      // fit exists choose the widest verified gap; ties stay left-stable.
+      if (!found || candidate > selected_width) {
+        selected_width = candidate; selected = far_left ? start : block.first - selected_width; found = true;
       }
+      if (far_left && candidate == w) break;
     }
     start = (std::max)(start, block.second);
   }

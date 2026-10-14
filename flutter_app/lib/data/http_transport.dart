@@ -128,7 +128,7 @@ class HttpTransport {
     final client = HttpClient()
       ..connectionTimeout = timeout
       ..idleTimeout = const Duration(seconds: 5)
-      ..userAgent = 'DuoMonitor/1.5.0'
+      ..userAgent = 'DuoMonitor/1.6.0'
       ..findProxy = (_) => proxy;
     _clients.add(client);
     try {

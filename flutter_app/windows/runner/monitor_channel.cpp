@@ -96,13 +96,33 @@ bool DecodeTaskbarFrame(const M* map, TaskbarFrame* output) {
     if (!Numeric(Get(map, "itemGap"), &gap) || gap < 0 || gap > 24 || std::floor(gap) != gap) return false;
     frame.item_gap = static_cast<int>(gap);
   }
+  if (Get(map, "labelValueGap")) {
+    double gap = 0;
+    if (!Numeric(Get(map, "labelValueGap"), &gap) || gap < 0 || gap > 24 || std::floor(gap) != gap) return false;
+    frame.label_value_gap = static_cast<int>(gap);
+  }
+  if (Get(map, "overflowMode")) {
+    std::string mode;
+    if (!ReadText(Get(map, "overflowMode"), &mode, 8) || (mode != "auto" && mode != "manual")) return false;
+    frame.auto_carousel = mode == "auto";
+  }
+  if (Get(map, "carouselIntervalSeconds")) {
+    double interval = 0;
+    if (!Numeric(Get(map, "carouselIntervalSeconds"), &interval) || interval < 2 || interval > 60 || std::floor(interval) != interval) return false;
+    frame.carousel_interval_seconds = static_cast<int>(interval);
+  }
   auto list_value = Get(map, "cells");
   auto cells = list_value ? std::get_if<L>(list_value) : nullptr;
-  if (!cells || cells->size() > 32) return false;
+  if (!cells || cells->size() > 256) return false;
   for (const auto& entry : *cells) {
     auto cell_map = std::get_if<M>(&entry);
     TaskbarCell cell;
     if (!ReadWide(Get(cell_map, "text"), &cell.text, 2048) || !ReadWide(Get(cell_map, "tooltip"), &cell.tooltip, 4096) || !ReadColor(Get(cell_map, "color"), &cell.color)) return false;
+    if (Get(cell_map, "label") || Get(cell_map, "value") || Get(cell_map, "suffix") || Get(cell_map, "suffixColor")) {
+      if (!ReadWide(Get(cell_map, "label"), &cell.label, 2048) || !ReadWide(Get(cell_map, "value"), &cell.value, 2048) ||
+          !ReadWide(Get(cell_map, "suffix"), &cell.suffix, 2048) || !ReadColor(Get(cell_map, "suffixColor"), &cell.suffix_color)) return false;
+      cell.segmented = true;
+    }
     frame.cells.push_back(std::move(cell));
   }
   if (!taskbar::ValidateFrame(frame)) return false;

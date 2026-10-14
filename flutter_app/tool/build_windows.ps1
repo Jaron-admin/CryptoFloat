@@ -1,4 +1,4 @@
-param([string]$Flutter = 'flutter', [string]$PackageName = 'DuoMonitor-Windows-x64-1.5.0')
+param([string]$Flutter = 'flutter', [string]$PackageName = 'DuoMonitor-Windows-x64-1.6.0')
 $ErrorActionPreference = 'Stop'
 $appRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $repoRoot = [System.IO.Directory]::GetParent($appRoot).FullName

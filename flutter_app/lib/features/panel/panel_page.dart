@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -94,8 +95,38 @@ class PanelPage extends StatelessWidget {
   }
 
   @override
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onSecondaryTapUp: (event) => _menu(context, event.globalPosition),
+    onDoubleTap: controller.hideToTray,
+    onHorizontalDragStart: (_) => controller.host.beginDrag(),
+    child: Scaffold(
+      body: PanelContent(
+        controller: controller,
+        config: controller.config,
+        onSettings: onSettings,
+        interactive: true,
+      ),
+    ),
+  );
+}
+
+/// The live panel and settings preview share exactly the same content renderer.
+class PanelContent extends StatelessWidget {
+  const PanelContent({
+    super.key,
+    required this.controller,
+    required this.config,
+    this.onSettings,
+    this.interactive = false,
+  });
+  final AppController controller;
+  final AppConfig config;
+  final ValueChanged<int>? onSettings;
+  final bool interactive;
+
+  @override
   Widget build(BuildContext context) {
-    final config = controller.config;
     final quotes = controller.displayQuotes;
     final rates = controller.data.exchangeRates;
     final priceStyle = TextStyle(
@@ -164,85 +195,73 @@ class PanelPage extends StatelessWidget {
           ),
         ),
     };
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onSecondaryTapUp: (event) => _menu(context, event.globalPosition),
-      onDoubleTap: controller.hideToTray,
-      onHorizontalDragStart: (_) => controller.host.beginDrag(),
-      child: Scaffold(
-        body: SafeArea(
-          child: Column(
-            children: [
-              if (config.showHeaderName || config.showHeaderIcon)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onPanStart: (_) => controller.host.beginDrag(),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-                    child: Row(
-                      children: [
-                        if (config.showHeaderIcon) ...[
-                          _HeaderIcon(
-                            config: config,
-                            imagePath: controller.store.resourcePath(
-                              config.headerImagePath,
-                            ),
-                          ),
-                          const SizedBox(width: 7),
-                        ],
-                        if (config.showHeaderName)
-                          Expanded(
-                            child: Text(
-                              config.headerName,
-                              key: const ValueKey('panel-title'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              if (controller.startupMessage != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  child: Text(
-                    localizeAppError(context, controller.startupMessage),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              Expanded(
-                child: _PanelGrid(
-                  config: config,
+    return SafeArea(
+      child: Column(
+        children: [
+          if (config.showHeaderName || config.showHeaderIcon)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onPanStart: interactive
+                  ? (_) => controller.host.beginDrag()
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                child: Row(
                   children: [
-                    for (final id in buildDisplayTexts(
-                      config,
-                      quotes,
-                      controller.metrics.snapshot,
-                      rates: rates,
-                    ).map((entry) => entry.id))
-                      KeyedSubtree(
-                        key: ValueKey('panel-$id'),
-                        child: content[id]!,
+                    if (config.showHeaderIcon) ...[
+                      _HeaderIcon(
+                        config: config,
+                        imagePath: controller.store.resourcePath(
+                          config.headerImagePath,
+                        ),
                       ),
-                    if (content.isEmpty)
-                      _EmptyPanel(onSettings: () => onSettings(0)),
+                      const SizedBox(width: 7),
+                    ],
+                    if (config.showHeaderName)
+                      Expanded(
+                        child: Text(
+                          config.headerName,
+                          key: const ValueKey('panel-title'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            ],
+            ),
+          if (controller.startupMessage != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Text(
+                localizeAppError(context, controller.startupMessage),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+          Expanded(
+            child: _PanelGrid(
+              config: config,
+              children: [
+                for (final id in buildDisplayTexts(
+                  config,
+                  quotes,
+                  controller.metrics.snapshot,
+                  rates: rates,
+                ).map((entry) => entry.id))
+                  KeyedSubtree(key: ValueKey('panel-$id'), child: content[id]!),
+                if (content.isEmpty)
+                  _EmptyPanel(onSettings: () => onSettings?.call(0)),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -257,13 +276,53 @@ class _PanelGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final columns = config.panelColumnCount.clamp(1, 8);
-    const gap = 16.0;
+    final gap = config.panelColumnGap;
     final textScale =
         MediaQuery.textScalerOf(context).scale(config.fontSize) / 15;
     final minCellWidth =
         (config.panelItemLayout == 'vertical' ? 180.0 : 290.0) * textScale;
     return LayoutBuilder(
       builder: (context, constraints) {
+        if (config.panelItemLayout == 'horizontal') {
+          final maxCellWidth = math.max(
+            240 * textScale,
+            (constraints.maxWidth - 24 - (columns - 1) * gap) / columns,
+          );
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(12, 5, 12, 8),
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Table(
+                  defaultColumnWidth: const IntrinsicColumnWidth(),
+                  defaultVerticalAlignment: TableCellVerticalAlignment.top,
+                  children: [
+                    for (
+                      var start = 0;
+                      start < children.length;
+                      start += columns
+                    )
+                      TableRow(
+                        children: [
+                          for (var column = 0; column < columns; column++) ...[
+                            if (column > 0) SizedBox(width: gap),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: maxCellWidth,
+                              ),
+                              child: start + column < children.length
+                                  ? children[start + column]
+                                  : const SizedBox.shrink(),
+                            ),
+                          ],
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }
         final minimumWidth = columns * minCellWidth + (columns - 1) * gap + 24;
         final width = constraints.maxWidth > minimumWidth
             ? constraints.maxWidth
@@ -280,7 +339,7 @@ class _PanelGrid extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       for (var column = 0; column < columns; column++) ...[
-                        if (column > 0) const SizedBox(width: gap),
+                        if (column > 0) SizedBox(width: gap),
                         Expanded(
                           child: start + column < children.length
                               ? children[start + column]
@@ -311,13 +370,21 @@ class _EntryLayout extends StatelessWidget {
   Widget build(BuildContext context) => config.panelItemLayout == 'vertical'
       ? Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [label, const SizedBox(height: 4), value],
-        )
-      : Row(
           children: [
-            Expanded(child: label),
-            const SizedBox(width: 8),
-            Expanded(flex: 2, child: value),
+            label,
+            SizedBox(height: config.panelLabelValueGap),
+            value,
+          ],
+        )
+      : Table(
+          columnWidths: {
+            0: const IntrinsicColumnWidth(),
+            1: FixedColumnWidth(config.panelLabelValueGap),
+            2: const IntrinsicColumnWidth(flex: 1),
+          },
+          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+          children: [
+            TableRow(children: [label, const SizedBox.shrink(), value]),
           ],
         );
 }
@@ -487,7 +554,11 @@ class _AssetRow extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerRight,
                   child: Text(
-                    formatValue(converted?.value ?? quote?.price),
+                    formatAssetPrice(
+                      converted?.value ?? quote?.price,
+                      asset.id,
+                      config,
+                    ),
                     textAlign: TextAlign.right,
                     style: style.copyWith(color: tone),
                   ),

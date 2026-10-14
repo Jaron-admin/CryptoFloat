@@ -73,13 +73,30 @@ Color taskbarPriceColor({
 }
 
 Color marketChangeColor(BuildContext context, AppConfig config, num? change) {
+  return marketChangeColorValue(
+    change: change,
+    config: config,
+    neutral: Theme.of(context).colorScheme.onSurfaceVariant,
+    brightness: Theme.of(context).brightness,
+    themeColors: marketColorsOf(context),
+  );
+}
+
+/// The 24h result has its own sign and convention, independent of price ticks.
+Color marketChangeColorValue({
+  required num? change,
+  required AppConfig config,
+  required Color neutral,
+  required Brightness brightness,
+  required MarketColors themeColors,
+}) {
   if (change == null || !change.isFinite || change == 0) {
-    return Theme.of(context).colorScheme.onSurfaceVariant;
+    return neutral;
   }
   final colors = resolveMarketChangeColors(
     config,
-    brightness: Theme.of(context).brightness,
-    themeColors: marketColorsOf(context),
+    brightness: brightness,
+    themeColors: themeColors,
   );
   return change > 0 ? colors.positive : colors.negative;
 }
