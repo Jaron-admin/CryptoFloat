@@ -24,6 +24,14 @@ class DisplayText {
           : ' $unit'}';
 }
 
+String taskbarCellText(DisplayText cell, {required bool showChangePercent}) {
+  final change = cell.change;
+  if (!showChangePercent || change == null || !change.isFinite) {
+    return cell.text;
+  }
+  return '${cell.text}  ${formatValue(change, '+.2f')}%';
+}
+
 /// Reserve a cell for the undisplayed count instead of rejecting a whole frame.
 List<DisplayText> taskbarVisibleCells(
   List<DisplayText> cells, {

@@ -22,6 +22,10 @@ namespace {
 #endif
 
 constexpr const wchar_t kWindowClassName[] = L"FLUTTER_RUNNER_WIN32_WINDOW";
+constexpr UINT kSettingsOutsideClick = WM_APP + 0x37;
+// WH_MOUSE_LL invokes the hook on its installing thread. The application has
+// one settings host; no callback state crosses the window thread boundary.
+thread_local Win32Window* g_settings_mouse_owner = nullptr;
 
 /// Registry key for app theme preference.
 ///
@@ -183,6 +187,10 @@ bool Win32Window::Create(const std::wstring& title,
                               static_cast<LONG>(origin.y)};
   HMONITOR monitor = MonitorFromPoint(target_point, MONITOR_DEFAULTTONEAREST);
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
+  if (dpi == 0) dpi = 96;
+  current_dpi_ = dpi;
+  logical_width_ = size.width;
+  logical_height_ = size.height;
   double scale_factor = dpi / 96.0;
 
   HWND window = CreateWindowEx(
@@ -239,6 +247,17 @@ Win32Window::MessageHandler(HWND hwnd,
                             WPARAM const wparam,
                             LPARAM const lparam) noexcept {
   switch (message) {
+    case kSettingsOutsideClick: {
+      if (wparam != settings_click_generation_) return 0;
+      settings_click_pending_ = false;
+      if (settings_mode_ && settings_outside_click_ &&
+          !HasSettingsModalDialog()) {
+        // Copy before invoking: the callback is allowed to close settings.
+        const auto callback = settings_outside_click_;
+        callback();
+      }
+      return 0;
+    }
     case WM_NCCALCSIZE:
       // Retain the resize style while Flutter paints the complete client area.
       return 0;
@@ -273,15 +292,41 @@ Win32Window::MessageHandler(HWND hwnd,
       }
       return 0;
 
+    case WM_GETDPISCALEDSIZE: {
+      if (!lparam) return FALSE;
+      // An explicit SetWindowPos already supplies target-DPI dimensions. Do
+      // not scale that request again when Windows moves it between displays.
+      if (!applying_bounds_) {
+        *reinterpret_cast<SIZE*>(lparam) =
+            ScaledWindowSize(static_cast<UINT>(wparam));
+      }
+      return TRUE;
+    }
+
     case WM_DPICHANGED: {
-      const RECT suggested = *reinterpret_cast<RECT*>(lparam);
-      const RECT visible = VisibleBounds(
-          suggested, MonitorFromRect(&suggested, MONITOR_DEFAULTTONEAREST));
+      current_dpi_ = LOWORD(wparam);
+      if (current_dpi_ == 0) current_dpi_ = 96;
+      if (applying_bounds_ || !lparam) return 0;
+      RECT suggested = *reinterpret_cast<RECT*>(lparam);
+      const SIZE size = ScaledWindowSize(current_dpi_);
+      suggested.right = suggested.left + size.cx;
+      suggested.bottom = suggested.top + size.cy;
+      const RECT visible = VisibleBounds(suggested,
+          MonitorFromRect(&suggested, MONITOR_DEFAULTTONEAREST));
+      applying_bounds_ = true;
       SetWindowPos(hwnd, nullptr, visible.left, visible.top,
                    visible.right - visible.left, visible.bottom - visible.top,
                    SWP_NOZORDER | SWP_NOACTIVATE);
-
+      applying_bounds_ = false;
       return 0;
+    }
+    case WM_SIZING: {
+      const auto rect = reinterpret_cast<const RECT*>(lparam);
+      if (!applying_bounds_ && rect) {
+        logical_width_ = (rect->right - rect->left) * 96.0 / current_dpi_;
+        logical_height_ = (rect->bottom - rect->top) * 96.0 / current_dpi_;
+      }
+      return TRUE;
     }
     case WM_SIZE: {
       RECT rect = GetClientArea();
@@ -294,7 +339,7 @@ Win32Window::MessageHandler(HWND hwnd,
     }
 
     case WM_ACTIVATE:
-      if (child_content_ != nullptr) {
+      if (LOWORD(wparam) != WA_INACTIVE && child_content_ != nullptr) {
         SetFocus(child_content_);
       }
       return 0;
@@ -318,6 +363,7 @@ Win32Window::MessageHandler(HWND hwnd,
 }
 
 void Win32Window::Destroy() {
+  StopSettingsMouseHook();
   OnDestroy();
 
   if (window_handle_) {
@@ -392,11 +438,18 @@ Win32Window::Bounds Win32Window::GetWindowBounds() const {
   if (GetMonitorInfoW(monitor, reinterpret_cast<MONITORINFO*>(&info))) {
     bounds.display_id = info.szDevice;
   }
-  bounds.scale = MonitorScale(monitor);
+  bounds.scale = current_dpi_ / 96.0;
   return bounds;
 }
 
 void Win32Window::ApplyWindowBounds(const Bounds& bounds) {
+  ApplyLogicalBounds(bounds,
+      (bounds.rect.right - bounds.rect.left) / std::max(0.5, bounds.scale),
+      (bounds.rect.bottom - bounds.rect.top) / std::max(0.5, bounds.scale));
+}
+
+void Win32Window::ApplyLogicalBounds(const Bounds& bounds, double width,
+                                     double height) {
   HMONITOR monitor = nullptr;
   if (!bounds.display_id.empty()) {
     DisplaySearch search{&bounds.display_id};
@@ -412,14 +465,20 @@ void Win32Window::ApplyWindowBounds(const Bounds& bounds) {
     monitor = PrimaryMonitor();
   }
   if (!monitor) monitor = PrimaryMonitor();
-  const double ratio = MonitorScale(monitor) / std::max(0.5, bounds.scale);
+  logical_width_ = width;
+  logical_height_ = height;
+  current_dpi_ = static_cast<UINT>(std::lround(MonitorScale(monitor) * 96.0));
+  const SIZE size = ScaledWindowSize(current_dpi_);
   RECT desired = bounds.rect;
-  desired.right = desired.left + Scale(bounds.rect.right - bounds.rect.left, ratio);
-  desired.bottom = desired.top + Scale(bounds.rect.bottom - bounds.rect.top, ratio);
+  desired.right = desired.left + size.cx;
+  desired.bottom = desired.top + size.cy;
   const RECT visible = VisibleBounds(desired, monitor);
+  const bool was_applying_bounds = applying_bounds_;
+  applying_bounds_ = true;
   SetWindowPos(window_handle_, nullptr, visible.left, visible.top,
                visible.right - visible.left, visible.bottom - visible.top,
                SWP_NOZORDER | SWP_NOACTIVATE);
+  applying_bounds_ = was_applying_bounds;
 }
 
 void Win32Window::ClampToVisibleWorkArea() {
@@ -427,11 +486,25 @@ void Win32Window::ClampToVisibleWorkArea() {
   if (!GetWindowRect(window_handle_, &current)) return;
   HMONITOR monitor = MonitorFromRect(&current, MONITOR_DEFAULTTONULL);
   if (!monitor) monitor = PrimaryMonitor();
-  const RECT visible = VisibleBounds(current, monitor);
+  current_dpi_ = static_cast<UINT>(std::lround(MonitorScale(monitor) * 96.0));
+  RECT desired = current;
+  const SIZE size = ScaledWindowSize(current_dpi_);
+  desired.right = desired.left + size.cx;
+  desired.bottom = desired.top + size.cy;
+  const RECT visible = VisibleBounds(desired, monitor);
   if (EqualRect(&current, &visible)) return;
+  const bool was_applying_bounds = applying_bounds_;
+  applying_bounds_ = true;
   SetWindowPos(window_handle_, nullptr, visible.left, visible.top,
                visible.right - visible.left, visible.bottom - visible.top,
                SWP_NOZORDER | SWP_NOACTIVATE);
+  applying_bounds_ = was_applying_bounds;
+}
+
+SIZE Win32Window::ScaledWindowSize(UINT dpi) const {
+  const double scale = (dpi == 0 ? 96 : dpi) / 96.0;
+  return SIZE{static_cast<LONG>(std::lround(logical_width_ * scale)),
+              static_cast<LONG>(std::lround(logical_height_ * scale))};
 }
 
 bool Win32Window::SetAlwaysOnTop(bool enabled) {
@@ -453,17 +526,79 @@ bool Win32Window::ApplyOpacity() {
 
 void Win32Window::SetSettingsMode(bool enabled) {
   if (enabled == settings_mode_) return;
+  StopSettingsMouseHook();
   settings_mode_ = enabled;
   ApplyOpacity();
   if (enabled) {
     panel_bounds_ = GetWindowBounds();
+    panel_logical_width_ = logical_width_;
+    panel_logical_height_ = logical_height_;
     Bounds settings = panel_bounds_;
     settings.rect.right = settings.rect.left + Scale(920, settings.scale);
     settings.rect.bottom = settings.rect.top + Scale(720, settings.scale);
     ApplyWindowBounds(settings);
+    StartSettingsMouseHook();
   } else {
-    ApplyWindowBounds(panel_bounds_);
+    ApplyLogicalBounds(panel_bounds_, panel_logical_width_, panel_logical_height_);
   }
+}
+
+void Win32Window::SetSettingsOutsideClickCallback(std::function<void()> callback) {
+  StopSettingsMouseHook();
+  settings_outside_click_ = std::move(callback);
+  StartSettingsMouseHook();
+}
+
+void Win32Window::StartSettingsMouseHook() {
+  if (!settings_mode_ || !settings_outside_click_ || !window_handle_ ||
+      settings_mouse_hook_) return;
+  g_settings_mouse_owner = this;
+  settings_mouse_hook_ = SetWindowsHookExW(WH_MOUSE_LL, SettingsMouseProc,
+      GetModuleHandleW(nullptr), 0);
+  if (!settings_mouse_hook_) g_settings_mouse_owner = nullptr;
+}
+
+void Win32Window::StopSettingsMouseHook() {
+  ++settings_click_generation_;
+  settings_click_pending_ = false;
+  if (g_settings_mouse_owner == this) g_settings_mouse_owner = nullptr;
+  if (settings_mouse_hook_) {
+    UnhookWindowsHookEx(settings_mouse_hook_);
+    settings_mouse_hook_ = nullptr;
+  }
+}
+
+bool Win32Window::HasSettingsModalDialog() const {
+  // Windows disables a modal dialog's owner, including native file pickers.
+  // This also protects a queued outside click while a dialog is opening.
+  return !window_handle_ || !IsWindowEnabled(window_handle_);
+}
+
+LRESULT CALLBACK Win32Window::SettingsMouseProc(
+    int code, WPARAM wparam, LPARAM lparam) {
+  auto owner = g_settings_mouse_owner;
+  const bool pressed = wparam == WM_LBUTTONDOWN || wparam == WM_RBUTTONDOWN ||
+      wparam == WM_MBUTTONDOWN || wparam == WM_XBUTTONDOWN;
+  if (code == HC_ACTION && pressed && lparam && owner &&
+      owner->settings_mode_ && !owner->settings_click_pending_ &&
+      IsWindowVisible(owner->window_handle_) &&
+      !IsIconic(owner->window_handle_) && !owner->HasSettingsModalDialog()) {
+    const POINT point = reinterpret_cast<const MSLLHOOKSTRUCT*>(lparam)->pt;
+    RECT bounds{};
+    if (GetWindowRect(owner->window_handle_, &bounds) && !PtInRect(&bounds, point)) {
+      const HWND target = WindowFromPoint(point);
+      DWORD process = 0;
+      if (target) GetWindowThreadProcessId(target, &process);
+      if (target && process != 0 && process != GetCurrentProcessId() &&
+          GetAncestor(target, GA_ROOTOWNER) != owner->window_handle_) {
+        // Never consume or retain input. Queue only a generation token; all
+        // channel work happens after the hook has returned to Windows.
+        owner->settings_click_pending_ = PostMessageW(owner->window_handle_,
+            kSettingsOutsideClick, owner->settings_click_generation_, 0) != FALSE;
+      }
+    }
+  }
+  return CallNextHookEx(nullptr, code, wparam, lparam);
 }
 
 bool Win32Window::BeginMoveOrResize(int hit_test) {

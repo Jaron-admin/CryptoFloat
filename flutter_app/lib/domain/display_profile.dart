@@ -11,6 +11,10 @@ class DisplayProfile {
     this.selectedMetricIds = const [],
     this.displayRows = const [],
     this.showDefaultRows = true,
+    this.panelColumnCount = 1,
+    this.panelItemLayout = 'horizontal',
+    this.showChangePercent = true,
+    this.marketColorStyle = 'theme',
     this.fontSize = 15,
     this.rowSpacing = 8,
     this.fontFamily = 'Segoe UI',
@@ -38,6 +42,10 @@ class DisplayProfile {
   final List<String> selectedMetricIds;
   final List<DisplayRow> displayRows;
   final bool showDefaultRows;
+  final int panelColumnCount;
+  final String panelItemLayout;
+  final bool showChangePercent;
+  final String marketColorStyle;
   final double fontSize;
   final double rowSpacing;
   final String fontFamily;
@@ -77,6 +85,10 @@ class DisplayProfile {
     selectedMetricIds: config.selectedMetricIds,
     displayRows: config.displayRows,
     showDefaultRows: config.showDefaultRows,
+    panelColumnCount: config.panelColumnCount,
+    panelItemLayout: config.panelItemLayout,
+    showChangePercent: config.showChangePercent,
+    marketColorStyle: config.marketColorStyle,
     fontSize: config.fontSize,
     rowSpacing: config.rowSpacing,
     fontFamily: config.fontFamily,
@@ -104,6 +116,10 @@ class DisplayProfile {
     selectedMetricIds: selectedMetricIds,
     displayRows: displayRows,
     showDefaultRows: showDefaultRows,
+    panelColumnCount: panelColumnCount,
+    panelItemLayout: panelItemLayout,
+    showChangePercent: showChangePercent,
+    marketColorStyle: marketColorStyle,
     fontSize: fontSize,
     rowSpacing: rowSpacing,
     fontFamily: fontFamily,
@@ -131,6 +147,10 @@ class DisplayProfile {
     List<String>? selectedMetricIds,
     List<DisplayRow>? displayRows,
     bool? showDefaultRows,
+    int? panelColumnCount,
+    String? panelItemLayout,
+    bool? showChangePercent,
+    String? marketColorStyle,
     double? fontSize,
     double? rowSpacing,
     String? fontFamily,
@@ -158,6 +178,10 @@ class DisplayProfile {
     displayOrder: displayOrder ?? this.displayOrder,
     displayRows: displayRows ?? this.displayRows,
     showDefaultRows: showDefaultRows ?? this.showDefaultRows,
+    panelColumnCount: panelColumnCount ?? this.panelColumnCount,
+    panelItemLayout: panelItemLayout ?? this.panelItemLayout,
+    showChangePercent: showChangePercent ?? this.showChangePercent,
+    marketColorStyle: marketColorStyle ?? this.marketColorStyle,
     fontSize: fontSize ?? this.fontSize,
     rowSpacing: rowSpacing ?? this.rowSpacing,
     fontFamily: fontFamily ?? this.fontFamily,
@@ -185,6 +209,10 @@ class DisplayProfile {
     'selectedMetricIds': selectedMetricIds,
     'displayRows': displayRows.map((value) => value.toJson()).toList(),
     'showDefaultRows': showDefaultRows,
+    'panelColumnCount': panelColumnCount,
+    'panelItemLayout': panelItemLayout,
+    'showChangePercent': showChangePercent,
+    'marketColorStyle': marketColorStyle,
     'fontSize': fontSize,
     'rowSpacing': rowSpacing,
     'fontFamily': fontFamily,
@@ -216,6 +244,10 @@ class DisplayProfile {
       'display': {
         for (final key in [
           'showDefaultRows',
+          'panelColumnCount',
+          'panelItemLayout',
+          'showChangePercent',
+          'marketColorStyle',
           'unitLabelMode',
           'unitLabels',
           'displayCurrency',

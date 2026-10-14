@@ -12,6 +12,7 @@ import '../../domain/display_snapshot.dart';
 import '../../l10n/metrics_strings.dart';
 import 'system_monitor_settings.dart';
 import 'taskbar_settings.dart';
+import 'panel_layout_settings.dart';
 import '../../l10n/l10n.dart';
 import '../../platform/system_fonts.dart';
 import '../../platform/header_image_store.dart';
@@ -29,10 +30,14 @@ class SettingsPage extends StatefulWidget {
     super.key,
     required this.controller,
     required this.onClose,
+    this.onSaved,
+    this.outsideClicks,
     this.initialSection = 0,
   });
   final AppController controller;
   final VoidCallback onClose;
+  final VoidCallback? onSaved;
+  final Stream<void>? outsideClicks;
   final int initialSection;
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -79,6 +84,9 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _saving = false;
   bool _pickingImage = false;
   bool _closing = false;
+  bool _loadingDraft = false;
+  int _draftRevision = 0;
+  StreamSubscription<void>? _outsideClickSubscription;
   late final Future<bool> Function() _exitGuard;
   String? _error;
   final _scrollController = ScrollController();
@@ -117,6 +125,9 @@ class _SettingsPageState extends State<SettingsPage> {
     widget.controller.catalog.addListener(_catalogChanged);
     _exitGuard = () => _requestLeave(exitApp: true);
     widget.controller.beforeExit = _exitGuard;
+    _outsideClickSubscription = widget.outsideClicks?.listen((_) {
+      unawaited(_requestLeave(exitApp: false));
+    });
     _section = widget.initialSection.clamp(0, settingsCategories.length - 1);
     if (_section == 0) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -135,6 +146,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
+    unawaited(_outsideClickSubscription?.cancel());
     widget.controller.catalog.removeListener(_catalogChanged);
     if (widget.controller.beforeExit == _exitGuard) {
       widget.controller.beforeExit = null;
@@ -159,45 +171,15 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<bool> _requestLeave({required bool exitApp}) async {
-    if (!mounted || _closing || _saving || _pickingImage) return false;
-    // An open editor owns its temporary secrets until it returns a result.
-    if (exitApp && ModalRoute.of(context)?.isCurrent == false) return false;
+    if (!mounted || _closing || _saving || _pickingImage || _loadingDraft) {
+      return false;
+    }
+    // Editors and pickers own their draft until they return a result.
+    if (ModalRoute.of(context)?.isCurrent == false) return false;
+    FocusManager.instance.primaryFocus?.unfocus();
     setState(() => _closing = true);
     try {
-      if (_dirty) {
-        final action = await showDialog<String>(
-          context: context,
-          builder: (context) => FAlertDialog(
-            title: Text(context.l10n.settingUnsavedChanges),
-            content: Text(
-              exitApp
-                  ? context.l10n.settingSaveBeforeExit
-                  : context.l10n.settingSaveBeforeReturn,
-            ),
-            actions: [
-              FTextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text(context.l10n.settingKeepEditing),
-              ),
-              FTextButton(
-                onPressed: () => Navigator.pop(context, 'discard'),
-                child: Text(context.l10n.settingDiscardChanges),
-              ),
-              FFilledButton(
-                onPressed: () => Navigator.pop(context, 'save'),
-                child: Text(
-                  exitApp
-                      ? context.l10n.settingSaveAndQuit
-                      : context.l10n.settingSaveAndReturn,
-                ),
-              ),
-            ],
-          ),
-        );
-        if (!mounted) return false;
-        if (action == 'save') return await _save(closeSettings: !exitApp);
-        if (action != 'discard') return false;
-      }
+      if (_dirty) return await _save(closeSettings: !exitApp);
       await _clearUncommittedSecrets();
       if (!mounted) return false;
       widget.controller.clearAppearancePreview();
@@ -207,6 +189,24 @@ class _SettingsPageState extends State<SettingsPage> {
         widget.onClose();
       }
       return true;
+    } finally {
+      if (mounted) setState(() => _closing = false);
+    }
+  }
+
+  Future<void> _discardChanges() async {
+    if (_saving || _closing || _pickingImage || _loadingDraft) return;
+    setState(() => _closing = true);
+    try {
+      await _clearUncommittedSecrets();
+      if (!mounted) return;
+      setState(() {
+        _rootDraft = widget.controller.config;
+        _draftRevision++;
+        _error = null;
+        _resetCatalogOrder();
+      });
+      widget.controller.clearAppearancePreview();
     } finally {
       if (mounted) setState(() => _closing = false);
     }
@@ -225,7 +225,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<bool> _save({bool closeSettings = true}) async {
-    if (_saving || _pickingImage) return false;
+    if (_saving || _pickingImage || _loadingDraft) return false;
     final draftToSave = _rootDraft;
     setState(() {
       _saving = true;
@@ -246,6 +246,7 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       _createdSecrets.clear();
       if (mounted && closeSettings) {
+        widget.onSaved?.call();
         widget.onClose();
       }
       return true;
@@ -272,7 +273,7 @@ class _SettingsPageState extends State<SettingsPage> {
     child: Material(
       color: Theme.of(context).colorScheme.surface,
       child: AbsorbPointer(
-        absorbing: _saving || _closing,
+        absorbing: _saving || _closing || _loadingDraft,
         child: Column(
           children: [
             _settingsHeader(),
@@ -343,9 +344,14 @@ class _SettingsPageState extends State<SettingsPage> {
                 builder: (context, constraints) {
                   final wide = constraints.maxWidth >= 760;
                   final narrow = constraints.maxWidth < 560;
-                  final body = _settingsQuery.trim().isEmpty
-                      ? _sectionBody()
-                      : _searchResults();
+                  final body = KeyedSubtree(
+                    key: ValueKey(
+                      'settings-form-${_target.name}-$_draftRevision',
+                    ),
+                    child: _settingsQuery.trim().isEmpty
+                        ? _sectionBody()
+                        : _searchResults(),
+                  );
                   if (narrow) {
                     return Column(
                       children: [
@@ -543,25 +549,21 @@ class _SettingsPageState extends State<SettingsPage> {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            _dirty ? context.l10n.settingUnsaved : context.l10n.settingSaved,
+            _saving
+                ? context.l10n.settingSaving
+                : _dirty
+                ? (context.metrics.chinese ? '关闭时自动保存' : 'Saves on close')
+                : context.l10n.settingSaved,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
-        TextButton(
-          onPressed: _saving || _pickingImage || _closing ? null : _close,
-          child: Text(context.l10n.settingReturnToPanel),
-        ),
-        const SizedBox(width: 8),
-        FilledButton(
-          onPressed: _saving || _pickingImage || _closing || !_dirty
-              ? null
-              : _save,
-          child: Text(
-            _saving
-                ? context.l10n.settingSaving
-                : context.l10n.settingSaveAndReturn,
+        if (_dirty)
+          TextButton(
+            onPressed: _saving || _pickingImage || _closing
+                ? null
+                : _discardChanges,
+            child: Text(context.l10n.settingDiscardChanges),
           ),
-        ),
       ],
     ),
   );
@@ -1351,11 +1353,13 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     input.dispose();
     if (path == null || !mounted) return;
+    setState(() => _loadingDraft = true);
     try {
       final imported = await widget.controller.store.importLegacy(path);
       if (mounted) {
         setState(() {
           _rootDraft = imported;
+          _draftRevision++;
           _target = DisplayTarget.floating;
           _resetCatalogOrder();
           _assetPage = 0;
@@ -1370,6 +1374,8 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _loadingDraft = false);
     }
   }
 
@@ -1556,6 +1562,16 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Widget _rows() => _page([
     _intro(context.l10n.settingLayout, context.l10n.settingLayoutDescription),
+    _anchor(
+      'panel-layout',
+      _card(
+        PanelLayoutSettings(
+          config: _draft,
+          target: _target,
+          onChanged: _preview,
+        ),
+      ),
+    ),
     _displayOrder(),
     _anchor(
       'default-rows',
@@ -2561,6 +2577,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
     if (font != null && mounted) {
+      setState(() => _loadingDraft = true);
       try {
         await SystemFonts.ensureLoaded(font);
       } catch (_) {
@@ -2568,6 +2585,8 @@ class _SettingsPageState extends State<SettingsPage> {
           setState(() => _error = context.l10n.settingFontLoadFailed);
         }
         return;
+      } finally {
+        if (mounted) setState(() => _loadingDraft = false);
       }
       if (!mounted) return;
       setState(

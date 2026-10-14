@@ -6,6 +6,10 @@ constexpr size_t kMaxPacket = 65536;
 enum class PacketType : uint32_t { frame = 1, status = 2, action = 3 };
 enum class Status : uint32_t { disabled, displaying, waiting, noSpace, unsupported, error };
 enum class Action : uint32_t { show = 1, settings, refresh, disable, exit };
+enum class DiagnosticSource { bridge, helper };
+// Local bounded logs contain only fixed reason labels and numeric diagnostics.
+// Separate files prevent bridge/helper rotation from racing across processes.
+void WriteDiagnostic(DiagnosticSource source, const std::string& message);
 struct Packet { PacketType type = PacketType::frame; std::vector<uint8_t> payload; };
 bool ValidateFrame(const TaskbarFrame& frame);
 bool EncodeFrame(const TaskbarFrame& frame, std::vector<uint8_t>* payload);

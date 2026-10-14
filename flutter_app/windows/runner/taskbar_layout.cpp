@@ -19,33 +19,47 @@ struct AutomationWalk {
   HWND own = nullptr; RECT bounds{};
   std::vector<RECT> occupied;
   int nodes = 0, controls = 0;
-  bool Visit(IUIAutomationElement* element, int depth) {
-    if (depth > 20 || ++nodes > 512) return false;
-    UIA_HWND native = nullptr;
-    if (FAILED(element->get_CurrentNativeWindowHandle(&native))) return false;
-    if (native == own && own) return true;
-    BOOL offscreen = FALSE, control = FALSE; RECT r{}; CONTROLTYPEID type = 0;
-    if (FAILED(element->get_CurrentIsOffscreen(&offscreen)) ||
-        FAILED(element->get_CurrentBoundingRectangle(&r)) ||
-        FAILED(element->get_CurrentIsControlElement(&control)) ||
-        FAILED(element->get_CurrentControlType(&type))) return false;
-    ComPtr<IUIAutomationElement> child;
-    if (FAILED(walker->GetFirstChildElement(element, &child))) return false;
+  HRESULT error = S_OK;
+  const char* reason = "ready";
+  bool RecordBounds(BOOL offscreen, BOOL control, const RECT& r,
+                    CONTROLTYPEID type, bool has_child, int depth) {
     const bool container = type == UIA_PaneControlTypeId || type == UIA_ToolBarControlTypeId ||
         type == UIA_GroupControlTypeId || type == UIA_ListControlTypeId || type == UIA_WindowControlTypeId;
     // A non-container control is occupied even when it has text/icon descendants.
     // Unknown visible leaf fragments are occupied too. Never infer a gap inside them.
-    if (!offscreen && depth > 0 && ((!container && control) || !child)) {
-      if (!ValidRect(r)) return false;
+    if (!offscreen && depth > 0 && ((!container && control) || !has_child)) {
+      // UIA's documented empty rectangle means no displayed UI. Raw view can
+      // contain these placeholders even when IsOffscreen is false. They neither
+      // occupy space nor provide the control evidence required below.
+      if (r.left == 0 && r.top == 0 && r.right == 0 && r.bottom == 0) return true;
+      if (!ValidRect(r)) { reason = "invalidElementBounds"; return false; }
       if (Overlap(r, bounds)) { occupied.push_back(r); if (control) ++controls; }
     }
+    return true;
+  }
+  bool Visit(IUIAutomationElement* element, int depth) {
+    if (depth > 20 || ++nodes > 512) { reason = "automationLimit"; return false; }
+    UIA_HWND native = nullptr;
+    reason = "automationProperties";
+    if (FAILED(error = element->get_CurrentNativeWindowHandle(&native))) return false;
+    if (native == own && own) return true;
+    BOOL offscreen = FALSE, control = FALSE; RECT r{}; CONTROLTYPEID type = 0;
+    if (FAILED(error = element->get_CurrentIsOffscreen(&offscreen)) ||
+        FAILED(error = element->get_CurrentBoundingRectangle(&r)) ||
+        FAILED(error = element->get_CurrentIsControlElement(&control)) ||
+        FAILED(error = element->get_CurrentControlType(&type))) return false;
+    ComPtr<IUIAutomationElement> child;
+    reason = "automationNavigation";
+    if (FAILED(error = walker->GetFirstChildElement(element, &child))) return false;
+    if (!RecordBounds(offscreen, control, r, type, child != nullptr, depth)) return false;
     while (child) {
       if (!Visit(child.Get(), depth + 1)) return false;
       ComPtr<IUIAutomationElement> next;
-      if (FAILED(walker->GetNextSiblingElement(child.Get(), &next))) return false;
+      reason = "automationNavigation";
+      if (FAILED(error = walker->GetNextSiblingElement(child.Get(), &next))) return false;
       child = std::move(next);
     }
-    return true;
+    reason = "ready"; return true;
   }
 };
 struct NativeWalk { HWND own; RECT bounds; std::vector<RECT>* occupied; bool complete = true; };
@@ -94,25 +108,40 @@ LayoutResult FitFreeRegion(const LayoutSnapshot& s, int width, int height) {
 }
 LayoutSnapshot DiscoverTaskbar(HWND bar, HWND own) {
   LayoutSnapshot result;
-  if (!bar || !IsWindow(bar) || !GetWindowRect(bar, &result.bounds)) return result;
+  result.reason = "taskbarUnavailable";
+  if (!bar || !IsWindow(bar)) return result;
+  if (!GetWindowRect(bar, &result.bounds)) { result.error = GetLastError(); return result; }
   DWORD taskbar_process = 0, shell_process = 0;
   GetWindowThreadProcessId(bar, &taskbar_process);
   GetWindowThreadProcessId(GetShellWindow(), &shell_process);
+  result.reason = "shellProcessMismatch";
   if (shell_process == 0 || taskbar_process != shell_process) return result;
   MONITORINFO monitor{sizeof(MONITORINFO)};
+  result.reason = "primaryMonitorUnavailable";
   if (!GetMonitorInfoW(MonitorFromWindow(bar, MONITOR_DEFAULTTONULL), &monitor) ||
       (monitor.dwFlags & MONITORINFOF_PRIMARY) == 0) return result;
   result.dpi = GetDpiForWindow(bar);
   RECT visible{};
   result.visible = IsWindowVisible(bar) && IntersectRect(&visible, &result.bounds, &monitor.rcMonitor) &&
       visible.bottom - visible.top >= 20 && visible.right - visible.left >= 64;
-  if (!result.visible || !ValidRect(result.bounds)) return result;
+  result.reason = "taskbarHidden";
+  if (!result.visible) return result;
+  result.reason = "invalidTaskbarBounds";
+  if (!ValidRect(result.bounds)) return result;
   ComPtr<IUIAutomation> automation; ComPtr<IUIAutomationElement> root;
-  if (FAILED(CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER,
-                             IID_PPV_ARGS(&automation))) ||
-      FAILED(automation->ElementFromHandle(bar, &root))) return result;
+  result.reason = "automationUnavailable";
+  HRESULT error = CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&automation));
+  if (FAILED(error)) { result.error = static_cast<uint32_t>(error); return result; }
+  error = automation->ElementFromHandle(bar, &root);
+  if (FAILED(error)) { result.error = static_cast<uint32_t>(error); return result; }
   AutomationWalk walk; walk.own = own; walk.bounds = result.bounds;
-  if (FAILED(automation->get_RawViewWalker(&walk.walker)) || !walk.Visit(root.Get(), 0) || walk.controls < 2) return result;
+  error = automation->get_RawViewWalker(&walk.walker);
+  if (FAILED(error)) { result.error = static_cast<uint32_t>(error); return result; }
+  const bool traversed = walk.Visit(root.Get(), 0);
+  result.nodes = walk.nodes; result.controls = walk.controls;
+  if (!traversed) { result.reason = walk.reason; result.error = static_cast<uint32_t>(walk.error); return result; }
+  result.reason = "insufficientControls";
+  if (walk.controls < 2) return result;
   result.occupied = std::move(walk.occupied);
   NativeWalk native{own, result.bounds, &result.occupied};
   EnumChildWindows(bar, CollectNative, reinterpret_cast<LPARAM>(&native));
@@ -123,6 +152,8 @@ LayoutSnapshot DiscoverTaskbar(HWND bar, HWND own) {
   for (const auto& r : result.occupied) { left |= r.left < split; right |= r.right > split; }
   RECT after{};
   result.complete = native.complete && left && right && GetWindowRect(bar, &after) && EqualRect(&after, &result.bounds);
+  result.reason = !native.complete ? "nativeTraversalFailed" : !(left && right) ? "incompleteOccupiedEvidence" :
+      result.complete ? "ready" : "taskbarBoundsChanged";
   return result;
 }
 }

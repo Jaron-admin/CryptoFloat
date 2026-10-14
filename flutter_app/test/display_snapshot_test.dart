@@ -5,6 +5,35 @@ import 'package:cryptofloat/domain/system_metric.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test(
+    'taskbar percentage toggle keeps the original numeric change metadata',
+    () {
+      const quote = DisplayText('BTC', '100.00', unit: 'USDT', change: 2.5);
+      expect(
+        taskbarCellText(quote, showChangePercent: true),
+        'BTC 100.00 USDT  +2.50%',
+      );
+      expect(
+        taskbarCellText(quote, showChangePercent: false),
+        'BTC 100.00 USDT',
+      );
+      expect(quote.change, 2.5);
+      expect(
+        taskbarCellText(
+          const DisplayText('CPU', '20', unit: '%'),
+          showChangePercent: true,
+        ),
+        'CPU 20%',
+      );
+      expect(
+        taskbarCellText(
+          const DisplayText('BTC', '—', change: double.nan),
+          showChangePercent: true,
+        ),
+        'BTC —',
+      );
+    },
+  );
   test('group sorting preserves mixed group slots', () {
     expect(
       reorderDisplayGroup(

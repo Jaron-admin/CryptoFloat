@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 class TrayHost {
   static const _channel = MethodChannel('cryptofloat/platform');
   final _actions = StreamController<String>.broadcast();
+  final _settingsOutsideClicks = StreamController<void>.broadcast();
   bool _disposed = false;
 
   TrayHost() {
@@ -17,9 +18,15 @@ class TrayHost {
       !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
   Stream<String> get actions => _actions.stream;
+  Stream<void> get settingsOutsideClicks => _settingsOutsideClicks.stream;
 
   Future<void> _handle(MethodCall call) async {
-    if (_disposed || call.method != 'tray.action') return;
+    if (_disposed) return;
+    if (call.method == 'window.settingsOutsideClick') {
+      _settingsOutsideClicks.add(null);
+      return;
+    }
+    if (call.method != 'tray.action') return;
     final action = call.arguments;
     if (action is String &&
         const {'show', 'settings', 'refresh', 'exit'}.contains(action)) {
@@ -50,9 +57,21 @@ class TrayHost {
     }
   }
 
+  Future<void> notifySettingsSaved({required bool chinese}) async {
+    if (!supported || _disposed) return;
+    try {
+      await _channel.invokeMethod<bool>('window.notifySettingsSaved', chinese);
+    } on PlatformException {
+      // Notification failure must not undo a committed configuration.
+    } on MissingPluginException {
+      // The panel snackbar is the portable notification path.
+    }
+  }
+
   void dispose() {
     _disposed = true;
     if (supported) _channel.setMethodCallHandler(null);
     unawaited(_actions.close());
+    unawaited(_settingsOutsideClicks.close());
   }
 }

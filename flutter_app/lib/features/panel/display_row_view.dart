@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/display_formatter.dart';
 import '../../domain/models.dart';
 import '../../platform/system_fonts.dart';
-import '../../app/theme_presets.dart';
+import '../../app/market_change_colors.dart';
 import '../../l10n/l10n.dart';
 import '../../l10n/metrics_strings.dart';
 
@@ -64,9 +64,7 @@ class DisplayRowView extends StatelessWidget {
       ),
       fontFeatures: numeric ? const [FontFeature.tabularFigures()] : null,
       color: segment.fieldId == 'change' && value is num
-          ? (value >= 0
-                ? marketColorsOf(context).positive
-                : marketColorsOf(context).negative)
+          ? marketChangeColor(context, config, value)
           : null,
     );
   }

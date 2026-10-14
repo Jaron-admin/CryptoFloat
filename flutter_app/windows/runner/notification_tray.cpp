@@ -73,6 +73,20 @@ bool NotificationTray::ShowWindow() {
   return IsWindowVisible(window_) != FALSE;
 }
 
+bool NotificationTray::NotifySettingsSaved(bool chinese) {
+  if (!EnsureIcon()) return false;
+  NOTIFYICONDATAW data{};
+  data.cbSize = sizeof(data);
+  data.hWnd = window_;
+  data.uID = kTrayId;
+  data.uFlags = NIF_INFO;
+  data.dwInfoFlags = NIIF_INFO | NIIF_NOSOUND;
+  wcscpy_s(data.szInfoTitle, L"MetricPerch");
+  wcscpy_s(data.szInfo, chinese ? L"设置已自动保存。"
+                              : L"Settings saved automatically.");
+  return Shell_NotifyIconW(NIM_MODIFY, &data) != FALSE;
+}
+
 void NotificationTray::Dispatch(const std::string& action) {
   if (action == "show" || action == "settings") ShowWindow();
   if (action_) action_(action);

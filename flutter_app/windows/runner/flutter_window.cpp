@@ -76,7 +76,8 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
   }
   // Frameless geometry belongs to this host, including where Flutter fills it.
   if (message == WM_NCCALCSIZE || message == WM_NCHITTEST ||
-      message == WM_GETMINMAXINFO) {
+      message == WM_GETMINMAXINFO || message == WM_GETDPISCALEDSIZE ||
+      message == WM_SIZING) {
     return Win32Window::MessageHandler(hwnd, message, wparam, lparam);
   }
   // Give Flutter, including plugins, an opportunity to handle window messages.

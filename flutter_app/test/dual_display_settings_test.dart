@@ -92,11 +92,11 @@ void main() {
         await tester.tap(checkbox);
         await tester.pumpAndSettle();
         await tester.tap(
-          find.text(language == 'zh' ? '返回悬浮窗' : 'Return to panel').last,
+          find.text(language == 'zh' ? '放弃更改' : 'Discard changes'),
         );
         await tester.pumpAndSettle();
         await tester.tap(
-          find.text(language == 'zh' ? '放弃更改' : 'Discard changes'),
+          find.byTooltip(language == 'zh' ? '返回悬浮窗' : 'Return to panel'),
         );
         await tester.pumpAndSettle();
         expect(closed, true);
@@ -147,7 +147,7 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('metric-select-gpu.usage')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存并返回'));
+      await tester.tap(find.byTooltip('返回悬浮窗'));
       await tester.pumpAndSettle();
       expect(store.saved, isNotNull);
       final root = store.saved!.toJson();

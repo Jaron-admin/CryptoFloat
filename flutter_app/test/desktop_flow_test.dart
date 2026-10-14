@@ -69,7 +69,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Consolas'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存并返回'));
+      await tester.tap(find.byTooltip('返回悬浮窗'));
       await tester.pumpAndSettle();
       expect(store.saved?.numberFontFamily, 'Consolas');
       expect(host.closed, isFalse);
@@ -254,7 +254,7 @@ void main() {
       );
       await tester.tap(find.text('添加'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存并返回'));
+      await tester.tap(find.byTooltip('返回悬浮窗'));
       await tester.pumpAndSettle();
       expect(store.saved?.customAssets.single.currency, 'BTC');
     },

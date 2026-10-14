@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../app/theme_presets.dart';
+import '../../app/market_change_colors.dart';
 import '../../domain/models.dart';
 import '../../domain/system_metric.dart';
 import '../../domain/display_snapshot.dart';
@@ -33,6 +34,26 @@ class TaskbarSettingsView extends StatelessWidget {
       _ => MediaQuery.platformBrightnessOf(context),
     };
     final palette = resolveAppPalette(config, brightness: brightness);
+    final changeColors = resolveMarketChangeColors(
+      config,
+      brightness: brightness,
+      themeColors: MarketColors(
+        positive: palette.positive,
+        negative: palette.negative,
+      ),
+    );
+    Color cellColor(DisplayText cell) {
+      if (cell.stale) return palette.secondary;
+      final change = cell.change;
+      if (config.showChangePercent ||
+          change == null ||
+          !change.isFinite ||
+          change == 0) {
+        return palette.foreground;
+      }
+      return change > 0 ? changeColors.positive : changeColors.negative;
+    }
+
     final cells = taskbarVisibleCells(
       buildDisplayTexts(config, quotes, snapshot, rates: rates),
       chinese: strings.chinese,
@@ -114,7 +135,11 @@ class TaskbarSettingsView extends StatelessWidget {
                                         in RegExp(r'[0-9.,%−]+|[^0-9.,%−]+')
                                             .allMatches(
                                               boundedTaskbarText(
-                                                cells[i].text,
+                                                taskbarCellText(
+                                                  cells[i],
+                                                  showChangePercent:
+                                                      config.showChangePercent,
+                                                ),
                                                 200,
                                               ),
                                             ))
@@ -134,9 +159,7 @@ class TaskbarSettingsView extends StatelessWidget {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  color: cells[i].stale
-                                      ? palette.secondary
-                                      : palette.foreground,
+                                  color: cellColor(cells[i]),
                                   fontSize: config.fontSize,
                                 ),
                               ),

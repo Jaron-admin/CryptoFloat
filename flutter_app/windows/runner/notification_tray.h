@@ -19,6 +19,7 @@ class NotificationTray {
   bool EnsureIcon();
   bool HideWindow();
   bool ShowWindow();
+  bool NotifySettingsSaved(bool chinese);
   bool HandleMessage(UINT message, WPARAM wparam, LPARAM lparam);
 
  private:

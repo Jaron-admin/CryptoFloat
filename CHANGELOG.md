@@ -1,5 +1,23 @@
 # MetricPerch · 数栖更新记录 / Changelog
 
+## 1.4.0
+
+### 简体中文
+
+- 悬浮窗新增 1–8 列布局，项目支持横向和纵向排列；24h 涨跌幅可隐藏，价格按涨跌着色，支持主题配色、红涨绿跌和绿涨红跌。
+- 点击设置外或返回时自动保存，失败保留草稿；取色、字体和文件选择期间不误关闭。移除“保存并返回”，保留主动放弃未保存更改。
+- 去掉悬浮窗底部常驻状态和调整大小箭头，仍可拖动窗口边缘调整尺寸；数据更新时间和错误保留在项目提示中。
+- 右键菜单使用 Windows 标准菜单绘制；修复混合 DPI 显示器间尺寸基准丢失和设置返回时的缩放问题。
+- 修复 Windows 11 任务栏绘制层遮住数据的问题，已通过真实任务栏截图对照确认；同时修复可见区域检测，并在便携数据目录记录有限的技术状态。日志不包含显示内容或窗口标题。
+
+### English
+
+- Added 1–8 floating columns, horizontal/vertical entries, optional 24h percentages, and theme/green-up/red-up price colors.
+- Settings save automatically on an outside click or return. Failures keep the draft open; editors and pickers remain protected. Removed the Save and return button and retained explicit discard.
+- Removed the persistent floating footer and resize arrow; window-edge resizing and per-item update/error tooltips remain.
+- Context menus use standard Windows rendering. Fixed mixed-DPI size baseline loss and settings-to-panel geometry restoration.
+- Fixed taskbar content hidden by Windows 11 composition, confirmed with before/after captures on a real desktop. Repaired free-region discovery and added bounded technical diagnostics beside the portable app, without display content or window titles.
+
 ## 1.3.0
 
 ### 简体中文

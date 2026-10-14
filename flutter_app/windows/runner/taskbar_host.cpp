@@ -8,6 +8,8 @@ namespace {
 void Close(HANDLE* handle) { if (*handle && *handle != INVALID_HANDLE_VALUE) CloseHandle(*handle); *handle = nullptr; }
 struct Child {
   HANDLE input = nullptr, output = nullptr, process = nullptr, job = nullptr;
+  const char* error_step = "unknown";
+  DWORD error_code = 0;
   ~Child() {
     Close(&input); Close(&output);
     if (process && WaitForSingleObject(process, 200) != WAIT_OBJECT_0) TerminateProcess(process, 0);
@@ -23,18 +25,23 @@ struct Child {
         DuplicateHandle(GetCurrentProcess(), GetCurrentProcess(), GetCurrentProcess(), &parent,
                         SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, TRUE, 0);
     auto cleanup = [&] { Close(&child_input); Close(&child_output); Close(&parent); };
-    if (!pipes) { cleanup(); return false; }
+    if (!pipes) { error_step = "createInheritedPipes"; error_code = GetLastError(); cleanup(); return false; }
     HANDLE inherited[] = {child_input, child_output, parent};
     SIZE_T size = 0; InitializeProcThreadAttributeList(nullptr, 1, 0, &size);
     std::vector<uint8_t> attributes(size);
     STARTUPINFOEXW startup{}; startup.StartupInfo.cb = sizeof(startup);
     startup.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attributes.data());
-    if (!InitializeProcThreadAttributeList(startup.lpAttributeList, 1, 0, &size)) { cleanup(); return false; }
+    if (!InitializeProcThreadAttributeList(startup.lpAttributeList, 1, 0, &size)) {
+      error_step = "initializeHandleList"; error_code = GetLastError(); cleanup(); return false;
+    }
     bool allowed = UpdateProcThreadAttribute(startup.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
         inherited, sizeof(inherited), nullptr, nullptr) != FALSE;
+    if (!allowed) { error_step = "updateHandleList"; error_code = GetLastError(); }
     wchar_t module[32768]{}; DWORD length = GetModuleFileNameW(nullptr, module, 32768);
     std::wstring path(module, length); auto slash = path.find_last_of(L"\\/");
-    if (slash == std::wstring::npos || length == 0 || length >= 32768) allowed = false;
+    if (slash == std::wstring::npos || length == 0 || length >= 32768) {
+      allowed = false; error_step = "resolveHelperPath"; error_code = ERROR_BAD_PATHNAME;
+    }
     path.resize(slash == std::wstring::npos ? 0 : slash + 1);
 #ifdef TASKBAR_ISOLATED_TEST
     path += L"taskbar_isolated_helper.exe";
@@ -49,6 +56,7 @@ struct Child {
     bool launched = allowed && CreateProcessW(path.c_str(), command.data(), nullptr, nullptr, TRUE,
         CREATE_NO_WINDOW | CREATE_SUSPENDED | EXTENDED_STARTUPINFO_PRESENT,
         nullptr, nullptr, &startup.StartupInfo, &info) != FALSE;
+    if (allowed && !launched) { error_step = "createHelperProcess"; error_code = GetLastError(); }
     DeleteProcThreadAttributeList(startup.lpAttributeList); cleanup();
     if (!launched) return false;
     process = info.hProcess;
@@ -59,7 +67,9 @@ struct Child {
     // disallows nested assignment (e.g. an older Windows launcher).
     if (!job || !SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits)) ||
         !AssignProcessToJobObject(job, process)) Close(&job);
-    const bool resumed = ResumeThread(info.hThread) != static_cast<DWORD>(-1); CloseHandle(info.hThread);
+    const bool resumed = ResumeThread(info.hThread) != static_cast<DWORD>(-1);
+    if (!resumed) { error_step = "resumeHelperThread"; error_code = GetLastError(); }
+    CloseHandle(info.hThread);
     return resumed;
   }
 };
@@ -94,27 +104,36 @@ struct TaskbarHost::Impl {
     Close(&stop);
   }
   void Run() {
+    std::string last_diagnostic;
+    auto diagnostic = [&last_diagnostic](const std::string& message) {
+      if (message == last_diagnostic) return;
+      taskbar::WriteDiagnostic(taskbar::DiagnosticSource::bridge, message); last_diagnostic = message;
+    };
     while (WaitForSingleObject(stop, 20) == WAIT_TIMEOUT) {
       bool enabled;
       { std::lock_guard<std::mutex> lock(mutex); enabled = pending.enabled; }
       if (!enabled) continue;
       Child child;
       if (!child.Start()) {
+        diagnostic(std::string("launch=") + child.error_step + " code=" + std::to_string(child.error_code));
         { std::lock_guard<std::mutex> lock(mutex); status = taskbar::Status::error; }
         WaitForSingleObject(stop, 2000); continue;
       }
+      diagnostic("launch=started");
       { std::lock_guard<std::mutex> lock(mutex); child_process.store(child.process); status = taskbar::Status::waiting; }
       uint64_t sent = 0; std::vector<uint8_t> buffer;
+      const char* ending = "helperExitedOrShutdown";
       while (WaitForSingleObject(stop, 10) == WAIT_TIMEOUT && WaitForSingleObject(child.process, 0) == WAIT_TIMEOUT) {
         TaskbarFrame frame; uint64_t current;
         { std::lock_guard<std::mutex> lock(mutex); frame = pending; current = revision; }
         if (current != sent) {
           std::vector<uint8_t> payload;
-          if (!taskbar::EncodeFrame(frame, &payload) || !taskbar::WritePacket(child.input, taskbar::PacketType::frame, payload)) break;
+          if (!taskbar::EncodeFrame(frame, &payload)) { ending = "frameEncodingFailed"; break; }
+          if (!taskbar::WritePacket(child.input, taskbar::PacketType::frame, payload)) { ending = "frameWriteFailed"; break; }
           sent = current;
         }
         std::vector<taskbar::Packet> packets;
-        if (!taskbar::ReadPipeAvailable(child.output, &buffer, &packets)) break;
+        if (!taskbar::ReadPipeAvailable(child.output, &buffer, &packets)) { ending = "outputClosedOrMalformed"; break; }
         bool valid = true;
         for (const auto& packet : packets) {
           uint32_t code;
@@ -125,8 +144,10 @@ struct TaskbarHost::Impl {
             status = pending.enabled ? static_cast<taskbar::Status>(code) : taskbar::Status::disabled;
           } else if (code != 0 && actions.size() < 32) actions.emplace_back(taskbar::ActionName(static_cast<taskbar::Action>(code)));
         }
-        if (!valid) break;
+        if (!valid) { ending = "invalidHelperPacket"; break; }
       }
+      DWORD exit_code = STILL_ACTIVE; GetExitCodeProcess(child.process, &exit_code);
+      diagnostic(std::string("ipc=") + ending + " exit_code=" + std::to_string(exit_code));
       { std::lock_guard<std::mutex> lock(mutex);
         child_process.store(nullptr); status = pending.enabled ? taskbar::Status::waiting : taskbar::Status::disabled;
       }

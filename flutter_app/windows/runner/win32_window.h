@@ -67,6 +67,9 @@ class Win32Window {
   bool SetAlwaysOnTop(bool enabled);
   bool SetOpacity(double opacity);
   void SetSettingsMode(bool enabled);
+  // Called on the window thread for mouse presses outside this process only.
+  // Focus changes never notify. A native modal dialog suspends notification.
+  void SetSettingsOutsideClickCallback(std::function<void()> callback);
   bool BeginMoveOrResize(int hit_test);
 
  protected:
@@ -108,6 +111,13 @@ class Win32Window {
                                            DWORD_PTR reference_data);
   LRESULT ResizeHitTest(LPARAM screen_point) const;
   bool ApplyOpacity();
+  SIZE ScaledWindowSize(UINT dpi) const;
+  void ApplyLogicalBounds(const Bounds& bounds, double width, double height);
+  void StartSettingsMouseHook();
+  void StopSettingsMouseHook();
+  bool HasSettingsModalDialog() const;
+  static LRESULT CALLBACK SettingsMouseProc(int code, WPARAM wparam,
+                                            LPARAM lparam);
 
   // Suppress system frame painting and refresh the native theme preference.
   static void UpdateTheme(HWND const window);
@@ -122,6 +132,18 @@ class Win32Window {
   bool settings_mode_ = false;
   double panel_opacity_ = 0.96;
   Bounds panel_bounds_;
+  double panel_logical_width_ = 0;
+  double panel_logical_height_ = 0;
+  // Desired DIP dimensions survive integer rounding and temporary work-area
+  // constraints. Only an explicit bounds request or user resize replaces them.
+  double logical_width_ = 0;
+  double logical_height_ = 0;
+  UINT current_dpi_ = 96;
+  bool applying_bounds_ = false;
+  std::function<void()> settings_outside_click_;
+  HHOOK settings_mouse_hook_ = nullptr;
+  UINT_PTR settings_click_generation_ = 0;
+  bool settings_click_pending_ = false;
 };
 
 #endif  // RUNNER_WIN32_WINDOW_H_

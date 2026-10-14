@@ -7,6 +7,9 @@ struct LayoutSnapshot {
   std::vector<RECT> occupied;
   bool complete = false, visible = true;
   UINT dpi = 96;
+  const char* reason = "pending";
+  uint32_t error = 0;
+  int nodes = 0, controls = 0;
 };
 struct LayoutResult { Status status = Status::waiting; RECT rect{}; };
 LayoutResult FitFreeRegion(const LayoutSnapshot& snapshot, int logical_width,

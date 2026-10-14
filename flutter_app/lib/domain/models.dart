@@ -614,6 +614,10 @@ class AppConfig {
     this.darkTheme = 'custom',
     this.customThemes = const [],
     this.showDefaultRows = true,
+    this.panelColumnCount = 1,
+    this.panelItemLayout = 'horizontal',
+    this.showChangePercent = true,
+    this.marketColorStyle = 'theme',
     this.unitLabelMode = 'full',
     this.unitLabels = const {},
     this.displayCurrency = '',
@@ -664,6 +668,10 @@ class AppConfig {
   final String darkTheme;
   final List<UserThemePreset> customThemes;
   final bool showDefaultRows;
+  final int panelColumnCount;
+  final String panelItemLayout;
+  final bool showChangePercent;
+  final String marketColorStyle;
   final String unitLabelMode;
   final Map<String, String> unitLabels;
   final String displayCurrency;
@@ -788,6 +796,10 @@ class AppConfig {
     String? darkTheme,
     List<UserThemePreset>? customThemes,
     bool? showDefaultRows,
+    int? panelColumnCount,
+    String? panelItemLayout,
+    bool? showChangePercent,
+    String? marketColorStyle,
     String? unitLabelMode,
     Map<String, String>? unitLabels,
     String? displayCurrency,
@@ -829,6 +841,10 @@ class AppConfig {
     darkTheme: darkTheme ?? this.darkTheme,
     customThemes: customThemes ?? this.customThemes,
     showDefaultRows: showDefaultRows ?? this.showDefaultRows,
+    panelColumnCount: panelColumnCount ?? this.panelColumnCount,
+    panelItemLayout: panelItemLayout ?? this.panelItemLayout,
+    showChangePercent: showChangePercent ?? this.showChangePercent,
+    marketColorStyle: marketColorStyle ?? this.marketColorStyle,
     unitLabelMode: unitLabelMode ?? this.unitLabelMode,
     unitLabels: unitLabels ?? this.unitLabels,
     displayCurrency: displayCurrency ?? this.displayCurrency,
@@ -862,6 +878,10 @@ class AppConfig {
     },
     'display': {
       'showDefaultRows': showDefaultRows,
+      'panelColumnCount': panelColumnCount,
+      'panelItemLayout': panelItemLayout,
+      'showChangePercent': showChangePercent,
+      'marketColorStyle': marketColorStyle,
       'unitLabelMode': unitLabelMode,
       'unitLabels': unitLabels,
       'displayCurrency': displayCurrency,
@@ -998,6 +1018,15 @@ class AppConfig {
         defaults.backgroundColor,
       ),
       showDefaultRows: _bool(display['showDefaultRows'], true),
+      panelColumnCount: _int(display['panelColumnCount'], 1).clamp(1, 8),
+      panelItemLayout: display['panelItemLayout'] == 'vertical'
+          ? 'vertical'
+          : 'horizontal',
+      showChangePercent: _bool(display['showChangePercent'], true),
+      marketColorStyle:
+          ['theme', 'greenUp', 'redUp'].contains(display['marketColorStyle'])
+          ? display['marketColorStyle'] as String
+          : 'theme',
       // Existing installations retain their saved dark custom background.
       lightBackgroundColor: _color(
         appearance['lightBackgroundColor'],

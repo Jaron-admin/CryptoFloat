@@ -1,6 +1,8 @@
 #include "taskbar_protocol.h"
 #include <cmath>
 #include <cstring>
+#include <cstdio>
+#include <mutex>
 namespace taskbar {
 namespace {
 constexpr uint32_t kMagic = 0x4854504D;  // MPTH, little endian.
@@ -44,6 +46,43 @@ struct Reader {
     return true;
   }
 };
+}
+void WriteDiagnostic(DiagnosticSource source, const std::string& message) {
+  // Diagnostics must not change callers' Win32 failure details.
+  const DWORD previous_error = GetLastError();
+  static std::mutex log_mutex;
+  std::lock_guard<std::mutex> lock(log_mutex);
+  auto write = [&] {
+    wchar_t module[32768]{};
+    const DWORD length = GetModuleFileNameW(nullptr, module, 32768);
+    if (length == 0 || length >= 32768) return;
+    std::wstring directory(module, length);
+    const auto slash = directory.find_last_of(L"\\/");
+    if (slash == std::wstring::npos) return;
+    directory.resize(slash + 1); directory += L"user_data";
+    if (!CreateDirectoryW(directory.c_str(), nullptr) && GetLastError() != ERROR_ALREADY_EXISTS) return;
+    const std::wstring path = directory + (source == DiagnosticSource::bridge ?
+        L"\\taskbar-bridge.log" : L"\\taskbar-helper.log");
+    SYSTEMTIME now{}; GetSystemTime(&now);
+    char prefix[40]{};
+    std::snprintf(prefix, sizeof(prefix), "%04u-%02u-%02uT%02u:%02u:%02uZ ",
+        now.wYear, now.wMonth, now.wDay, now.wHour, now.wMinute, now.wSecond);
+    std::string record(prefix);
+    for (const char ch : message.substr(0, 768)) record += ch >= 32 && ch <= 126 ? ch : '?';
+    record += "\r\n";
+    WIN32_FILE_ATTRIBUTE_DATA attributes{};
+    if (GetFileAttributesExW(path.c_str(), GetFileExInfoStandard, &attributes) &&
+        (attributes.nFileSizeHigh != 0 || attributes.nFileSizeLow > 64 * 1024 - record.size())) {
+      if (!MoveFileExW(path.c_str(), (path + L".1").c_str(), MOVEFILE_REPLACE_EXISTING)) return;
+    }
+    HANDLE file = CreateFileW(path.c_str(), FILE_APPEND_DATA, FILE_SHARE_READ,
+        nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return;
+    DWORD written = 0;
+    WriteFile(file, record.data(), static_cast<DWORD>(record.size()), &written, nullptr);
+    CloseHandle(file);
+  };
+  write(); SetLastError(previous_error);
 }
 bool ValidateFrame(const TaskbarFrame& f) {
   if (f.width < 64 || f.width > 1600 || (f.line_count != 1 && f.line_count != 2) ||

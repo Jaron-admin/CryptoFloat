@@ -13,6 +13,7 @@ import '../domain/refresh_status.dart';
 import '../domain/models.dart';
 import '../platform/taskbar_host.dart';
 import 'theme_presets.dart';
+import 'market_change_colors.dart';
 import '../platform/floating_window_host.dart';
 import '../platform/secret_store.dart';
 import '../platform/system_proxy.dart';
@@ -125,6 +126,26 @@ class AppController extends ChangeNotifier {
       _ => WidgetsBinding.instance.platformDispatcher.platformBrightness,
     };
     final palette = resolveAppPalette(view, brightness: brightness);
+    final changeColors = resolveMarketChangeColors(
+      view,
+      brightness: brightness,
+      themeColors: MarketColors(
+        positive: palette.positive,
+        negative: palette.negative,
+      ),
+    );
+    Color cellColor(DisplayText cell) {
+      if (cell.stale) return palette.secondary;
+      final change = cell.change;
+      if (view.showChangePercent ||
+          change == null ||
+          !change.isFinite ||
+          change == 0) {
+        return palette.foreground;
+      }
+      return change > 0 ? changeColors.positive : changeColors.negative;
+    }
+
     final chinese =
         _config.language == 'zh' ||
         (_config.language == 'system' &&
@@ -158,13 +179,15 @@ class AppController extends ChangeNotifier {
       'cells': [
         for (final cell in cells)
           {
-            'text': boundedTaskbarText(cell.text, 200),
+            'text': boundedTaskbarText(
+              taskbarCellText(cell, showChangePercent: view.showChangePercent),
+              200,
+            ),
             'tooltip': boundedTaskbarText(
               '${cell.text}${cell.change == null ? '' : '  ${cell.change! >= 0 ? '+' : ''}${cell.change!.toStringAsFixed(2)}%'}${cell.stale ? (chinese ? ' · 等待更新' : ' · Awaiting update') : ''}',
               600,
             ),
-            'color': (cell.stale ? palette.secondary : palette.foreground)
-                .toARGB32(),
+            'color': cellColor(cell).toARGB32(),
           },
       ],
     });

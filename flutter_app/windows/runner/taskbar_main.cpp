@@ -29,29 +29,44 @@ struct Host {
   HFONT text_font = nullptr, number_font = nullptr;
   UINT font_dpi = 0;
   std::wstring tooltip_text;
+  std::string last_diagnostic;
 #ifdef TASKBAR_ISOLATED_TEST
   HWND fake_bar = nullptr;
 #endif
-  void SetStatus(taskbar::Status next) {
-    std::lock_guard<std::mutex> lock(mutex);
-    if (status != next) { status = next; status_dirty = true; }
+  void SetStatus(taskbar::Status next, const char* reason = "stateChanged", uint32_t error = 0,
+                 const taskbar::LayoutSnapshot* layout = nullptr, ULONGLONG age = 0) {
+    const std::string key = std::string("state=") + taskbar::StatusName(next) + " reason=" + reason +
+        " code=" + std::to_string(error);
+    {
+      std::lock_guard<std::mutex> lock(mutex);
+      if (status != next) { status = next; status_dirty = true; }
+      if (last_diagnostic == key) return;
+      last_diagnostic = key;
+    }
+    taskbar::WriteDiagnostic(taskbar::DiagnosticSource::helper, key +
+        " discovery=" + (layout ? layout->reason : "none") +
+        " nodes=" + std::to_string(layout ? layout->nodes : 0) +
+        " controls=" + std::to_string(layout ? layout->controls : 0) +
+        " occupied=" + std::to_string(layout ? layout->occupied.size() : 0) +
+        " age_ms=" + std::to_string(age));
   }
   void Shutdown() {
     SetEvent(stop); PostMessageW(controller, WM_CLOSE, 0, 0);
   }
   void PipeLoop() {
     std::vector<uint8_t> buffer;
+    const char* ending = "shutdownRequested";
     while (WaitForSingleObject(stop, 10) == WAIT_TIMEOUT) {
-      if (WaitForSingleObject(parent, 0) != WAIT_TIMEOUT) break;
+      if (WaitForSingleObject(parent, 0) != WAIT_TIMEOUT) { ending = "parentExited"; break; }
       std::vector<taskbar::Packet> packets;
-      if (!taskbar::ReadPipeAvailable(input, &buffer, &packets)) break;
+      if (!taskbar::ReadPipeAvailable(input, &buffer, &packets)) { ending = "inputClosedOrMalformed"; break; }
       bool valid = true;
       for (const auto& packet : packets) {
         TaskbarFrame next;
         if (packet.type != taskbar::PacketType::frame || !taskbar::DecodeFrame(packet.payload, &next)) { valid = false; break; }
         std::lock_guard<std::mutex> lock(mutex); incoming_frame = std::move(next); ++revision;
       }
-      if (!valid) break;
+      if (!valid) { ending = "invalidFramePacket"; break; }
       std::deque<taskbar::Action> pending;
       bool send_status; taskbar::Status current;
       {
@@ -59,13 +74,14 @@ struct Host {
         send_status = status_dirty; status_dirty = false; current = status; pending.swap(actions);
       }
       if (send_status && !taskbar::WritePacket(output, taskbar::PacketType::status,
-          taskbar::EncodeCode(static_cast<uint32_t>(current)))) break;
+          taskbar::EncodeCode(static_cast<uint32_t>(current)))) { ending = "statusWriteFailed"; break; }
       for (auto action : pending) {
         if (!taskbar::WritePacket(output, taskbar::PacketType::action,
             taskbar::EncodeCode(static_cast<uint32_t>(action)))) { valid = false; break; }
       }
-      if (!valid) break;
+      if (!valid) { ending = "actionWriteFailed"; break; }
     }
+    taskbar::WriteDiagnostic(taskbar::DiagnosticSource::helper, std::string("ipc=") + ending);
     Shutdown();
   }
   void DiscoveryLoop() {
@@ -83,6 +99,7 @@ struct Host {
 #else
       bar = FindWindowW(L"Shell_TrayWnd", nullptr);
       if (SUCCEEDED(com)) next = taskbar::DiscoverTaskbar(bar, own_window.load());
+      else { next.reason = "comInitializationFailed"; next.error = static_cast<uint32_t>(com); }
 #endif
       std::lock_guard<std::mutex> lock(mutex);
       snapshot = std::move(next); snapshot_bar = bar; snapshot_time = observed_at;
@@ -124,27 +141,41 @@ struct Host {
     }
     const bool changed = next_revision != painted_revision;
     frame = std::move(next);
-    if (!frame.enabled) { RemoveDisplay(); SetStatus(taskbar::Status::disabled); return; }
+    if (!frame.enabled) { RemoveDisplay(); SetStatus(taskbar::Status::disabled, "disabledByConfig"); return; }
     if (next_revision == 0 || !bar || !IsWindow(bar) || GetTickCount64() - time > 1000) {
-      RemoveDisplay(); SetStatus(taskbar::Status::waiting); return;
+      const char* reason = next_revision == 0 ? "awaitingFrame" : time == 0 ? "awaitingDiscovery" :
+          !bar || !IsWindow(bar) ? layout.reason : "staleDiscovery";
+      RemoveDisplay(); SetStatus(taskbar::Status::waiting, reason, layout.error, &layout,
+          time ? GetTickCount64() - time : 0); return;
     }
-#ifndef TASKBAR_ISOLATED_TEST
+#if !defined(TASKBAR_ISOLATED_TEST) || defined(TASKBAR_TEST_NATIVE_COORDINATES)
     RECT actual{};
     if (!GetWindowRect(bar, &actual) || !EqualRect(&actual, &layout.bounds)) {
-      RemoveDisplay(); SetStatus(taskbar::Status::waiting); return;
+      RemoveDisplay(); SetStatus(taskbar::Status::waiting, "taskbarBoundsChanged"); return;
     }
 #endif
     int height = static_cast<int>(std::ceil(frame.font_size + 4)) * frame.line_count + 4;
     auto result = taskbar::FitFreeRegion(layout, frame.width, height);
-    if (result.status != taskbar::Status::displaying) { RemoveDisplay(); SetStatus(result.status); return; }
+    if (result.status != taskbar::Status::displaying) {
+      const char* reason = result.status == taskbar::Status::noSpace ? "insufficientFreeRegion" :
+          result.status == taskbar::Status::unsupported ? "unsupportedOrientation" : layout.reason;
+      RemoveDisplay(); SetStatus(result.status, reason, layout.error, &layout, GetTickCount64() - time); return;
+    }
     if (display && GetParent(display) != bar) RemoveDisplay();
     if (!display) {
       // Matching Explorer's DPI context affects only this isolated process/thread.
       auto previous = SetThreadDpiAwarenessContext(GetWindowDpiAwarenessContext(bar));
-      display = CreateWindowExW(WS_EX_NOACTIVATE, kDisplayClass, L"MetricPerch · 数栖", WS_CHILD,
+      // Give GDI its own redirected surface. An ordinary child can paint
+      // correctly yet remain hidden behind the Windows 11 taskbar compositor.
+      display = CreateWindowExW(WS_EX_NOACTIVATE | WS_EX_LAYERED, kDisplayClass, L"MetricPerch · 数栖", WS_CHILD,
           0, 0, 1, 1, bar, nullptr, GetModuleHandleW(nullptr), this);
+      const DWORD create_error = display ? ERROR_SUCCESS : GetLastError();
       if (previous) SetThreadDpiAwarenessContext(previous);
-      if (!display) { SetStatus(taskbar::Status::error); return; }
+      if (!display) { SetStatus(taskbar::Status::error, "createDisplayFailed", create_error); return; }
+      if (!SetLayeredWindowAttributes(display, 0, 255, LWA_ALPHA)) {
+        const DWORD error = GetLastError();
+        RemoveDisplay(); SetStatus(taskbar::Status::error, "createOpaqueSurfaceFailed", error); return;
+      }
       own_window.store(display);
       tooltip = CreateWindowExW(WS_EX_TOPMOST | WS_EX_NOACTIVATE, TOOLTIPS_CLASSW, nullptr,
           WS_POPUP | TTS_ALWAYSTIP | TTS_NOPREFIX, 0, 0, 0, 0, display, nullptr, GetModuleHandleW(nullptr), nullptr);
@@ -158,19 +189,21 @@ struct Host {
     }
     if (changed || font_dpi != layout.dpi) { Fonts(layout.dpi); Tooltip(); }
     RECT position = result.rect;
-#ifndef TASKBAR_ISOLATED_TEST
+#if !defined(TASKBAR_ISOLATED_TEST) || defined(TASKBAR_TEST_NATIVE_COORDINATES)
     SetLastError(0);
     if (MapWindowPoints(HWND_DESKTOP, bar, reinterpret_cast<POINT*>(&position), 2) == 0 && GetLastError() != 0) {
-      RemoveDisplay(); SetStatus(taskbar::Status::error); return;
+      const DWORD error = GetLastError();
+      RemoveDisplay(); SetStatus(taskbar::Status::error, "mapCoordinatesFailed", error); return;
     }
 #endif
     if (!SetWindowPos(display, HWND_TOP, position.left, position.top, position.right - position.left,
         position.bottom - position.top, SWP_NOACTIVATE | SWP_SHOWWINDOW)) {
-      RemoveDisplay(); SetStatus(taskbar::Status::error); return;
+      const DWORD error = GetLastError();
+      RemoveDisplay(); SetStatus(taskbar::Status::error, "positionDisplayFailed", error); return;
     }
     painted_revision = next_revision;
     if (changed) InvalidateRect(display, nullptr, FALSE);
-    SetStatus(taskbar::Status::displaying);
+    SetStatus(taskbar::Status::displaying, "ready", 0, &layout, GetTickCount64() - time);
   }
   static COLORREF Color(uint32_t argb) { return RGB((argb >> 16) & 255, (argb >> 8) & 255, argb & 255); }
   void Paint() {
@@ -274,15 +307,24 @@ HANDLE ParseHandle(const wchar_t* value) {
 }
 }
 int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
+  taskbar::WriteDiagnostic(taskbar::DiagnosticSource::helper, "startup=begin");
   int count = 0; auto args = CommandLineToArgvW(GetCommandLineW(), &count);
-  if (!args || count != 4) { if (args) LocalFree(args); return 2; }
+  if (!args || count != 4) {
+    taskbar::WriteDiagnostic(taskbar::DiagnosticSource::helper, "startup=invalidArguments");
+    if (args) LocalFree(args); return 2;
+  }
   Host host; host.frame.enabled = false; host.incoming_frame.enabled = false;
   host.input = ParseHandle(args[1]); host.output = ParseHandle(args[2]); host.parent = ParseHandle(args[3]); LocalFree(args);
   if (!host.input || !host.output || !host.parent || GetFileType(host.input) != FILE_TYPE_PIPE ||
       GetFileType(host.output) != FILE_TYPE_PIPE || GetProcessId(host.parent) == 0 ||
-      GetProcessId(host.parent) == GetCurrentProcessId()) return 2;
+      GetProcessId(host.parent) == GetCurrentProcessId()) {
+    taskbar::WriteDiagnostic(taskbar::DiagnosticSource::helper, "startup=invalidHandles"); return 2;
+  }
   host.stop = CreateEventW(nullptr, TRUE, FALSE, nullptr);
-  if (!host.stop) return 2;
+  if (!host.stop) {
+    taskbar::WriteDiagnostic(taskbar::DiagnosticSource::helper, "startup=createEventFailed code=" + std::to_string(GetLastError()));
+    return 2;
+  }
   INITCOMMONCONTROLSEX controls{sizeof(controls), ICC_WIN95_CLASSES}; InitCommonControlsEx(&controls);
   WNDCLASSW controller{}; controller.hInstance = instance; controller.lpfnWndProc = ControllerProc;
   controller.lpszClassName = kControllerClass;
@@ -291,7 +333,10 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int) {
   RegisterClassW(&controller); RegisterClassW(&display);
   host.controller = CreateWindowExW(WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE, kControllerClass, nullptr,
       WS_POPUP, 0, 0, 0, 0, nullptr, nullptr, instance, &host);
-  if (!host.controller) { CloseHandle(host.stop); return 2; }
+  if (!host.controller) {
+    taskbar::WriteDiagnostic(taskbar::DiagnosticSource::helper, "startup=createControllerFailed code=" + std::to_string(GetLastError()));
+    CloseHandle(host.stop); return 2;
+  }
 #ifdef TASKBAR_ISOLATED_TEST
   // This separately compiled test binary cannot discover or attach to Explorer.
   host.fake_bar = CreateWindowExW(WS_EX_TOOLWINDOW, L"STATIC", L"Isolated fake taskbar",

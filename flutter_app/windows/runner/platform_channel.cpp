@@ -501,6 +501,9 @@ PlatformChannel::PlatformChannel(Win32Window* window,
       channel_(std::make_unique<flutter::MethodChannel<Value>>(
           messenger, "cryptofloat/platform",
           &flutter::StandardMethodCodec::GetInstance())) {
+  window_->SetSettingsOutsideClickCallback([this]() {
+    channel_->InvokeMethod("window.settingsOutsideClick", nullptr);
+  });
   context_menu_ = std::make_shared<ContextMenu>(window_->GetHandle());
   tray_ = std::make_unique<NotificationTray>(
       window_->GetHandle(), [this](const std::string& action) {
@@ -525,6 +528,7 @@ PlatformChannel::PlatformChannel(Win32Window* window,
 }
 
 PlatformChannel::~PlatformChannel() {
+  window_->SetSettingsOutsideClickCallback(nullptr);
   context_menu_->Shutdown();
   channel_->SetMethodCallHandler(nullptr);
   // Cancel asynchronous requests before the messenger goes away. The worker
@@ -600,6 +604,13 @@ void PlatformChannel::HandleMethod(const flutter::MethodCall<Value>& call,
   } else if (method == "window.showFromTray") {
     window_->ClampToVisibleWorkArea();
     result->Success(Value(tray_->ShowWindow()));
+  } else if (method == "window.notifySettingsSaved") {
+    const auto chinese = arguments ? std::get_if<bool>(arguments) : nullptr;
+    if (chinese) {
+      result->Success(Value(tray_->NotifySettingsSaved(*chinese)));
+    } else {
+      InvalidArguments(result.get());
+    }
   } else if (method == "window.setMenuAppearance") {
     ContextMenuStyle style;
     if (!DecodeMenuStyle(values, &style)) {

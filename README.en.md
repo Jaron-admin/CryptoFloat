@@ -12,15 +12,15 @@ Example appearance from v1.1: customize the name, fonts, colors, transparency, a
 
 ![Material 3 appearance settings](docs/images/settings-en.png)
 
-The retained v1.2 screenshot illustrates the appearance; v1.3 adds display targets and system monitoring settings. This preview uses sample data. Watchlist selections stay in place while editing; selected items move to the top when reopening the page or refreshing the catalog.
+The retained v1.2 screenshot illustrates the appearance; v1.3 adds display targets and system monitoring settings, and v1.4 adds columns, entry orientation, and automatic saving when closing Settings. This preview uses sample data. Watchlist selections stay in place while editing; selected items move to the top when reopening the page or refreshing the catalog.
 
 ## Download and run
 
-Download **MetricPerch-Windows-x64-1.3.0.zip** from [Releases](https://github.com/Jaron-admin/MetricPerch/releases).
+Download **MetricPerch-Windows-x64-1.4.0.zip** from [Releases](https://github.com/Jaron-admin/MetricPerch/releases).
 
 Extract the entire archive and run `metricperch.exe`. Keep `metricperch_taskbar.exe`, the accompanying libraries, and the `data` folder beside it. The taskbar helper starts and exits with the main app.
 
-This is a portable app: settings, caches, imported icons, and protected secrets live in `user_data` beside the executable. Use a writable folder and move the whole folder together. Only one instance runs for the current Windows user in the current login session; launching again brings the existing window forward. Exit the old version before upgrading and keep your `user_data` in the new app folder. Existing CryptoFloat portable settings are migrated while preserving custom titles, icons, themes, and display content.
+This is a portable app: settings, caches, imported icons, protected secrets, and taskbar diagnostic logs live in `user_data` beside the executable. Use a writable folder and move the whole folder together. Only one instance runs for the current Windows user in the current login session; launching again brings the existing window forward. Exit the old version before upgrading and keep your `user_data` in the new app folder. Existing CryptoFloat portable settings are migrated while preserving custom titles, icons, themes, and display content.
 
 The current release provides a **Windows x64** build. macOS and Linux project scaffolds are included, but their native window and protected storage integrations are incomplete. Android and iOS releases are not available.
 
@@ -28,7 +28,7 @@ Right-click the floating panel to open Settings. Select **Settings → Appearanc
 
 ## Features
 
-- The floating market panel and taskbar monitoring start enabled; the taskbar initially shows CPU, memory percentage, upload, and download rates.
+- The floating market panel and taskbar monitoring start enabled; the taskbar's default selection is CPU, memory percentage, upload, and download rates.
 - Each display independently selects quotes, API fields, text templates, and system metrics, with its own order, fonts, colors, and units. Data sources and device choices are shared.
 - CPU, memory, GPU, video memory, network rates, and disk read/write rates, with a 1–60 second sample interval and automatic or manual device selection.
 - Cryptocurrency, US stock, and selected mainland China stock quotes, with prices, changes, units, and update status.
@@ -37,12 +37,13 @@ Right-click the floating panel to open Settings. Select **Settings → Appearanc
 - Unit aliases, reference exchange-rate conversion, and custom multipliers. Starter templates cover weather, exchange rates, public repository statistics, and text reminders.
 - Light, dark, and system themes, multiple named color presets, and a visual color picker.
 - Custom system fonts, numeric fonts, transparency, text size, spacing, app name, and icon.
+- A 1–8 column floating layout with horizontal or vertical entries. Hide the 24h percentage and use customizable rising/falling price colors.
 - Context menu, always-on-top window, double-click to hide to the tray, click to restore, and per-monitor DPI support.
 - English and Simplified Chinese interfaces, with manual or system language selection.
 
-Select **Floating panel** or **Taskbar** in Settings before editing its content and appearance. **Taskbar layout** controls its own enable switch, width, and one or two rows. Preview the draft, then Save to apply it or cancel to discard changes. Devices and the sample interval apply to both displays.
+Select **Floating panel** or **Taskbar** in Settings before editing its content and appearance. **Display layout** controls columns, entry orientation, and change display. **Taskbar layout** controls its own enable switch, width, and one or two rows. Clicking outside Settings or returning to the panel saves automatically and briefly confirms success. A failed save keeps the draft open. Alt+Tab and color, font, or file pickers do not close Settings. **Discard changes** restores the saved settings. Devices and the sample interval apply to both displays.
 
-The first release targets the standard primary Windows taskbar. It displays only when a usable region can be confirmed and has enough room. Unsupported layouts, insufficient space, and an unavailable taskbar pause the display; Settings shows the actual state. Windows 11 has no supported third-party reserved slot, so every layout cannot be guaranteed. The taskbar menu provides settings, refresh, show floating panel, disable taskbar, and exit actions. The tray remains a way to restore the floating panel.
+Taskbar integration targets the standard primary Windows taskbar. It attempts to display only when a usable region can be confirmed and has enough room. Unsupported layouts, insufficient space, and an unavailable taskbar pause the display; Settings shows the helper's reported state. v1.4 fixes the reproduced Windows 11 composition issue that hid taskbar content, with visible metrics confirmed on one real desktop setup. Other configurations still need testing; the reported state alone does not verify visible content. Windows 11 has no supported third-party reserved slot, so every layout cannot be guaranteed. Taskbar content provides a context menu with settings, refresh, show floating panel, disable taskbar, and exit actions. The tray remains a way to restore the floating panel.
 
 Missing metrics and samples establishing a baseline show `—`; only valid zero values show `0`. Automatic network selection uses active physical interfaces; manual selection can include virtual interfaces. GPU usage represents the busiest engine on the selected adapter; a memory percentage is unavailable when its capacity cannot be established. Rates need a new baseline after startup, resume, or a device change. Compatibility with the real taskbar still requires validation for the particular Windows version and desktop layout.
 
@@ -72,7 +73,7 @@ flutter build windows --release
 To create a release folder and ZIP containing the usage guides and licenses:
 
 ```powershell
-./tool/build_windows.ps1 -PackageName MetricPerch-Windows-x64-1.3.0
+./tool/build_windows.ps1 -PackageName MetricPerch-Windows-x64-1.4.0
 ```
 
 ## License

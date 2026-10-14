@@ -46,6 +46,7 @@ class SettingLocation {
     'asset-order' => l10n.settingCatalogOrder,
     'sources' => l10n.settingCatalogApi,
     'default-rows' => l10n.settingDefaultRows,
+    'panel-layout' => l10n.settingLayout,
     'custom-rows' => l10n.settingCatalogRows,
     'language' => l10n.settingLanguage,
     'fonts' => l10n.settingCatalogFonts,
@@ -72,6 +73,12 @@ class SettingLocation {
 }
 
 const settingsLocations = [
+  SettingLocation(
+    2,
+    'panel-layout',
+    '列数与行情布局',
+    '单列 双列 多列 横向 纵向 24h 涨跌幅 涨跌颜色 红涨绿跌 绿涨红跌 columns horizontal vertical orientation price change percent layout colors',
+  ),
   SettingLocation(
     6,
     'metrics',

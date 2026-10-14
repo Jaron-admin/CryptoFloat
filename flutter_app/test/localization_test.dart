@@ -71,7 +71,7 @@ void main() {
         'Window & tray',
         'Language',
         'Panel transparency',
-        'Save and return',
+        'Saves on close',
       ]) {
         expect(find.text(label), findsWidgets, reason: label);
       }
@@ -82,14 +82,9 @@ void main() {
         'en',
       );
 
-      await tester.tap(
-        find.byWidgetPredicate(
-          (widget) =>
-              widget is FIconButton && widget.tooltip == 'Return to panel',
-        ),
-      );
-      await tester.pumpAndSettle();
       await tester.tap(find.text('Discard changes'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('返回悬浮窗'));
       await tester.pumpAndSettle();
       expect(controller.config.language, 'zh');
       expect(controller.appearanceConfig.language, 'zh');
@@ -160,7 +155,7 @@ void main() {
 
       await _openAppearance(tester, 'zh');
       await _chooseLanguage(tester, 'English');
-      await tester.tap(find.text('Save and return'));
+      await tester.tap(find.byTooltip('Return to panel'));
       await tester.pumpAndSettle();
       expect(store.saved?.language, 'en');
       expect(find.byType(SettingsPage), findsNothing);

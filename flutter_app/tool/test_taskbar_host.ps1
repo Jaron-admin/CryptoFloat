@@ -11,6 +11,7 @@ $sdkVersion = Get-ChildItem -LiteralPath (Join-Path $WindowsSdkRoot 'Include') -
   Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
 if (-not (Test-Path -LiteralPath $compiler) -or $null -eq $sdkVersion) { throw 'MSVC or Windows SDK not found.' }
 $sdkLib = Join-Path $WindowsSdkRoot ('Lib\' + $sdkVersion.Name)
+$env:PATH = (Join-Path $WindowsSdkRoot ('bin\' + $sdkVersion.Name + '\x64')) + ';' + $env:PATH
 $outputDirectory = Join-Path $appRoot ('dist\native-checks\taskbar-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 $common = @('/nologo', '/std:c++17', '/EHsc', '/MT', '/W4', '/WX', '/utf-8', '/DUNICODE', '/D_UNICODE', '/DNOMINMAX',
@@ -20,6 +21,7 @@ $common = @('/nologo', '/std:c++17', '/EHsc', '/MT', '/W4', '/WX', '/utf-8', '/D
   ('/I' + (Join-Path $appRoot 'windows\runner')), ('/Fo' + $outputDirectory + '\'))
 $libraries = @('/link', ('/LIBPATH:' + (Join-Path $CompilerRoot 'lib\x64')),
   ('/LIBPATH:' + (Join-Path $sdkLib 'ucrt\x64')), ('/LIBPATH:' + (Join-Path $sdkLib 'um\x64')),
+  '/MANIFEST:EMBED', ('/MANIFESTINPUT:' + (Join-Path $appRoot 'windows\runner\runner.exe.manifest')),
   'user32.lib', 'gdi32.lib', 'ole32.lib', 'oleaut32.lib', 'uiautomationcore.lib', 'shell32.lib', 'comctl32.lib')
 $sources = @((Join-Path $appRoot 'windows\runner\taskbar_protocol.cpp'), (Join-Path $appRoot 'windows\runner\taskbar_layout.cpp'))
 $testExecutable = Join-Path $outputDirectory 'native_taskbar_host_test.exe'
@@ -27,6 +29,11 @@ $testExecutable = Join-Path $outputDirectory 'native_taskbar_host_test.exe'
 if ($LASTEXITCODE -ne 0) { throw 'Native taskbar tests did not compile.' }
 & $testExecutable
 if ($LASTEXITCODE -ne 0) { throw 'Native taskbar tests failed.' }
+$automationTest = Join-Path $outputDirectory 'native_taskbar_automation_test.exe'
+& $compiler @common ('/Fe' + $automationTest) (Join-Path $appRoot 'windows\runner\taskbar_protocol.cpp') (Join-Path $PSScriptRoot 'native_taskbar_automation_test.cpp') @libraries '/SUBSYSTEM:CONSOLE'
+if ($LASTEXITCODE -ne 0) { throw 'Automation bounds tests did not compile.' }
+& $automationTest
+if ($LASTEXITCODE -ne 0) { throw 'Automation bounds regression checks failed.' }
 $rendererTest = Join-Path $outputDirectory 'native_taskbar_renderer_test.exe'
 & $compiler @common ('/Fe' + $rendererTest) @sources (Join-Path $PSScriptRoot 'native_taskbar_renderer_test.cpp') @libraries '/SUBSYSTEM:CONSOLE'
 if ($LASTEXITCODE -ne 0) { throw 'Renderer tests did not compile.' }
@@ -37,6 +44,11 @@ $discoveryTest = Join-Path $outputDirectory 'native_taskbar_discovery_test.exe'
 if ($LASTEXITCODE -ne 0) { throw 'Discovery tests did not compile.' }
 & $discoveryTest
 if ($LASTEXITCODE -ne 0) { throw 'Delayed discovery checks failed.' }
+$crossProcessTest = Join-Path $outputDirectory 'native_taskbar_cross_process_test.exe'
+& $compiler @common ('/Fe' + $crossProcessTest) @sources (Join-Path $PSScriptRoot 'native_taskbar_cross_process_test.cpp') @libraries '/SUBSYSTEM:CONSOLE'
+if ($LASTEXITCODE -ne 0) { throw 'Cross-process taskbar tests did not compile.' }
+& $crossProcessTest
+if ($LASTEXITCODE -ne 0) { throw 'Hidden cross-process taskbar checks failed.' }
 $isolatedHelper = Join-Path $outputDirectory 'taskbar_isolated_helper.exe'
 & $compiler @common '/DTASKBAR_ISOLATED_TEST' ('/Fe' + $isolatedHelper) @sources (Join-Path $appRoot 'windows\runner\taskbar_main.cpp') @libraries '/SUBSYSTEM:WINDOWS'
 if ($LASTEXITCODE -ne 0) { throw 'Isolated helper did not compile.' }

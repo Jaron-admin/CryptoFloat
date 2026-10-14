@@ -68,6 +68,8 @@ class CryptoFloatApp extends StatefulWidget {
 class _CryptoFloatAppState extends State<CryptoFloatApp> {
   bool _settings = false;
   int _settingsSection = 0;
+  bool _savedNoticePending = false;
+  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
   StreamSubscription<String>? _traySubscription;
   StreamSubscription<String>? _taskbarSubscription;
 
@@ -134,6 +136,38 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
         _settings = value;
         _settingsSection = section;
       });
+      if (!value && _savedNoticePending) {
+        _savedNoticePending = false;
+        if (!widget.controller.config.floatingEnabled) {
+          final language = widget.controller.config.language;
+          unawaited(
+            widget.controller.tray.notifySettingsSaved(
+              chinese:
+                  language == 'zh' ||
+                  (language == 'system' &&
+                      WidgetsBinding
+                              .instance
+                              .platformDispatcher
+                              .locale
+                              .languageCode ==
+                          'zh'),
+            ),
+          );
+        } else {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final messenger = _messengerKey.currentState;
+            if (!mounted || messenger == null) return;
+            final chinese =
+                Localizations.localeOf(messenger.context).languageCode == 'zh';
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(chinese ? '设置已保存' : 'Settings saved'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          });
+        }
+      }
       if (!value && !widget.controller.config.floatingEnabled) {
         unawaited(widget.controller.hideToTray());
       }
@@ -156,6 +190,7 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
       return MaterialApp(
         title: 'MetricPerch · 数栖',
         debugShowCheckedModeBanner: false,
+        scaffoldMessengerKey: _messengerKey,
         locale: config.language == 'system' ? null : Locale(config.language),
         supportedLocales: AppLocalizations.supportedLocales,
         localizationsDelegates: const [
@@ -186,6 +221,8 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
             ? SettingsPage(
                 controller: widget.controller,
                 initialSection: _settingsSection,
+                outsideClicks: widget.controller.tray.settingsOutsideClicks,
+                onSaved: () => _savedNoticePending = true,
                 onClose: () => _showSettings(false),
               )
             : PanelPage(

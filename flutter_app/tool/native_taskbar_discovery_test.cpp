@@ -34,9 +34,18 @@ int main() {
   host.snapshot.occupied.pop_back(); host.snapshot_time = GetTickCount64(); host.Tick();
   bool recovered = host.status == taskbar::Status::displaying && host.display != nullptr;
   std::printf("%s timely free geometry recovers after stale discovery\n", recovered ? "PASS" : "FAIL");
+  wchar_t module[32768]{}; GetModuleFileNameW(nullptr, module, 32768);
+  std::wstring log_path(module); log_path.resize(log_path.find_last_of(L"\\/") + 1);
+  log_path += L"user_data\\taskbar-helper.log";
+  WIN32_FILE_ATTRIBUTE_DATA before{}, after{};
+  bool logged = GetFileAttributesExW(log_path.c_str(), GetFileExInfoStandard, &before) != FALSE;
+  for (int i = 0; i < 10; ++i) host.Tick();
+  bool quiet = logged && GetFileAttributesExW(log_path.c_str(), GetFileExInfoStandard, &after) &&
+      before.nFileSizeLow == after.nFileSizeLow && before.nFileSizeHigh == after.nFileSizeHigh;
+  std::printf("%s unchanged display state does not repeat diagnostic log entries\n", quiet ? "PASS" : "FAIL");
   host.RemoveDisplay();
   if (host.text_font) DeleteObject(host.text_font);
   if (host.number_font) DeleteObject(host.number_font);
   DestroyWindow(host.fake_bar); CloseHandle(host.stop);
-  return aged && refused && occupied && recovered ? 0 : 1;
+  return aged && refused && occupied && recovered && quiet ? 0 : 1;
 }

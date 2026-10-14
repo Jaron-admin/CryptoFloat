@@ -109,7 +109,7 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('label-text')), '新美元标签');
     await tester.tap(find.text('保存标签'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('保存并返回'));
+    await tester.tap(find.byTooltip('返回悬浮窗'));
     await tester.pumpAndSettle();
     expect(displayUnitLabel(' USD ', store.saved!), '新美元标签');
     expect(store.saved?.unitLabels.length, 2);
@@ -156,7 +156,7 @@ void main() {
       );
       await tester.tap(find.text('保存规则'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存并返回'));
+      await tester.tap(find.byTooltip('返回悬浮窗'));
       await tester.pumpAndSettle();
       final converted = convertUnitValue(2, ' oz ', store.saved!, {});
       expect(converted.value, 60);
@@ -203,7 +203,7 @@ void main() {
       await tester.tap(find.text('加入显示'));
       await tester.pumpAndSettle();
       expect(store.saved, isNull);
-      await tester.tap(find.text('保存并返回'));
+      await tester.tap(find.byTooltip('返回悬浮窗'));
       await tester.pumpAndSettle();
       expect(store.saved?.displayRows.length, 2);
       expect(store.saved?.displayRows.first.id, 'existing');
@@ -234,10 +234,11 @@ void main() {
     await tester.pumpAndSettle();
     await openSettings(tester);
     await category(tester, '显示布局');
+    await reveal(tester, find.text('显示默认行情'));
     expect(find.text('显示默认行情'), findsOneWidget);
     await tester.tap(find.text('显示默认行情'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('保存并返回'));
+    await tester.tap(find.byTooltip('返回悬浮窗'));
     await tester.pumpAndSettle();
     expect(store.saved?.showDefaultRows, false);
     expect(store.saved?.displayRows.single.id, 'note');
@@ -262,7 +263,7 @@ void main() {
     await reveal(tester, iconToggle);
     await tester.tap(iconToggle);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('保存并返回'));
+    await tester.tap(find.byTooltip('返回悬浮窗'));
     await tester.pumpAndSettle();
     expect(store.saved?.headerName, '我的行情');
     expect(store.saved?.showHeaderName, true);
@@ -290,7 +291,7 @@ void main() {
       await reveal(tester, find.text('清除图片图标'));
       await tester.tap(find.text('清除图片图标'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存并返回'));
+      await tester.tap(find.byTooltip('返回悬浮窗'));
       await tester.pumpAndSettle();
       expect(store.saved?.headerImagePath, '');
       expect(store.saved?.headerName, AppConfig.defaults.headerName);
@@ -350,7 +351,7 @@ void main() {
       );
       await tester.tap(find.text('保存规则'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('保存并返回'));
+      await tester.tap(find.byTooltip('返回悬浮窗'));
       await tester.pumpAndSettle();
       expect(store.saved?.unitLabelMode, 'custom');
       expect(store.saved?.displayCurrency, 'CNY');
@@ -462,9 +463,9 @@ void main() {
       );
       await tester.tap(find.text('取消'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('返回悬浮窗'));
-      await tester.pumpAndSettle();
       await tester.tap(find.text('放弃更改'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('返回悬浮窗'));
       await tester.pumpAndSettle();
       expect(_theme(tester).colorScheme.surface, before);
       expect(store.saved, isNull);
@@ -491,9 +492,9 @@ void main() {
         .map((text) => text.data ?? text.textSpan?.toPlainText() ?? '')
         .join(' ');
     expect(samples, contains('中文预览'));
-    await tester.tap(find.byTooltip('返回悬浮窗'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('放弃更改'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('返回悬浮窗'));
     await tester.pumpAndSettle();
     expect(_theme(tester).textTheme.bodyMedium?.fontFamily, 'Segoe UI');
     await tester.pumpWidget(const SizedBox.shrink());
@@ -524,7 +525,7 @@ void main() {
     await reveal(tester, firstAsset);
     await tester.tap(firstAsset);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('保存并返回'));
+    await tester.tap(find.byTooltip('返回悬浮窗'));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('panel-title')), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
@@ -551,7 +552,7 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Consolas'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('保存并返回'));
+    await tester.tap(find.byTooltip('返回悬浮窗'));
     await tester.pumpAndSettle();
     expect(controller.config.fontFamily, 'Consolas');
     expect(find.byKey(const ValueKey('panel-title')), findsOneWidget);

@@ -88,5 +88,19 @@ int main() {
   layout.occupied = {{-1800, 1000, -1500, 1072}, {-1500, 1000, -500, 1072}};
   Check(taskbar::FitFreeRegion(layout, 360, 32).status == taskbar::Status::noSpace,
         "adjacent occupied regions leave no false gap");
+  SetLastError(ERROR_ACCESS_DENIED);
+  taskbar::WriteDiagnostic(taskbar::DiagnosticSource::bridge, "test=preservesWin32Error");
+  Check(GetLastError() == ERROR_ACCESS_DENIED, "diagnostics preserve caller Win32 error");
+  for (int i = 0; i < 100; ++i)
+    taskbar::WriteDiagnostic(taskbar::DiagnosticSource::bridge, "test=rotation " + std::string(2000, 'x'));
+  wchar_t module[32768]{}; GetModuleFileNameW(nullptr, module, 32768);
+  std::wstring log_path(module); log_path.resize(log_path.find_last_of(L"\\/") + 1);
+  log_path += L"user_data\\taskbar-bridge.log";
+  WIN32_FILE_ATTRIBUTE_DATA current_log{}, previous_log{};
+  Check(GetFileAttributesExW(log_path.c_str(), GetFileExInfoStandard, &current_log) &&
+        GetFileAttributesExW((log_path + L".1").c_str(), GetFileExInfoStandard, &previous_log) &&
+        current_log.nFileSizeHigh == 0 && current_log.nFileSizeLow <= 64 * 1024 &&
+        previous_log.nFileSizeHigh == 0 && previous_log.nFileSizeLow <= 64 * 1024,
+        "diagnostics rotate into one bounded 64 KiB backup");
   return failures == 0 ? 0 : 1;
 }

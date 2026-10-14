@@ -3,16 +3,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../app/app_controller.dart';
-import '../../app/theme_presets.dart';
 import '../../domain/display_formatter.dart';
 import '../../domain/models.dart';
-import '../../domain/refresh_status.dart';
 import '../../domain/system_metric.dart';
 import '../../domain/display_snapshot.dart';
 import '../../l10n/metrics_strings.dart';
 import '../../domain/unit_conversion.dart';
 import '../../platform/system_fonts.dart';
 import 'display_row_view.dart';
+import '../../app/market_change_colors.dart';
 import '../../l10n/l10n.dart';
 
 class PanelPage extends StatelessWidget {
@@ -119,7 +118,6 @@ class PanelPage extends StatelessWidget {
               !referenced.contains('custom:${source.id}|${field.id}'))
             (source, field),
     ];
-    final status = controller.refreshStatusFor(config);
     final content = <String, Widget>{
       if (config.showDefaultRows)
         for (final asset in config.assets)
@@ -159,52 +157,6 @@ class PanelPage extends StatelessWidget {
           ),
         ),
     };
-    final l10n = context.l10n;
-    final intervalText = status.intervalsSeconds.isEmpty
-        ? ''
-        : l10n.panelAutoRefresh(
-            status.intervalsSeconds
-                .map(
-                  (value) => value >= 60 && value % 60 == 0
-                      ? l10n.panelMinutes(value ~/ 60)
-                      : l10n.panelSeconds(value),
-                )
-                .join('/'),
-          );
-    final last = status.lastUpdatedAt;
-    final now = DateTime.now();
-    final updatedText = last == null
-        ? ''
-        : '${last.year != now.year || last.month != now.month || last.day != now.day ? '${last.month.toString().padLeft(2, '0')}-${last.day.toString().padLeft(2, '0')} ' : ''}${formatValue(last)}';
-    final statusText = switch (status.state) {
-      RefreshState.noSources => l10n.panelNoSources,
-      RefreshState.live => l10n.panelLive,
-      RefreshState.waiting =>
-        last == null
-            ? l10n.panelWaiting
-            : l10n.panelPending(updatedText, status.waitingSourceCount),
-      RefreshState.stale => l10n.panelLastUpdate(updatedText),
-    };
-    final rateNote = config.displayCurrency.isNotEmpty && rates.isEmpty
-        ? l10n.panelRatesPending
-        : '';
-    String fetchTime(String id) =>
-        controller.data.lastSuccessfulFetchAt[id] == null
-        ? l10n.panelWaiting
-        : l10n.panelLastFetch(
-            formatValue(controller.data.lastSuccessfulFetchAt[id]),
-          );
-    final details = [
-      for (final asset in config.assets)
-        '${localizedAssetName(asset, l10n)} · ${l10n.panelSourceInterval(asset.provider == 'YAHOO' ? 60 : 15)} · ${fetchTime(asset.id)}${quotes[asset.id]?.error == null ? '' : '\n${localizeAppError(context, quotes[asset.id]!.error)}'}',
-      for (final source in config.customSources.where(
-        (source) => source.enabled,
-      ))
-        '${source.name} · ${l10n.panelSourceInterval(source.refreshSeconds)} · ${fetchTime('custom:${source.id}')}',
-      if (config.displayCurrency.isNotEmpty)
-        '${l10n.panelRatesInterval}${controller.data.ratesFetchedAt == null ? '' : ' · ${l10n.panelLastFetch(formatValue(controller.data.ratesFetchedAt))}'}${controller.data.ratesError == null ? '' : '\n${localizeAppError(context, controller.data.ratesError)}'}',
-      l10n.panelLiveNote,
-    ].join('\n\n');
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onSecondaryTapUp: (event) => _menu(context, event.globalPosition),
@@ -263,8 +215,8 @@ class PanelPage extends StatelessWidget {
                   ),
                 ),
               Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(12, 5, 12, 8),
+                child: _PanelGrid(
+                  config: config,
                   children: [
                     for (final id in buildDisplayTexts(
                       config,
@@ -281,48 +233,86 @@ class PanelPage extends StatelessWidget {
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 2, 8, 6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Tooltip(
-                        message: details,
-                        child: Text(
-                          '$statusText$intervalText$rateNote',
-                          maxLines: 2,
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: status.isLive
-                                ? marketColorsOf(context).positive
-                                : Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
-                          ),
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onPanStart: (_) =>
-                          controller.host.beginResize('bottomRight'),
-                      child: Padding(
-                        padding: EdgeInsets.all(2),
-                        child: Icon(
-                          Icons.south_east,
-                          size: 12,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Keep the selected number of columns; scroll when cells would become unreadable.
+class _PanelGrid extends StatelessWidget {
+  const _PanelGrid({required this.config, required this.children});
+  final AppConfig config;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final columns = config.panelColumnCount.clamp(1, 8);
+    const gap = 16.0;
+    final textScale =
+        MediaQuery.textScalerOf(context).scale(config.fontSize) / 15;
+    final minCellWidth =
+        (config.panelItemLayout == 'vertical' ? 180.0 : 290.0) * textScale;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minimumWidth = columns * minCellWidth + (columns - 1) * gap + 24;
+        final width = constraints.maxWidth > minimumWidth
+            ? constraints.maxWidth
+            : minimumWidth;
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: width,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(12, 5, 12, 8),
+              children: [
+                for (var start = 0; start < children.length; start += columns)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var column = 0; column < columns; column++) ...[
+                        if (column > 0) const SizedBox(width: gap),
+                        Expanded(
+                          child: start + column < children.length
+                              ? children[start + column]
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _EntryLayout extends StatelessWidget {
+  const _EntryLayout({
+    required this.config,
+    required this.label,
+    required this.value,
+  });
+  final AppConfig config;
+  final Widget label, value;
+
+  @override
+  Widget build(BuildContext context) => config.panelItemLayout == 'vertical'
+      ? Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [label, const SizedBox(height: 4), value],
+        )
+      : Row(
+          children: [
+            Expanded(child: label),
+            const SizedBox(width: 8),
+            Expanded(flex: 2, child: value),
+          ],
+        );
 }
 
 class _MetricRow extends StatelessWidget {
@@ -359,21 +349,26 @@ class _MetricRow extends StatelessWidget {
           '${metric.name(context.metrics.chinese)}${device.isEmpty ? '' : '\n$device'}${reading?.valid == true ? '' : '\n${context.metrics.unavailable}'}',
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: config.rowSpacing / 2 + 3),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                metric.name(context.metrics.chinese),
-                style: TextStyle(
-                  fontFamily: SystemFonts.family(config.fontFamily),
-                  fontSize: config.fontSize,
-                ),
-              ),
+        child: _EntryLayout(
+          config: config,
+          label: Text(
+            metric.name(context.metrics.chinese),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontFamily: SystemFonts.family(config.fontFamily),
+              fontSize: config.fontSize,
             ),
-            Flexible(
-              child: Text(text.text, style: style, textAlign: TextAlign.right),
-            ),
-          ],
+          ),
+          value: Text(
+            text.text,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+            textAlign: config.panelItemLayout == 'vertical'
+                ? TextAlign.left
+                : TextAlign.right,
+          ),
         ),
       ),
     );
@@ -414,12 +409,6 @@ class _HeaderIcon extends StatelessWidget {
   }
 }
 
-Color _changeColor(BuildContext context, Object? value) => value is num
-    ? (value >= 0
-          ? marketColorsOf(context).positive
-          : marketColorsOf(context).negative)
-    : Theme.of(context).colorScheme.onSurfaceVariant;
-
 class _AssetRow extends StatelessWidget {
   const _AssetRow({
     required this.asset,
@@ -451,79 +440,98 @@ class _AssetRow extends StatelessWidget {
           '${localizedAssetName(asset, context.l10n)} · ${asset.provider}\n${quote == null ? context.l10n.panelWaiting : context.l10n.panelQuoteTime(localizedValue(quote!.updatedAt, context.l10n))}${quote?.error == null ? '' : '\n${localizeAppError(context, quote!.error)}'}${converted?.error == null ? '' : '\n${localizeAppError(context, converted!.error)}'}${converted?.converted == true ? '\n${context.l10n.panelOriginal(formatValue(quote?.price), currency)}' : ''}',
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: spacing / 2 + 3),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 72,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    symbol,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: style.fontSize,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    localizedAssetName(asset, context.l10n),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    formatValue(converted?.value ?? quote?.price),
-                    style: style,
-                  ),
+        child: _EntryLayout(
+          config: config,
+          label: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                symbol,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: style.fontSize,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 6, right: 8),
-              child: Text(
-                displayUnitLabel(converted?.unit ?? currency, config),
+              Text(
+                localizedAssetName(asset, context.l10n),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 9,
                   color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
-            ),
-            SizedBox(
-              width: 66,
-              child: Text(
-                quote?.changePercent == null
-                    ? '—'
-                    : '${formatValue(quote!.changePercent, '+.2f')}%',
-                textAlign: TextAlign.right,
-                style: style.copyWith(
-                  fontSize: (style.fontSize ?? 15) - 2,
-                  color: _changeColor(context, quote?.changePercent),
+            ],
+          ),
+          value: Row(
+            children: [
+              Expanded(
+                child: Align(
+                  alignment: config.panelItemLayout == 'vertical'
+                      ? Alignment.centerLeft
+                      : Alignment.centerRight,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      formatValue(converted?.value ?? quote?.price),
+                      style: config.showChangePercent
+                          ? style
+                          : style.copyWith(
+                              color: marketChangeColor(
+                                context,
+                                config,
+                                quote?.changePercent,
+                              ),
+                            ),
+                    ),
+                  ),
                 ),
               ),
-            ),
-            if (quote?.isStale == true || converted?.error != null)
-              Padding(
-                padding: EdgeInsets.only(left: 4),
-                child: Icon(
-                  Icons.error_outline,
-                  size: 11,
-                  color: Theme.of(context).colorScheme.error,
+              Flexible(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: Text(
+                    displayUnitLabel(converted?.unit ?? currency, config),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                 ),
               ),
-          ],
+              if (config.showChangePercent)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Text(
+                    quote?.changePercent == null
+                        ? '—'
+                        : '${formatValue(quote!.changePercent, '+.2f')}%',
+                    textAlign: TextAlign.right,
+                    style: style.copyWith(
+                      fontSize: (style.fontSize ?? 15) - 2,
+                      color: marketChangeColor(
+                        context,
+                        config,
+                        quote?.changePercent,
+                      ),
+                    ),
+                  ),
+                ),
+              if (quote?.isStale == true || converted?.error != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Icon(
+                    Icons.error_outline,
+                    size: 11,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -566,48 +574,60 @@ class _CustomFieldRow extends StatelessWidget {
               : context.l10n.panelUpdated(localizedValue((quote!.fieldUpdatedAt[field.id] ?? quote!.updatedAt), context.l10n))}${converted?.error == null ? '' : '\n${localizeAppError(context, converted!.error)}'}',
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: spacing / 2 + 3),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                field.label,
-                style: TextStyle(fontSize: style.fontSize),
-              ),
-            ),
-            Flexible(
-              child: Text(
-                formatValue(
-                  converted?.converted == true ? converted!.value : value,
-                ),
-                style: number == null
-                    ? style.copyWith(
-                        fontFamily: SystemFonts.family(config.fontFamily),
-                      )
-                    : style,
-              ),
-            ),
-            if (unit.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 7),
+        child: _EntryLayout(
+          config: config,
+          label: Text(
+            field.label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: style.fontSize),
+          ),
+          value: Row(
+            mainAxisAlignment: config.panelItemLayout == 'vertical'
+                ? MainAxisAlignment.start
+                : MainAxisAlignment.end,
+            children: [
+              Flexible(
                 child: Text(
-                  unit,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 10,
+                  formatValue(
+                    converted?.converted == true ? converted!.value : value,
+                  ),
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: number == null
+                      ? style.copyWith(
+                          fontFamily: SystemFonts.family(config.fontFamily),
+                        )
+                      : style,
+                ),
+              ),
+              if (unit.isNotEmpty)
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 7),
+                    child: Text(
+                      unit,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 10,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            if (quote?.isFieldStale(field.id) == true ||
-                converted?.error != null)
-              Padding(
-                padding: EdgeInsets.only(left: 4),
-                child: Icon(
-                  Icons.error_outline,
-                  size: 11,
-                  color: Theme.of(context).colorScheme.error,
+              if (quote?.isFieldStale(field.id) == true ||
+                  converted?.error != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 4),
+                  child: Icon(
+                    Icons.error_outline,
+                    size: 11,
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
