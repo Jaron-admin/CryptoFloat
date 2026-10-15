@@ -77,11 +77,11 @@ try {
     )) { Copy-ReleaseAsset -RelativePath $relativePath -Optional }
 
     $utf8 = [System.Text.UTF8Encoding]::new($false)
-    $chineseUsage = [System.IO.File]::ReadAllText((Join-Path $appRoot 'README.md'))
-    $chineseUsage = $chineseUsage.Replace('(README.en.md)', '(USAGE.en.md)').Replace('(../LICENSE)', '(LICENSE)').Replace('(../THIRD_PARTY_NOTICES.md)', '(THIRD_PARTY_NOTICES.md)')
+    $chineseUsage = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'docs\usage.md'))
+    $chineseUsage = $chineseUsage.Replace('(usage.en.md)', '(USAGE.en.md)').Replace('(../README.md)', '(https://github.com/Jaron-admin/DuoMonitor#readme)').Replace('(../LICENSE)', '(LICENSE)').Replace('(../THIRD_PARTY_NOTICES.md)', '(THIRD_PARTY_NOTICES.md)').Replace('(../CHANGELOG.md)', '(CHANGELOG.md)').Replace('(verification/dpi-investigation.md)', '(https://github.com/Jaron-admin/DuoMonitor/blob/main/docs/verification/dpi-investigation.md)')
     [System.IO.File]::WriteAllText((Join-Path $stagePackage '使用说明.md'), $chineseUsage, $utf8)
-    $englishUsage = [System.IO.File]::ReadAllText((Join-Path $appRoot 'README.en.md'))
-    $englishUsage = $englishUsage.Replace('(README.md)', '(使用说明.md)').Replace('(../LICENSE)', '(LICENSE)').Replace('(../THIRD_PARTY_NOTICES.md)', '(THIRD_PARTY_NOTICES.md)')
+    $englishUsage = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'docs\usage.en.md'))
+    $englishUsage = $englishUsage.Replace('(usage.md)', '(使用说明.md)').Replace('(../README.en.md)', '(https://github.com/Jaron-admin/DuoMonitor/blob/main/README.en.md)').Replace('(../LICENSE)', '(LICENSE)').Replace('(../THIRD_PARTY_NOTICES.md)', '(THIRD_PARTY_NOTICES.md)').Replace('(../CHANGELOG.md)', '(CHANGELOG.md)').Replace('(verification/dpi-investigation.md)', '(https://github.com/Jaron-admin/DuoMonitor/blob/main/docs/verification/dpi-investigation.md)')
     [System.IO.File]::WriteAllText((Join-Path $stagePackage 'USAGE.en.md'), $englishUsage, $utf8)
     foreach ($documentName in @('LICENSE', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md', 'licenses\MaterialIcons.txt')) {
         $documentTarget = Join-Path $stagePackage $documentName
