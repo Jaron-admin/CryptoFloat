@@ -20,7 +20,7 @@ Download **DuoMonitor-Windows-x64-1.6.0.zip** from [Releases](https://github.com
 
 Extract the entire archive and run `duomonitor.exe`. Keep `duomonitor_taskbar.exe`, the accompanying libraries, and the `data` folder beside it. The taskbar helper starts and exits with the main app.
 
-Portable mode is the default: settings, caches, imported icons, protected secrets, and diagnostic logs live in `user_data` beside the executable. **Settings → Import & data location** can switch to the Windows system app-data folder `%APPDATA%\DuoMonitor`, with an option to copy the current data. Only one instance runs for the current Windows user in the current login session; launching again brings it forward. Exit the old version and back up the active data folder before upgrading; in portable mode, keep `user_data` beside the new app. Existing MetricPerch/CryptoFloat custom titles, icons, themes, and display content are retained.
+Portable mode is the default: settings, caches, imported icons, protected secrets, and diagnostic logs live in `user_data` beside the executable. **Settings → Import & data location** can switch to the Windows system app-data folder `%APPDATA%\DuoMonitor`, with an option to copy the current data. Only one instance runs for the current Windows user in the current login session; launching again brings it forward. Exit the old version and back up the active data folder before upgrading; in portable mode, keep `user_data` beside the new app. Previously saved custom titles, icons, themes, and display content are retained.
 
 The current release provides a **Windows x64** build. macOS and Linux project scaffolds are included, but their native window and protected storage integrations are incomplete. Android and iOS releases are not available.
 

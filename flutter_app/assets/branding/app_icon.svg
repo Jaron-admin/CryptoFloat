@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <title>CryptoFloat</title>
+  <title>DuoMonitor</title>
   <desc>A compact dark floating market panel with a rising mint price line.</desc>
   <rect x="16" y="24" width="224" height="220" rx="48" fill="#061019" opacity="0.24"/>
   <rect x="22" y="16" width="212" height="220" rx="44" fill="#121E2C" stroke="#344A60" stroke-width="2"/>
