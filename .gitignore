@@ -21,3 +21,6 @@ storage_mode.json
 .storage-selection/
 .vscode/
 .idea/
+
+# Internal planning documents
+docs/superpowers/
