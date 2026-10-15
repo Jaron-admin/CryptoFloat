@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 私密安全漏洞报告 / Private vulnerability report
+    url: https://github.com/Jaron-admin/DuoMonitor/security/advisories/new
+    about: 请通过 GitHub Security Advisories 私下报告漏洞，不要公开发 Issue。 / Report vulnerabilities privately through GitHub Security Advisories, not in public issues.
