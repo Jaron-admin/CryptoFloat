@@ -1,0 +1,110 @@
+name: Draft Windows release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event_name == 'push' && github.ref_type == 'tag' && !github.event.deleted
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate tag and package version
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Keep tag text in an environment variable instead of interpolating it into code.
+          $tagMatch = [regex]::Match($env:RELEASE_TAG, '\Av((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))\z')
+          if (-not $tagMatch.Success) { throw 'Release tags must use vX.Y.Z, for example v1.6.0.' }
+          $version = $tagMatch.Groups[1].Value
+          $pubspec = Get-Content -LiteralPath 'flutter_app/pubspec.yaml' -Raw
+          $versionMatch = [regex]::Match($pubspec, '(?m)^version:[ \t]*((?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*))(?:\+[0-9]+)?[ \t]*\r?$')
+          if (-not $versionMatch.Success) { throw 'Expected pubspec version X.Y.Z or X.Y.Z+build.' }
+          if ($version -cne $versionMatch.Groups[1].Value) {
+            throw 'The tag version must match flutter_app/pubspec.yaml (excluding its build number).'
+          }
+          "tag=$($env:RELEASE_TAG)" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "package=DuoMonitor-Windows-x64-$version" >> $env:GITHUB_OUTPUT
+
+      - name: Refuse to change an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Listing with this token includes drafts, so reruns preserve existing releases too.
+          $releaseTags = @(gh api --paginate "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name')
+          if ($LASTEXITCODE -ne 0) { throw 'Could not check existing releases.' }
+          if ($releaseTags -ccontains $env:RELEASE_TAG) {
+            throw 'A release already exists for this tag. Review it manually; this workflow will not replace it.'
+          }
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.47.5'
+          architecture: x64
+
+      - name: Build and package Windows release
+        env:
+          PACKAGE_NAME: ${{ steps.version.outputs.package }}
+        run: ./flutter_app/tool/build_windows.ps1 -PackageName $env:PACKAGE_NAME
+
+      - name: Generate SHA-256 and release notes
+        env:
+          PACKAGE_NAME: ${{ steps.version.outputs.package }}
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archiveName = $env:PACKAGE_NAME + '.zip'
+          $archivePath = Join-Path 'flutter_app/dist' $archiveName
+          $hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $archiveName" | Set-Content -LiteralPath 'flutter_app/dist/SHA256SUMS.txt' -Encoding utf8
+          $notes = Get-Content -LiteralPath 'docs/release-template.md' -Raw
+          $hashPlaceholder = 'SHA-256: `...`'
+          if (-not $notes.Contains('X.Y.Z') -or -not $notes.Contains($hashPlaceholder)) {
+            throw 'The release template must retain the X.Y.Z and SHA-256 placeholders.'
+          }
+          $notes = $notes.Replace('X.Y.Z', $env:APP_VERSION).Replace($hashPlaceholder, ('SHA-256: `' + $hash + '`'))
+          $notes | Set-Content -LiteralPath 'flutter_app/dist/release-notes.md' -Encoding utf8
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: DuoMonitor ${{ steps.version.outputs.tag }}
+          draft: true
+          generate_release_notes: false
+          body_path: flutter_app/dist/release-notes.md
+          fail_on_unmatched_files: true
+          overwrite_files: false
+          files: |
+            flutter_app/dist/${{ steps.version.outputs.package }}.zip
+            flutter_app/dist/SHA256SUMS.txt
+
+      # Native taskbar checks are kept outside this workflow until their behavior on
+      # GitHub-hosted Windows runners and desktop/session assumptions are verified.
+      # TODO: Confirm the first hosted run, fill in the draft notes and verification
+      # record, then manually inspect the ZIP and checksum before publishing.

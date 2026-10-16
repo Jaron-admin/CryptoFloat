@@ -1,5 +1,15 @@
 # DuoMonitor 更新记录 / Changelog
 
+## 项目名称历史 / Project naming history
+
+| 版本 / Versions | 项目名称 / Project name |
+| --- | --- |
+| v1.1–v1.2 | CryptoFloat |
+| v1.3–v1.4.1 | MetricPerch · 数栖 |
+| v1.5 起 / v1.5 onward | DuoMonitor |
+
+历史条目和发行附件保留当时使用的名称。Historical entries and release assets retain their original names.
+
 ## 1.6.0
 
 ### 简体中文

@@ -1,0 +1,92 @@
+name: 缺陷报告 / Bug report
+description: 报告 DuoMonitor 的异常行为 / Report unexpected behavior in DuoMonitor
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先搜索已有 Issue，并提供可以复现问题的最小信息。
+        Search existing issues first and provide the minimum information needed to reproduce the problem.
+
+        Issue 内容是公开的。请遮盖截图和日志中的 API Key、令牌、账户信息、私人网址、用户名和个人路径；不要上传完整配置或 `user_data` 文件夹。
+        Issues are public. Redact API keys, tokens, account details, private URLs, usernames, and personal paths from screenshots and logs. Do not upload complete configuration files or the `user_data` folder.
+
+        安全漏洞请通过 [私密报告入口 / private vulnerability reporting](https://github.com/Jaron-admin/DuoMonitor/security/advisories/new) 提交。
+  - type: input
+    id: version
+    attributes:
+      label: DuoMonitor 版本 / DuoMonitor version
+      description: 填写发行版本；源码构建请附提交号。 / Provide the release version, or the commit for a source build.
+      placeholder: "例如 / e.g. 1.6.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: windows_version
+    attributes:
+      label: Windows 版本 / Windows version
+      options:
+        - Windows 11
+        - Windows 10
+        - 其他 / Other
+    validations:
+      required: true
+  - type: input
+    id: windows_build
+    attributes:
+      label: Windows 版本号与内部版本 / Windows release and OS build
+      description: 可在“设置 → 系统 → 系统信息”查看；只需版本号，不要填写设备或产品 ID。 / See Settings → System → About; include the release and build only, without device or product IDs.
+      placeholder: "例如 / e.g. Windows 11 24H2, OS build 26100.x"
+    validations:
+      required: true
+  - type: textarea
+    id: displays
+    attributes:
+      label: 显示器数量与缩放 / Displays and scaling
+      description: 列出每台显示器的缩放比例，并注明主显示器及出现问题的屏幕。 / List the scaling for each display, the primary display, and the affected display.
+      placeholder: "例如 / e.g. 2 displays; primary 150%, secondary 100%; issue on secondary"
+    validations:
+      required: true
+  - type: dropdown
+    id: portable_mode
+    attributes:
+      label: 是否使用便携模式 / Portable mode
+      description: 便携模式把数据放在程序旁的 user_data 中。 / Portable mode stores data in user_data beside the application.
+      options:
+        - 是 / Yes
+        - 否 / No
+        - 不确定 / Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      description: 请按顺序描述操作，并说明问题是否每次出现。 / Describe the steps in order and whether the issue happens every time.
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果 / Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果 / Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或录屏（可选） / Screenshots or recordings (optional)
+      description: 上传前请遮盖账户信息、密钥和其他私人内容。 / Redact account details, secrets, and other private information before attaching media.
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志（可选） / Relevant logs (optional)
+      description: 仅粘贴相关且已脱敏的日志片段；没有日志可留空。不要上传完整配置或 user_data。 / Paste only relevant, redacted log excerpts; leave blank if unavailable. Do not upload complete configuration files or user_data.

@@ -1,91 +1,86 @@
-# DuoMonitor
+<div align="center">
 
-[简体中文](README.md) · **English**
+<h1>DuoMonitor</h1>
+<p>Live market quotes and system status in a Windows floating panel and taskbar</p>
 
-Show market quotes, JSON API fields, text, and local system metrics in a floating desktop panel and the Windows taskbar. Choose content and appearance independently for each display. Built with Flutter and Material 3, with English and Simplified Chinese interfaces.
+[![Release](https://img.shields.io/github/v/release/Jaron-admin/DuoMonitor)](https://github.com/Jaron-admin/DuoMonitor/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Jaron-admin/DuoMonitor/total)](https://github.com/Jaron-admin/DuoMonitor/releases)
+[![License](https://img.shields.io/github/license/Jaron-admin/DuoMonitor)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)
 
-![Example DuoMonitor floating panel](docs/images/panel-preview.png)
+[简体中文](README.md) · **English** · [Download](https://github.com/Jaron-admin/DuoMonitor/releases/latest) · [User guide](docs/usage.en.md) · [Changelog](CHANGELOG.md)
 
-Example appearance from v1.1: customize the name, fonts, colors, transparency, and displayed content. The settings interface has changed in the current version.
+</div>
 
-### Settings preview
+> **Screenshots coming soon:** taskbar display / floating desktop panel.
+<!-- TODO: Replace the text with user-supplied captures at docs/images/taskbar.png and docs/images/panel.png. -->
 
-![Material 3 appearance settings](docs/images/settings-en.png)
+## ✨ Core features
 
-The retained v1.2 screenshot illustrates the appearance; v1.3 adds display targets and system monitoring, v1.4 adds columns and entry orientation, and v1.4.1 adds Save without leaving Settings and compact taskbar options. This preview uses sample data. Watchlist selections stay in place while editing; selected items move to the top when reopening the page or refreshing the catalog.
+- Monitor CPU, memory, GPU, network rates, disk activity, and other system metrics in the taskbar.
+- Follow cryptocurrency, US stock, and selected mainland China stock quotes, with independent content and layouts for each display.
+- Combine custom HTTPS JSON APIs, fields, and text templates with built-in quotes.
+- Run without installation using portable or system storage, with API secrets protected locally by Windows DPAPI.
+- Choose English or Chinese, light/dark themes, system fonts, transparency, and multiple columns.
 
-## Download and run
+## 📦 Download and install
 
-Download **DuoMonitor-Windows-x64-1.6.0.zip** from [Releases](https://github.com/Jaron-admin/DuoMonitor/releases).
+1. Download `DuoMonitor-Windows-x64-<version>.zip` from [Releases](https://github.com/Jaron-admin/DuoMonitor/releases/latest).
+2. Extract the entire folder, including the libraries, `data`, and taskbar helper.
+3. Run `duomonitor.exe`.
 
-Extract the entire archive and run `duomonitor.exe`. Keep `duomonitor_taskbar.exe`, the accompanying libraries, and the `data` folder beside it. The taskbar helper starts and exits with the main app.
+**Requirements: Windows 10/11 x64. macOS / Linux are not currently supported.**
 
-Portable mode is the default: settings, caches, imported icons, protected secrets, and diagnostic logs live in `user_data` beside the executable. **Settings → Import & data location** can switch to the Windows system app-data folder `%APPDATA%\DuoMonitor`, with an option to copy the current data. Only one instance runs for the current Windows user in the current login session; launching again brings it forward. Exit the old version and back up the active data folder before upgrading; in portable mode, keep `user_data` beside the new app. Existing MetricPerch/CryptoFloat custom titles, icons, themes, and display content are retained.
+## 🧭 Feature details
 
-The current release provides a **Windows x64** build. macOS and Linux project scaffolds are included, but their native window and protected storage integrations are incomplete. Android and iOS releases are not available.
+Right-click the panel or tray icon to open Settings. Double-click the panel to hide it; click the tray icon to restore it.
+Select Floating panel or Taskbar in Settings before editing that display's content and appearance.
 
-Right-click the floating panel to open Settings. Select **Settings → Appearance → Language** to use English, Simplified Chinese, or the system language. Floating panel transparency is also available under Appearance.
+See the [user guide](docs/usage.en.md) for data sources, independent layouts, custom APIs, system monitoring, and window controls.
 
-## Features
+## ❓ Frequently asked questions
 
-- The floating market panel and taskbar monitoring start enabled; the taskbar's default selection is CPU, memory percentage, upload, and download rates.
-- Each display independently selects quotes, API fields, text templates, and system metrics, with its own order, fonts, colors, and units. Data sources and device choices are shared.
-- Transparent taskbar background, compact one/two-row layouts, automatic width within verified free space, and configurable label/value and item spacing. Choose short or custom labels; hover for original names and values.
-- CPU, memory, GPU, video memory, network rates, and disk read/write rates, with a 1–60 second sample interval and automatic or manual device selection.
-- Cryptocurrency, US stock, and selected mainland China stock quotes, with prices, changes, units, and update status.
-- Searchable OKX, Binance, and KuCoin trading-pair catalogs. Reorder your watchlist by dragging or using move-up and move-down buttons.
-- Custom HTTPS JSON APIs, fields, and display templates. Built-in quotes and free-form text can appear together.
-- Unit aliases, reference exchange-rate conversion, and custom multipliers. Starter templates cover weather, exchange rates, public repository statistics, and text reminders.
-- Light, dark, and system themes, multiple named color presets, and a visual color picker.
-- Custom system fonts, numeric fonts, transparency, text size, spacing, app name, and icon.
-- A 1–8 column floating layout with horizontal or vertical entries and right-aligned values. The 24h percentage can be hidden independently.
-- Shared price colors for both displays: default text, theme up/down colors, green-up, or red-up. Direction compares consecutive successful refreshes; the first refresh is neutral.
-- Context menu, always-on-top window, double-click to hide to the tray, click to restore, and per-monitor DPI support.
-- English and Simplified Chinese interfaces, with manual or system language selection.
+### What if Windows says it protected my PC?
 
-Select **Floating panel** or **Taskbar** in Settings; the fixed live preview renders the current draft. **Display layout** controls columns, orientation, spacing and the 24h percentage. Price colors compare refreshes, while each 24h percentage uses its own sign. **Price display precision** offers standard or K/M/B notation and automatic or 0–8 decimals per asset, such as `81.7K`. **Taskbar layout** controls rows, background, spacing, labels and overflow behavior. Width follows the content and verified free space without an arbitrary cap. Overflow pages support the mouse wheel and automatic rotation, with a configurable 2–60 second interval (default 5). Hover and manual scrolling pause rotation. Formatting and layout are stored separately for each display.
+The application is currently unsigned. Confirm that the download came from this repository and check the release's SHA-256 before choosing More info → Run anyway.
 
-**Save** commits changes and keeps Settings open. Clicking outside Settings or returning to the panel still saves automatically and briefly confirms success. A close request during a save waits for that operation; a failed save keeps the draft for retry. Alt+Tab and color, font, or file pickers do not close Settings. Only Settings has an application taskbar button. Closing Settings saves and returns to the panel; closing the floating panel hides it to the tray. Use **Exit** to end the app.
+### Where are settings and data stored?
 
-Taskbar integration targets the standard primary Windows taskbar. It attempts to display only when a usable region can be confirmed and has enough room. Unsupported layouts, insufficient space, and an unavailable taskbar pause the display; Settings shows the helper's reported state. v1.4 fixes the reproduced Windows 11 composition issue that hid taskbar content, with visible metrics confirmed on one real desktop setup. Other configurations still need testing; the reported state alone does not verify visible content. Windows 11 has no supported third-party reserved slot, so every layout cannot be guaranteed. Taskbar content provides a context menu with settings, refresh, show floating panel, disable taskbar, and exit actions. The tray remains a way to restore the floating panel.
+The default is `user_data` beside the executable. Settings → Import & data location can switch to `%APPDATA%\DuoMonitor`.
+The app remembers this choice: portable data moves with its folder, while system data stays separate from the app directory. See the [storage FAQ](docs/usage.en.md#storage).
 
-Missing metrics and samples establishing a baseline show `—`; only valid zero values show `0`. Automatic network selection uses active physical interfaces; manual selection can include virtual interfaces. GPU usage represents the busiest engine on the selected adapter; a memory percentage is unavailable when its capacity cannot be established. Rates need a new baseline after startup, resume, or a device change. Compatibility with the real taskbar still requires validation for the particular Windows version and desktop layout.
+### How do I upgrade without losing settings?
 
-With centered Windows taskbar icons, data prefers sufficient far-left free space, otherwise the widest verified gap. Weather, widgets and other controls remain excluded. If free space cannot be reliably verified, the display pauses.
+Exit the old version, back up the active data folder, and extract the whole new archive. For portable mode, copy `user_data` beside the new executable; for system mode, select the existing system data location in the new app and choose **Switch without copying**.
+Enter API keys again after moving to another computer or Windows account. See [upgrades and migration](docs/usage.en.md#upgrade).
 
-v1.4.1 corrects a DPI transition that reused the old display's minimum size and changed the window's logical width; the native regression passes. See the [DPI investigation](docs/verification/dpi-investigation.md) for live observations and verification limits.
+### What if the taskbar display is missing or looks wrong?
 
-## Data and settings
+Check that taskbar display is enabled and enough free space is available. Integration targets the standard primary Windows taskbar; uncertain layouts pause the display.
+Use the floating panel while checking the [taskbar guide](docs/usage.en.md#taskbar). Include your Windows version, scaling settings, and a screenshot when reporting a problem.
 
-The app remembers the selected data location. Existing portable installs continue to read their own `user_data` until a choice is saved. An active folder without settings starts with defaults; old `%APPDATA%\CryptoFloatFlutter` or `%LOCALAPPDATA%\CryptoFloat\secrets` data is not read automatically. Preserve the complete active data folder when moving or backing up the app. Share the original release ZIP, which excludes personal data and storage-location markers.
+### Are API keys secure?
 
-Secret request headers are protected using Windows DPAPI for the current user. Enter those secrets again after moving to another computer or Windows account. Connections follow the Windows system network settings.
+Secret request headers are encrypted with Windows DPAPI and referenced by settings. They are tied to the current user and computer.
+Ordinary settings, caches, and logs are not encrypted as a whole; review them before sharing. See [secret storage](docs/usage.en.md#secrets).
 
-Public data may be delayed, rate-limited, or temporarily unavailable. “Live” means the app fetched data successfully within the configured interval; it does not guarantee zero market-data latency. Prices and exchange rates are for reference.
+## 🛠 Build from source
 
-See the [usage and build guide](flutter_app/README.en.md) for details.
-
-See the [changelog](CHANGELOG.md) for this release.
-
-## Build from source
-
-Use Flutter 3.47.5 / Dart 3.13.4 and the Visual Studio desktop development with C++ toolchain. Follow the [Flutter Windows setup guide](https://docs.flutter.dev/platform-integration/windows/setup).
+Use Flutter 3.47.5 / Dart 3.13.4 and the Visual Studio desktop development with C++ toolchain on Windows:
 
 ```powershell
 git clone https://github.com/Jaron-admin/DuoMonitor.git
 cd DuoMonitor/flutter_app
-flutter pub get
-flutter build windows --release
+./tool/build_windows.ps1
 ```
 
-To create a release folder and ZIP containing the usage guides and licenses:
+See the [development guide](flutter_app/README.en.md) for setup, build parameters, and test commands.
 
-```powershell
-./tool/build_windows.ps1 -PackageName DuoMonitor-Windows-x64-1.6.0
-```
+## 🤝 Contributing
 
-## License
+[Issues and suggestions](https://github.com/Jaron-admin/DuoMonitor/issues) and pull requests are welcome. Start with the [contributing guide](CONTRIBUTING.md).
+Report security issues privately as described in the [security policy](SECURITY.md).
 
-DuoMonitor's own source code is licensed under the [MIT License](LICENSE). You may use, modify, distribute, and use it commercially while retaining the license and copyright notice.
+## 📄 License
 
-Dependencies and fonts retain their own licenses. See [Third-party notices](THIRD_PARTY_NOTICES.md). Release packages include the project license and full third-party license texts.
+[MIT](LICENSE) · Dependency, font, and data-service terms are described in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -1,89 +1,86 @@
-# DuoMonitor
+<div align="center">
 
-**简体中文** · [English](README.en.md)
+<h1>DuoMonitor</h1>
+<p>在 Windows 悬浮窗和任务栏实时查看行情与系统状态</p>
 
-在桌面悬浮窗和 Windows 任务栏中显示行情、自定义 API 字段与本机系统数据。两处独立选择内容和外观。使用 Flutter 和 Material 3 构建，支持简体中文和 English。
+[![Release](https://img.shields.io/github/v/release/Jaron-admin/DuoMonitor)](https://github.com/Jaron-admin/DuoMonitor/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Jaron-admin/DuoMonitor/total)](https://github.com/Jaron-admin/DuoMonitor/releases)
+[![License](https://img.shields.io/github/license/Jaron-admin/DuoMonitor)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)
 
-![DuoMonitor 悬浮窗外观示例](docs/images/panel-preview.png)
+**简体中文** · [English](README.en.md) · [下载](https://github.com/Jaron-admin/DuoMonitor/releases/latest) · [使用文档](docs/usage.md) · [更新日志](CHANGELOG.md)
 
-v1.1 外观示例：名称、字体、配色、透明度和显示内容均可自定义；新版设置界面有所调整。
+</div>
 
-### 设置界面示例
+> **界面预览待补充：** 任务栏效果 / 桌面悬浮窗。
+<!-- TODO: 用户提供真实截图后，替换文字占位：docs/images/taskbar.png、docs/images/panel.png。 -->
 
-![Material 3 关注行情设置](docs/images/settings-zh.png)
+## ✨ 核心功能
 
-保留 v1.2 的设置截图供外观参考；v1.3 新增显示目标和系统监测设置，v1.4 新增列数与排列方式，v1.4.1 增加保存后留页和任务栏紧凑显示选项。上图使用示例数据；勾选时列表保留原位置，重新进入页面或刷新目录后再把已选项目排到前面。
+- 在任务栏查看 CPU、内存、GPU、网速和磁盘读写等系统指标。
+- 在桌面悬浮窗查看加密货币、美股与部分 A 股行情，两处可独立选择内容和布局。
+- 自定义 HTTPS JSON API、显示字段和文字模板，与默认行情同时显示。
+- 便携免安装，也可选择系统数据目录；API 密钥在本地使用 Windows DPAPI 保护。
+- 支持中英文、浅深主题、系统字体、透明度和多列布局。
 
-## 下载与启动
+## 📦 下载与安装
 
-前往 [Releases](https://github.com/Jaron-admin/DuoMonitor/releases) 下载 **DuoMonitor-Windows-x64-1.6.0.zip**。
+1. 从 [Releases](https://github.com/Jaron-admin/DuoMonitor/releases/latest) 下载 `DuoMonitor-Windows-x64-<版本>.zip`。
+2. 解压整个文件夹，保留运行库、`data` 与任务栏辅助程序。
+3. 运行 `duomonitor.exe`。
 
-解压整个压缩包，双击 `duomonitor.exe` 启动。请保留同目录的 `duomonitor_taskbar.exe`、运行库和 `data` 文件夹，不能只复制主 EXE。任务栏宿主随主程序启动和退出。
+**系统要求：Windows 10/11 x64。目前不支持 macOS / Linux。**
 
-默认使用便携模式：设置、缓存、导入图标、受保护的密钥和诊断日志保存在程序旁的 `user_data` 文件夹。“设置 → 导入与数据位置”可切换到 Windows 系统应用目录 `%APPDATA%\DuoMonitor`，并选择是否复制当前数据。同一 Windows 用户的当前登录会话只运行一个实例，再次启动会唤回已有窗口。升级前退出旧版并备份当前数据目录；便携模式需把 `user_data` 保留在新程序旁。MetricPerch/CryptoFloat 的自定义标题、图标、主题和显示内容继续保留。
+## 🧭 功能详情
 
-当前发行版支持 **Windows x64**。macOS/Linux 已有项目骨架，尚未完成原生窗口和受保护存储适配；Android/iOS 暂无可用发行版。
+右键悬浮窗或托盘图标打开设置；双击悬浮窗隐藏，单击托盘图标恢复。
+设置中先选择“悬浮窗”或“任务栏”，再调整关注内容和外观。
 
-## 功能
+行情来源、独立显示布局、自定义 API、系统监测及窗口操作见 [使用文档](docs/usage.md)。
 
-- 默认同时启用行情悬浮窗与任务栏系统监测；任务栏默认选择 CPU、内存百分比、上传和下载速率。
-- 悬浮窗和任务栏各自选择行情、API 字段、文字模板和系统指标，独立排序、字体、颜色和单位；共享数据源与设备选择。
-- 任务栏支持透明背景、紧凑单行/双行，按已确认的空白区域自动伸缩；名称与数值间距、项目间距均可调整，悬停查看原始名称与数值。
-- 任务栏显示不全时按完整项目组分页，支持滚轮和自动轮播；轮播默认 5 秒，可设 2–60 秒，悬停或手动滚动时暂停。
-- CPU、内存、GPU、显存、网速和磁盘读写监测，采样间隔 1–60 秒，支持自动或手动选择设备。
-- 加密货币、美股和部分沪深股票行情，显示价格、涨跌幅、单位与更新状态。
-- 自动获取 OKX、Binance、KuCoin 交易对目录，搜索和勾选关注项目；支持拖拽排序和上下移动。
-- 自定义 HTTPS JSON API、字段与显示模板，默认行情和自由文本可同时显示。
-- 单位简写、参考汇率换算、自定义倍率；提供天气、汇率、公开仓库统计和文字提醒模板。
-- 浅色、深色与跟随系统主题，多套命名配色预设和可视化取色器。
-- 系统字体及数字字体、透明度、字号、间距、名称和图标自定义。
-- 悬浮窗支持 1–8 列，每项可横向或纵向排列，数值靠右对齐；24h 涨跌幅可独立隐藏。
-- 两处共享价格颜色设置：默认文字、主题涨跌色、绿涨红跌或红涨绿跌；方向比较相邻两次成功刷新的价格，首次刷新为中性色。
-- 右键菜单、窗口置顶、双击隐藏到托盘、单击托盘恢复，多显示器 DPI 适配。
+## ❓ 常见问题
 
-右键悬浮窗打开设置。在 **设置 → 外观 → 语言** 中选择简体中文、English 或跟随系统；悬浮窗透明度也位于“外观”中。
+### Windows 提示“已保护你的电脑”怎么办？
 
-在设置中先选择 **悬浮窗** 或 **任务栏**，固定预览区会即时显示当前草稿。“显示布局”提供列数、排列方式、间距与 24h 涨跌幅开关；价格颜色按每次刷新比较，24h 百分比按自身正负独立着色。“价格显示精度”支持按币种选择普通数字或 K/M/B 缩写，以及自动或 0–8 位小数，例如 `81.7K`。“任务栏布局”可调整单行/双行、透明背景、间距、轮播间隔和名称。任务栏没有人为最大宽度，按内容需要与检测到的空白区域伸缩；空间不足时分页。系统设备、采样间隔与价格颜色模式共享，精度和布局独立保存。
+程序目前未进行代码签名。确认下载来自本仓库，并核对发行页的 SHA-256 后，可点“更多信息 → 仍要运行”。
 
-点击 **保存** 会提交更改并留在设置页；点击设置窗口外或返回悬浮窗仍会自动保存，成功后短暂提示。保存中收到关闭请求会等待当前保存完成；失败保留草稿供重试。Alt+Tab 和取色、字体、文件选择窗口不会触发自动关闭。设置页显示独立的任务栏按钮；关闭设置窗口会保存后返回悬浮窗，关闭悬浮窗会隐藏到托盘，需要结束程序时使用 **退出**。
+### 配置和数据存在哪？
 
-任务栏首期面向 Windows 主屏标准任务栏。只有确认可用区域且空间足够时才尝试显示；空间不足、不支持的布局或任务栏尚未就绪时暂停，设置中显示宿主报告的状态。v1.4 修复了已复现的 Windows 11 任务栏合成导致内容不可见的问题，并在一套真实桌面配置中确认指标可见；其他配置仍需验证，宿主状态本身不代表实际画面已验证。Windows 11 没有受支持的第三方预留位置，无法保证每种布局可用。任务栏内容提供右键菜单，可打开设置、刷新、显示悬浮窗、关闭任务栏或退出；托盘仍可恢复悬浮窗。
+默认在程序旁的 `user_data`；“设置 → 导入与数据位置”可切换到 `%APPDATA%\DuoMonitor`。
+程序记住所选位置；便携数据随文件夹移动，系统目录的数据独立于程序目录。详见 [数据位置 FAQ](docs/usage.md#storage)。
 
-系统指标缺失或正在建立采样基线时显示 `—`，有效零值才显示 `0`。网卡自动模式统计活动物理接口，手动模式可选虚拟接口；GPU 显示所选适配器的最忙引擎，无法确定显存容量时不计算百分比。启动、恢复和切换设备后，速率需等待新的采样基线。真实任务栏兼容性仍需结合具体 Windows 版本与桌面布局验证。
+### 怎么升级而不丢配置？
 
-v1.4.1 修正了跨屏 DPI 过渡中沿用旧屏最小尺寸、导致窗口逻辑宽度变化的问题，对应原生回归已通过。跨屏复测结果和验证范围见 [DPI 调查记录](docs/verification/dpi-investigation.md)。
+退出旧版并备份当前数据目录，再完整解压新包。便携模式把 `user_data` 复制到新程序旁；系统模式在新程序中选择原系统数据位置，并点 **不复制，只切换**。
+换电脑或 Windows 账户后需要重新输入 API 密钥。详见 [升级与迁移](docs/usage.md#upgrade)。
 
-## 数据与配置
+### 任务栏不显示或显示异常怎么办？
 
-程序会记住所选数据位置；未选择位置的既有便携版继续读取自己的 `user_data`。所选目录没有设置时使用默认配置，不会自动读取旧 `%APPDATA%\CryptoFloatFlutter` 或 `%LOCALAPPDATA%\CryptoFloat\secrets`。移动或备份软件时保留完整的当前数据目录。分享请使用原始发行 ZIP，其中不含个人数据与数据位置标记。
+确认设置中已开启任务栏显示，并留出足够空白。当前面向主屏标准 Windows 任务栏；布局无法确认时会暂停显示。
+可先使用悬浮窗，再按 [任务栏说明](docs/usage.md#taskbar) 检查设置；反馈问题时附 Windows 版本、缩放比例和截图。
 
-API 请求头密钥由 Windows 当前用户的 DPAPI 保护；换电脑或 Windows 账户后需要重新输入密钥。网络自动跟随 Windows 系统网络设置。
+### API Key 安全吗？
 
-公开行情可能延迟、限流或暂时不可用；“实时”表示应用在设定周期内成功获取数据。价格与汇率仅供展示参考。
+密钥请求头使用 Windows DPAPI 加密，配置中保存引用，密钥绑定当前用户和电脑。
+普通设置、缓存和日志并非整体加密；分享前请检查内容。详见 [密钥说明](docs/usage.md#secrets)。
 
-完整说明见 [使用与构建文档](flutter_app/README.md)。
+## 🛠 从源码构建
 
-本次变化见 [更新记录](CHANGELOG.md)。
-
-## 从源码构建
-
-需要 Flutter 3.47.5 / Dart 3.13.4，以及支持 C++ 桌面开发的 Visual Studio 工具链。
+使用 Flutter 3.47.5 / Dart 3.13.4 和 Visual Studio C++ 桌面工具链，在 Windows 上运行：
 
 ```powershell
 git clone https://github.com/Jaron-admin/DuoMonitor.git
 cd DuoMonitor/flutter_app
-flutter pub get
-flutter build windows --release
+./tool/build_windows.ps1
 ```
 
-工具链安装步骤见 [Flutter Windows 配置文档](https://docs.flutter.dev/platform-integration/windows/setup)。生成包含使用说明与许可证的发布目录和 ZIP：
+环境准备、构建参数与测试命令见 [开发文档](flutter_app/README.md)。
 
-```powershell
-./tool/build_windows.ps1 -PackageName DuoMonitor-Windows-x64-1.6.0
-```
+## 🤝 参与贡献
 
-## 开源协议
+欢迎提交 [问题或建议](https://github.com/Jaron-admin/DuoMonitor/issues) 和 PR，开始前请阅读 [贡献指南](CONTRIBUTING.md)。
+安全问题请按 [安全政策](SECURITY.md) 私下报告。
 
-DuoMonitor 自有源码使用 [MIT License](LICENSE)，允许使用、修改、分发和商业使用，分发时保留许可证与版权声明。
+## 📄 许可证
 
-第三方依赖和字体分别遵循各自的条款，详见 [第三方许可说明](THIRD_PARTY_NOTICES.md)。发布包附带项目许可证及第三方完整许可文本。
+[MIT](LICENSE) · 第三方依赖、字体及数据服务说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
