@@ -161,6 +161,6 @@ See the [DPI investigation](verification/dpi-investigation.md) for implementatio
 
 ## Licensing and data notes
 
-The application uses the [MIT license](../LICENSE); dependencies, icon fonts, and data services retain their own terms, described in [third-party notices](../THIRD_PARTY_NOTICES.md). Release packages include the project and full third-party license texts.
+The application's own source code in the current version uses [GPL-3.0-only](../LICENSE); dependencies, icon fonts, and data services retain their own terms, described in [third-party notices](../THIRD_PARTY_NOTICES.md). Release packages include the project and full third-party license texts.
 
 Public quotes may be delayed, rate-limited, or unavailable. “Live” means a successful fetch within the configured interval, not zero market-data latency. Prices and reference exchange rates are for informational display.

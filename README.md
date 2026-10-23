@@ -83,4 +83,4 @@ cd DuoMonitor/flutter_app
 
 ## 📄 许可证
 
-[MIT](LICENSE) · 第三方依赖、字体及数据服务说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+[GPL-3.0-only](LICENSE) · 第三方依赖、字体及数据服务说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

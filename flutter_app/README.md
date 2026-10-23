@@ -41,7 +41,7 @@ flutter build windows --release
 
 ## 开源协议
 
-DuoMonitor 自有源码使用 [MIT License](../LICENSE)。允许使用、修改、分发和商业使用；分发时请保留版权声明及许可文本。
+DuoMonitor 当前版本的自有源码使用 [GNU GPL 第 3 版，仅此版本（GPL-3.0-only）](../LICENSE)。修改与分发须遵守 GPLv3，包括适用的对应源码提供义务；商业使用仍被允许。此前已按 MIT 发布的版本继续适用其原许可，详见 [许可范围与历史](../THIRD_PARTY_NOTICES.md)。
 
 依赖、图标字体和外部数据分别遵循各自的许可与服务条款，见 [第三方许可说明](../THIRD_PARTY_NOTICES.md)。Windows 发布包保留 Flutter 生成的 `data/flutter_assets/NOTICES.Z`，并附有解压后的 `THIRD_PARTY_LICENSES.txt`。
 

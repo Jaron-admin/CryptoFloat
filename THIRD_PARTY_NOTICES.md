@@ -1,6 +1,10 @@
 # Third-party notices
 
-The root `LICENSE` applies to DuoMonitor's own source code and original project assets. Third-party code, fonts, and other resources retain their respective copyright notices and license terms.
+Copyright (c) 2026 Jaron-admin.
+
+The root `LICENSE` contains the GNU General Public License, version 3. DuoMonitor's own source code and original project assets in the current version are licensed under `GPL-3.0-only`. Third-party code, fonts, and other resources retain their respective copyright notices and license terms.
+
+Earlier versions distributed under MIT remain available under their original terms. Their unchanged copyright and permission notice is retained in [licenses/DuoMonitor-MIT-legacy.txt](licenses/DuoMonitor-MIT-legacy.txt) for that historical material; it does not offer an alternative license for new GPL-only changes.
 
 ## Software dependencies
 

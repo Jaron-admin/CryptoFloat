@@ -37,7 +37,7 @@ If Windows symbolic-link permissions are unavailable, the script creates plugin 
 
 ## License
 
-DuoMonitor's own source code uses the [MIT License](../LICENSE). Use, modification, distribution, and commercial use are permitted while retaining the license and copyright notice.
+DuoMonitor's own source code in the current version uses the [GNU General Public License, version 3 only (GPL-3.0-only)](../LICENSE). Modification and distribution must comply with GPLv3, including its applicable Corresponding Source requirements; commercial use remains permitted. Earlier versions released under MIT retain their original license; see [license scope and history](../THIRD_PARTY_NOTICES.md).
 
 Dependencies, icon fonts, and external data remain subject to their own licenses and service terms. See [Third-party notices](../THIRD_PARTY_NOTICES.md). Windows release packages keep Flutter's `data/flutter_assets/NOTICES.Z` and include its uncompressed contents as `THIRD_PARTY_LICENSES.txt`.
 
