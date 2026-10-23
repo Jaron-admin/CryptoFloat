@@ -32,6 +32,7 @@ class AppController extends ChangeNotifier {
     this.startupMessage,
     AssetCatalogService? assetCatalog,
     MarketDataService? marketData,
+    SystemMetricsService? metricsService,
     this.dataRoot,
     this.storageMode = DataStorageMode.portable,
   }) : _config = config {
@@ -52,6 +53,7 @@ class AppController extends ChangeNotifier {
                 systemProxyResolver: PlatformSystemProxyResolver(),
               ))
           ..addListener(_onData);
+    metrics = metricsService ?? SystemMetricsService();
     metrics.addListener(_metricsChanged);
     taskbar.addListener(notifyListeners);
     unawaited(configureMonitoring());
@@ -145,7 +147,7 @@ class AppController extends ChangeNotifier {
   final SecretStore secrets;
   final TrayHost tray = TrayHost();
   final ContextMenuHost menus = ContextMenuHost();
-  final SystemMetricsService metrics = SystemMetricsService();
+  late final SystemMetricsService metrics;
   final TaskbarHost taskbar = TaskbarHost();
   late final MarketDataService data;
   late final AssetCatalogService catalog;

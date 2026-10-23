@@ -367,26 +367,31 @@ class _EntryLayout extends StatelessWidget {
   final Widget label, value;
 
   @override
-  Widget build(BuildContext context) => config.panelItemLayout == 'vertical'
-      ? Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            label,
-            SizedBox(height: config.panelLabelValueGap),
-            value,
-          ],
-        )
-      : Table(
-          columnWidths: {
-            0: const IntrinsicColumnWidth(),
-            1: FixedColumnWidth(config.panelLabelValueGap),
-            2: const IntrinsicColumnWidth(flex: 1),
-          },
-          defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-          children: [
-            TableRow(children: [label, const SizedBox.shrink(), value]),
-          ],
-        );
+  Widget build(BuildContext context) {
+    // Values keep a reserved width of their own, so they are anchored to the
+    // right edge here instead of stretching the label column beside them.
+    final aligned = Align(alignment: Alignment.centerRight, child: value);
+    return config.panelItemLayout == 'vertical'
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              label,
+              SizedBox(height: config.panelLabelValueGap),
+              aligned,
+            ],
+          )
+        : Table(
+            columnWidths: {
+              0: const IntrinsicColumnWidth(),
+              1: FixedColumnWidth(config.panelLabelValueGap),
+              2: const IntrinsicColumnWidth(flex: 1),
+            },
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            children: [
+              TableRow(children: [label, const SizedBox.shrink(), aligned]),
+            ],
+          );
+  }
 }
 
 class _MetricRow extends StatelessWidget {
@@ -434,12 +439,12 @@ class _MetricRow extends StatelessWidget {
               fontSize: config.fontSize,
             ),
           ),
-          value: Text(
+          // One line with a reserved width: switching between "999.9 KiB/s" and
+          // "1.0 MiB/s" neither wraps the row nor moves the columns beside it.
+          value: _StableText(
             text.text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
             style: style,
-            textAlign: TextAlign.right,
+            seeds: _metricSeeds(metric.unit),
           ),
         ),
       ),
@@ -516,6 +521,13 @@ class _AssetRow extends StatelessWidget {
     final symbol = asset.kind == MarketKind.crypto
         ? asset.symbol.split('-').first.replaceFirst(RegExp(r'USDT$'), '')
         : asset.symbol;
+    final changeStyle = style.copyWith(fontSize: (style.fontSize ?? 15) - 2);
+    final changeColor = marketChangeColor(
+      context,
+      config,
+      quote?.changePercent,
+    );
+    final failed = quote?.isStale == true || converted?.error != null;
     return Tooltip(
       message:
           '${localizedAssetName(asset, context.l10n)} · ${asset.provider}\n${quote == null ? context.l10n.panelWaiting : context.l10n.panelQuoteTime(localizedValue(quote!.updatedAt, context.l10n))}${quote?.error == null ? '' : '\n${localizeAppError(context, quote!.error)}'}${converted?.error == null ? '' : '\n${localizeAppError(context, converted!.error)}'}${converted?.converted == true ? '\n${context.l10n.panelOriginal(formatValue(quote?.price), currency)}' : ''}',
@@ -550,18 +562,13 @@ class _AssetRow extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Flexible(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    formatAssetPrice(
-                      converted?.value ?? quote?.price,
-                      asset.id,
-                      config,
-                    ),
-                    textAlign: TextAlign.right,
-                    style: style.copyWith(color: tone),
+                child: _StableText(
+                  formatAssetPrice(
+                    converted?.value ?? quote?.price,
+                    asset.id,
+                    config,
                   ),
+                  style: style.copyWith(color: tone),
                 ),
               ),
               Flexible(
@@ -579,32 +586,33 @@ class _AssetRow extends StatelessWidget {
                 ),
               ),
               if (config.showChangePercent)
+                // A reserved slot: "—" and "+2.50%" share one width, so the
+                // price and unit keep their place on every refresh.
                 Padding(
                   padding: const EdgeInsets.only(left: 8),
-                  child: Text(
+                  child: _StableText(
                     quote?.changePercent == null
                         ? '—'
                         : '${formatValue(quote!.changePercent, '+.2f')}%',
-                    textAlign: TextAlign.right,
-                    style: style.copyWith(
-                      fontSize: (style.fontSize ?? 15) - 2,
-                      color: marketChangeColor(
-                        context,
-                        config,
-                        quote?.changePercent,
-                      ),
-                    ),
+                    seeds: const ['+000.00%', '-000.00%'],
+                    style: changeStyle.copyWith(color: changeColor),
                   ),
                 ),
-              if (quote?.isStale == true || converted?.error != null)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Icon(
-                    Icons.error_outline,
-                    size: 11,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                ),
+              // The staleness marker keeps its slot too, so a source becoming
+              // stale does not shift the numbers beside it.
+              SizedBox(
+                width: 15,
+                child: failed
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Icon(
+                          Icons.error_outline,
+                          size: 11,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      )
+                    : null,
+              ),
             ],
           ),
         ),
@@ -663,18 +671,25 @@ class _CustomFieldRow extends StatelessWidget {
                 : MainAxisAlignment.end,
             children: [
               Flexible(
-                child: Text(
-                  formatValue(
-                    converted?.converted == true ? converted!.value : value,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: number == null
-                      ? style.copyWith(
+                // Numbers keep one line and a reserved width; free text may
+                // still wrap over up to three lines.
+                child: number == null
+                    ? Text(
+                        formatValue(value),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: style.copyWith(
                           fontFamily: SystemFonts.family(config.fontFamily),
-                        )
-                      : style,
-                ),
+                        ),
+                      )
+                    : _StableText(
+                        formatValue(
+                          converted?.converted == true
+                              ? converted!.value
+                              : value,
+                        ),
+                        style: style,
+                      ),
               ),
               if (unit.isNotEmpty)
                 Flexible(
@@ -691,22 +706,126 @@ class _CustomFieldRow extends StatelessWidget {
                     ),
                   ),
                 ),
-              if (quote?.isFieldStale(field.id) == true ||
-                  converted?.error != null)
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  child: Icon(
-                    Icons.error_outline,
-                    size: 11,
-                    color: Theme.of(context).colorScheme.error,
-                  ),
-                ),
+              // The staleness marker keeps its slot so the value and unit do
+              // not shift when a field starts or stops being stale.
+              SizedBox(
+                width: 15,
+                child:
+                    quote?.isFieldStale(field.id) == true ||
+                        converted?.error != null
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Icon(
+                          Icons.error_outline,
+                          size: 11,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      )
+                    : null,
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
+
+/// Widest plausible text for a metric unit, so the value slot is already
+/// reserved before the first sample arrives.
+List<String> _metricSeeds(String unit) => switch (unit) {
+  '%' => const ['100.0%'],
+  'B/s' => const ['000.0 MiB/s'],
+  'B' => const ['000.0 GiB'],
+  _ => const [],
+};
+
+/// Reserves the widest width this slot has needed so far, so a live number grows
+/// into space that is already reserved instead of pushing its neighbours on
+/// every refresh. [seeds] describe the widest plausible texts up front, so the
+/// common cases never resize at all.
+class _StableText extends StatefulWidget {
+  const _StableText(this.text, {required this.style, this.seeds = const []});
+
+  final String text;
+  final TextStyle style;
+  final List<String> seeds;
+
+  @override
+  State<_StableText> createState() => _StableTextState();
+}
+
+class _StableTextState extends State<_StableText> {
+  double _width = 0;
+  String? _key;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reserve();
+  }
+
+  @override
+  void didUpdateWidget(_StableText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _reserve();
+  }
+
+  void _reserve() {
+    // Only measurements that affect the text width reset the slot: a price
+    // turning red must not shrink it back.
+    final scaler = MediaQuery.textScalerOf(context);
+    final key = [
+      widget.style.fontSize,
+      widget.style.fontFamily,
+      widget.style.fontWeight,
+      widget.style.fontStyle,
+      widget.style.letterSpacing,
+      widget.style.wordSpacing,
+      widget.style.height,
+      widget.style.fontFeatures?.length,
+      scaler.scale(10),
+      ...widget.seeds,
+    ].join('\u0000');
+    if (key != _key) {
+      _key = key;
+      _width = 0;
+    }
+    final painter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: scaler,
+      maxLines: 1,
+    );
+    var width = 0.0;
+    for (final text in {...widget.seeds, widget.text}) {
+      painter.text = TextSpan(text: text, style: widget.style);
+      painter.layout();
+      width = math.max(width, painter.width);
+    }
+    painter.dispose();
+    if (width > _width) _width = width + .5;
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: _width,
+    // Align keeps the text at its natural size while it fits, so a reserved
+    // slot never changes the row height; the box only shrinks text that is
+    // wider than the space a narrow panel leaves.
+    child: Align(
+      alignment: Alignment.centerRight,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Text(
+          widget.text,
+          maxLines: 1,
+          textAlign: TextAlign.right,
+          style: widget.style,
+        ),
+      ),
+    ),
+  );
 }
 
 class _EmptyPanel extends StatelessWidget {

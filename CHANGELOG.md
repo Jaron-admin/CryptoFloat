@@ -10,6 +10,18 @@
 
 历史条目和发行附件保留当时使用的名称。Historical entries and release assets retain their original names.
 
+## 未发布 / Unreleased
+
+### 简体中文
+
+- 修复悬浮窗在数值变化时整体左右滑动的问题。横向布局的每一列改为固定宽度，面板内容始终与窗口同宽，不再按当前文字宽度重新居中；网速、价格等数字变宽时，右侧项目不再跟着移动。
+- 修复单个项目内部因数值宽度变化而位移的问题。24 小时涨跌幅与“数据过期”标记占用固定槽位，价格和单位靠右对齐后位置保持不动；系统指标数值不再换行，行高保持稳定。
+
+### English
+
+- Fixed the floating panel sliding sideways whenever a value changed width. Horizontal columns now keep a fixed width and the content always spans the full window instead of being re-centred on the current text width, so entries to the right of a changing number no longer move.
+- Fixed per-entry drift inside a row. The 24h change and the staleness marker keep reserved slots, prices and units stay right-aligned in place, and system metric values no longer wrap, so row heights stay stable.
+
 ## 1.6.0
 
 ### 简体中文
