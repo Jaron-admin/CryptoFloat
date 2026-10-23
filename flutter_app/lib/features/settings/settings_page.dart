@@ -8,6 +8,7 @@ import 'fluent_controls.dart';
 
 import '../../app/app_controller.dart';
 import '../../domain/models.dart';
+import '../../domain/display_order_sync.dart';
 import '../../domain/display_snapshot.dart';
 import '../../l10n/metrics_strings.dart';
 import 'system_monitor_settings.dart';
@@ -55,32 +56,16 @@ class _SettingsPageState extends State<SettingsPage> {
   DisplayTarget _target = DisplayTarget.floating;
   AppConfig get _draft => _rootDraft.displayFor(_target);
   bool get _compactHeight => MediaQuery.sizeOf(context).height < 480;
+  /// Writes into the current target's slice of [_rootDraft].
+  ///
+  /// The order reconciliation lives in [syncDisplayOrder] rather than here: it
+  /// used to be inlined, so every assignment in this 2.9k-line page could
+  /// silently reorder the panel. Same behaviour, one explicit call site.
   set _draft(AppConfig value) {
-    final before = _draft;
-    var updated = value;
-    if (value.displayOrder.isNotEmpty &&
-        encodeJson(value.displayOrder) == encodeJson(before.displayOrder)) {
-      final groups = <String, (List<String>, List<String>)>{
-        'asset:': (before.selectedAssetIds, value.selectedAssetIds),
-        'metric:': (before.selectedMetricIds, value.selectedMetricIds),
-        'row:': (
-          before.displayRows.map((row) => row.id).toList(),
-          value.displayRows.map((row) => row.id).toList(),
-        ),
-      };
-      for (final entry in groups.entries) {
-        if (encodeJson(entry.value.$1) != encodeJson(entry.value.$2)) {
-          updated = updated.copyWith(
-            displayOrder: reorderDisplayGroup(
-              updated.displayOrder,
-              entry.key,
-              entry.value.$2.map((id) => '${entry.key}$id').toList(),
-            ),
-          );
-        }
-      }
-    }
-    _rootDraft = _rootDraft.withDisplay(_target, updated);
+    _rootDraft = _rootDraft.withDisplay(
+      _target,
+      syncDisplayOrder(_draft, value),
+    );
   }
 
   int _section = 0;
