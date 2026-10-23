@@ -92,6 +92,22 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
   bool _settings = false;
   int _settingsSection = 0;
   bool _savedNoticePending = false;
+
+  /// Signature of the config fields the app shell actually consumes
+  /// (locale, theme, fonts, window opacity). The shell rebuilds only when this
+  /// changes - NOT on every market/metrics tick, which used to rebuild the
+  /// whole settings page 1-3 times per second and made the pointer stutter.
+  String _appearanceSignature = '';
+
+  String _readAppearanceSignature() =>
+      encodeJson(widget.controller.appearanceConfig.toJson());
+
+  void _onControllerChanged() {
+    final next = _readAppearanceSignature();
+    if (next == _appearanceSignature) return;
+    _appearanceSignature = next;
+    if (mounted) setState(() {});
+  }
   final _messengerKey = GlobalKey<ScaffoldMessengerState>();
   final _settingsCloseRequests = StreamController<void>.broadcast();
   StreamSubscription<String>? _traySubscription;
@@ -101,6 +117,8 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
   @override
   void initState() {
     super.initState();
+    _appearanceSignature = _readAppearanceSignature();
+    widget.controller.addListener(_onControllerChanged);
     _outsideClickSubscription = widget.controller.tray.settingsOutsideClicks
         .listen((_) {
           if (_settings) _settingsCloseRequests.add(null);
@@ -211,6 +229,7 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
 
   @override
   void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
     unawaited(_traySubscription?.cancel());
     unawaited(_taskbarSubscription?.cancel());
     unawaited(_outsideClickSubscription?.cancel());
@@ -220,56 +239,59 @@ class _CryptoFloatAppState extends State<CryptoFloatApp> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
-    builder: (context, child) {
-      final config = widget.controller.appearanceConfig;
-      return MaterialApp(
-        title: 'DuoMonitor',
-        debugShowCheckedModeBanner: false,
-        scaffoldMessengerKey: _messengerKey,
-        locale: config.language == 'system' ? null : Locale(config.language),
-        supportedLocales: AppLocalizations.supportedLocales,
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        theme: buildAppTheme(config, brightness: Brightness.light),
-        darkTheme: buildAppTheme(config, brightness: Brightness.dark),
-        themeMode: switch (config.themeMode) {
-          'light' => ThemeMode.light,
-          'dark' => ThemeMode.dark,
-          _ => ThemeMode.system,
-        },
-        builder: (context, child) {
-          final theme = Theme.of(context);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              unawaited(
-                widget.controller.menus.updateAppearance(theme, context.l10n),
-              );
-            }
-          });
-          return DpiDiagnosticsHost(
-            fontSize: config.fontSize,
-            child: child ?? const SizedBox.shrink(),
-          );
-        },
-        home: _settings
-            ? SettingsPage(
-                controller: widget.controller,
-                initialSection: _settingsSection,
-                outsideClicks: _settingsCloseRequests.stream,
-                onSaved: () => _savedNoticePending = true,
-                onClose: () => _showSettings(false),
-              )
-            : PanelPage(
+  Widget build(BuildContext context) {
+    final config = widget.controller.appearanceConfig;
+    return MaterialApp(
+      title: 'DuoMonitor',
+      debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: _messengerKey,
+      locale: config.language == 'system' ? null : Locale(config.language),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      theme: buildAppTheme(config, brightness: Brightness.light),
+      darkTheme: buildAppTheme(config, brightness: Brightness.dark),
+      themeMode: switch (config.themeMode) {
+        'light' => ThemeMode.light,
+        'dark' => ThemeMode.dark,
+        _ => ThemeMode.system,
+      },
+      builder: (context, child) {
+        final theme = Theme.of(context);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            unawaited(
+              widget.controller.menus.updateAppearance(theme, context.l10n),
+            );
+          }
+        });
+        return DpiDiagnosticsHost(
+          fontSize: config.fontSize,
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      // The panel must repaint on every market/metrics tick, so it keeps its own
+      // listener. The settings page must NOT: it is a large hand-built form and
+      // rebuilding it on data ticks is what made the pointer stutter.
+      home: _settings
+          ? SettingsPage(
+              controller: widget.controller,
+              initialSection: _settingsSection,
+              outsideClicks: _settingsCloseRequests.stream,
+              onSaved: () => _savedNoticePending = true,
+              onClose: () => _showSettings(false),
+            )
+          : ListenableBuilder(
+              listenable: widget.controller,
+              builder: (context, _) => PanelPage(
                 controller: widget.controller,
                 onSettings: (section) => _showSettings(true, section),
               ),
-      );
-    },
-  );
+            ),
+    );
+  }
 }

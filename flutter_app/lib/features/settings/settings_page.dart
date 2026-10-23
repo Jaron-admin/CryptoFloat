@@ -119,12 +119,27 @@ class _SettingsPageState extends State<SettingsPage> {
   final Set<String> _createdSecrets = {};
 
   bool get _dirty {
+    // Memoised: the header/footer ask for this several times per build, and each
+    // miss serialises the whole config twice. Identity is enough - AppConfig is
+    // immutable, so any edit or save produces a new instance.
+    final saved = widget.controller.config;
+    if (identical(_dirtyMemoDraft, _rootDraft) &&
+        identical(_dirtyMemoSaved, saved)) {
+      return _dirtyMemo;
+    }
     final draft = Map<String, Object?>.of(_rootDraft.toJson())
       ..remove('windowBounds');
-    final saved = Map<String, Object?>.of(widget.controller.config.toJson())
+    final savedJson = Map<String, Object?>.of(saved.toJson())
       ..remove('windowBounds');
-    return encodeJson(draft) != encodeJson(saved);
+    _dirtyMemo = encodeJson(draft) != encodeJson(savedJson);
+    _dirtyMemoDraft = _rootDraft;
+    _dirtyMemoSaved = saved;
+    return _dirtyMemo;
   }
+
+  Object? _dirtyMemoDraft;
+  Object? _dirtyMemoSaved;
+  bool _dirtyMemo = false;
 
   @override
   void initState() {
