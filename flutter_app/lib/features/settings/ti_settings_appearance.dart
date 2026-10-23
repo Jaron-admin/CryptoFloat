@@ -27,6 +27,7 @@ TiSettingsCatalog buildAppearanceCatalog(
         items: [
           TiSettingSpec.choice(
             key: 'general.language',
+            anchor: 'language',
             label: t('界面语言', 'Language'),
             hint: t('跟随系统，或固定成某一种语言。', 'Follow the system or pin one language.'),
             defaultValue: 'system',
@@ -52,6 +53,7 @@ TiSettingsCatalog buildAppearanceCatalog(
           const TiSettingBlock(
             id: 'appearance.theme-picker',
             title: 'Theme picker',
+            anchor: 'themes',
           ),
         ],
       ),
@@ -66,6 +68,7 @@ TiSettingsCatalog buildAppearanceCatalog(
         items: [
           TiSettingSpec.range(
             key: 'appearance.fontSize',
+            anchor: 'font-size',
             label: t('字号', 'Font size'),
             hint: t('面板里所有文字一起缩放。', 'Scales every label in the panel.'),
             min: 10,
@@ -90,6 +93,7 @@ TiSettingsCatalog buildAppearanceCatalog(
           ),
           TiSettingSpec(
             key: 'appearance.fontFamily',
+            anchor: 'fonts',
             type: TiSettingType.font,
             label: t('正文字体', 'Text font'),
             hint: t('标签和说明文字用的字体。', 'Used for labels and captions.'),
@@ -132,6 +136,7 @@ TiSettingsCatalog buildAppearanceCatalog(
           const TiSettingBlock(
             id: 'appearance.price-colors',
             title: 'Price colours',
+            anchor: 'price-color',
           ),
         ],
       ),
@@ -143,6 +148,7 @@ TiSettingsCatalog buildAppearanceCatalog(
           items: [
             TiSettingSpec.range(
               key: 'appearance.transparency',
+              anchor: 'opacity',
               label: t('透明度', 'Transparency'),
               hint: t(
                 '越高越透明，能看见背后的窗口。',
@@ -165,7 +171,11 @@ TiSettingsCatalog buildAppearanceCatalog(
           section: TiSettingSection.appearance,
           title: t('页头', 'Header'),
           items: [
-            const TiSettingBlock(id: 'appearance.header', title: 'Header'),
+            const TiSettingBlock(
+              id: 'appearance.header',
+              title: 'Header',
+              anchor: 'header',
+            ),
           ],
         ),
     ],

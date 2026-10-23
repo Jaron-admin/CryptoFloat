@@ -71,10 +71,18 @@ sealed class TiSettingItem {
 }
 
 final class TiSettingBlock extends TiSettingItem {
-  const TiSettingBlock({required this.id, required this.title, this.payload});
+  const TiSettingBlock({
+    required this.id,
+    required this.title,
+    this.anchor,
+    this.payload,
+  });
 
   final String id;
   final String title;
+
+  /// Legacy anchor name used by the page-wide search to scroll here.
+  final String? anchor;
 
   /// Handed to the builder registered for [id]; keeps this file free of any
   /// Flutter dependency.
@@ -100,6 +108,7 @@ final class TiSettingSpec extends TiSettingItem {
     this.unit,
     this.needsRestart = false,
     this.visible,
+    this.anchor,
   });
 
   /// Stable English key, e.g. `appearance.theme`. Never rename it after a
@@ -120,6 +129,9 @@ final class TiSettingSpec extends TiSettingItem {
   final double? step;
   final String? unit;
   final bool needsRestart;
+
+  /// Legacy anchor name used by the page-wide search to scroll here.
+  final String? anchor;
 
   final TiSettingReader read;
   final TiSettingWriter write;
@@ -165,8 +177,10 @@ final class TiSettingSpec extends TiSettingItem {
     TiSettingLevel level = TiSettingLevel.common,
     bool needsRestart = false,
     bool? Function(AppConfig config)? visible,
+    String? anchor,
   }) => TiSettingSpec(
     key: key,
+    anchor: anchor,
     type: TiSettingType.toggle,
     label: label,
     hint: hint,
@@ -191,12 +205,14 @@ final class TiSettingSpec extends TiSettingItem {
     TiSettingLevel level = TiSettingLevel.common,
     bool needsRestart = false,
     bool? Function(AppConfig config)? visible,
+    String? anchor,
   }) {
     if (options.length < 2) {
       throw ArgumentError.value(key, 'options', 'a choice needs two options');
     }
     return TiSettingSpec(
       key: key,
+      anchor: anchor,
       type: options.length <= 3 ? TiSettingType.segment : TiSettingType.select,
       label: label,
       hint: hint,
@@ -226,8 +242,10 @@ final class TiSettingSpec extends TiSettingItem {
     TiSettingLevel level = TiSettingLevel.common,
     bool needsRestart = false,
     bool? Function(AppConfig config)? visible,
+    String? anchor,
   }) => TiSettingSpec(
     key: key,
+    anchor: anchor,
     type: TiSettingType.slider,
     label: label,
     hint: hint,
@@ -257,8 +275,10 @@ final class TiSettingSpec extends TiSettingItem {
     TiSettingLevel level = TiSettingLevel.common,
     bool needsRestart = false,
     bool? Function(AppConfig config)? visible,
+    String? anchor,
   }) => TiSettingSpec(
     key: key,
+    anchor: anchor,
     type: TiSettingType.text,
     label: label,
     hint: hint,

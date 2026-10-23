@@ -2093,6 +2093,8 @@ class _SettingsPageState extends State<SettingsPage> {
               onChanged: _preview,
               // the page header already searches the whole settings tree
               showSearch: false,
+              // let the page-wide search scroll to a row inside this section
+              anchorKeys: _anchors,
               onPickFont: (spec, current) =>
                   _chooseFont(spec.key == 'appearance.numberFontFamily'),
               blockBuilders: {

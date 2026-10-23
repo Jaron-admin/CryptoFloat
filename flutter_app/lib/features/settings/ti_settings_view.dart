@@ -38,6 +38,7 @@ class TiSettingsView extends StatefulWidget {
     this.onPickFont,
     this.trailing,
     this.showSearch = true,
+    this.anchorKeys,
   });
 
   final TiSettingsCatalog catalog;
@@ -56,6 +57,11 @@ class TiSettingsView extends StatefulWidget {
   /// Turn off when the host already offers a search box over the whole page,
   /// so the user does not get two of them.
   final bool showSearch;
+
+  /// Shared anchor table owned by the host page. When a search result names an
+  /// anchor, the page looks it up here to scroll the row into view; the view
+  /// registers one key per declared anchor on first build.
+  final Map<String, GlobalKey>? anchorKeys;
 
   @override
   State<TiSettingsView> createState() => _TiSettingsViewState();
@@ -341,23 +347,39 @@ class _TiSettingsViewState extends State<TiSettingsView> {
     ),
   );
 
-  Widget _item(TiSettingsStrings strings, TiSettingItem item) => switch (item) {
-    TiSettingSpec spec => _specRow(strings, spec),
-    TiSettingBlock block =>
-      widget.blockBuilders[block.id]?.call(
-            context,
-            block,
-            widget.config,
-            widget.onChanged,
-          ) ??
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              block.title,
-              style: Theme.of(context).textTheme.bodyMedium,
+  Widget _item(TiSettingsStrings strings, TiSettingItem item) {
+    final anchor = switch (item) {
+      TiSettingSpec spec => spec.anchor,
+      TiSettingBlock block => block.anchor,
+    };
+    final key = _anchorKey(anchor);
+
+    final child = switch (item) {
+      TiSettingSpec spec => _specRow(strings, spec),
+      TiSettingBlock block =>
+        widget.blockBuilders[block.id]?.call(
+              context,
+              block,
+              widget.config,
+              widget.onChanged,
+            ) ??
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                block.title,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ),
-          ),
-  };
+    };
+
+    return key == null ? child : KeyedSubtree(key: key, child: child);
+  }
+
+  GlobalKey? _anchorKey(String? anchor) {
+    final table = widget.anchorKeys;
+    if (table == null || anchor == null) return null;
+    return table.putIfAbsent(anchor, GlobalKey.new);
+  }
 
   // -------------------------------------------------------------------- rows
   Widget _specRow(TiSettingsStrings strings, TiSettingSpec spec) {
