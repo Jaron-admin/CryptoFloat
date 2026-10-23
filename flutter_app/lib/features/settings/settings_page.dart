@@ -27,6 +27,8 @@ import 'settings_catalog.dart';
 import 'settings_theme_picker.dart';
 import 'settings_live_preview.dart';
 import 'price_format_settings.dart';
+import 'ti_settings_appearance.dart';
+import 'ti_settings_view.dart';
 
 part 'settings_dialogs.dart';
 
@@ -716,7 +718,7 @@ class _SettingsPageState extends State<SettingsPage> {
     0 => _assets(),
     1 => _sources(),
     2 => _rows(),
-    3 => _appearance(),
+    3 => _appearanceDeclared(),
     4 => _page([
       _intro(
         context.l10n.settingUnitsTitle,
@@ -2067,155 +2069,90 @@ class _SettingsPageState extends State<SettingsPage> {
     if (result != null && mounted) _preview(result);
   }
 
-  Widget _appearance() => _page([
-    _intro(
-      context.l10n.settingAppearance,
-      context.l10n.settingAppearanceDescription,
-    ),
-    _scopeCaption(context.l10n.settingScopeShared),
-    _anchor(
-      'language',
-      _card(
-        SettingRow(
-          title: context.l10n.settingLanguage,
-          control: FDropdown<String>(
-            initialValue: _draft.language,
-            items: [
-              FDropdownItem(
-                value: 'system',
-                child: Text(context.l10n.settingLanguageSystem),
-              ),
-              const FDropdownItem(value: 'zh', child: Text('简体中文')),
-              const FDropdownItem(value: 'en', child: Text('English')),
-            ],
-            onChanged: (value) {
-              if (value != null) _preview(_draft.copyWith(language: value));
-            },
+  /// Appearance section, rendered from the declared catalog.
+  ///
+  /// Everything here is one declaration per setting; the three panels that are
+  /// genuinely custom stay widgets and are plugged in as blocks.
+  Widget _appearanceDeclared() {
+    final catalog = buildAppearanceCatalog(
+      context.l10n,
+      floating: _target == DisplayTarget.floating,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 820),
+          child: SizedBox(
+            width: double.infinity,
+            height: double.infinity,
+            child: TiSettingsView(
+              catalog: catalog,
+              config: _draft,
+              onChanged: _preview,
+              // the page header already searches the whole settings tree
+              showSearch: false,
+              onPickFont: (spec, current) =>
+                  _chooseFont(spec.key == 'appearance.numberFontFamily'),
+              blockBuilders: {
+                'appearance.theme-picker':
+                    (context, block, config, onChanged) =>
+                        SettingsThemePicker(config: config, onChanged: onChanged),
+                'appearance.price-colors':
+                    (context, block, config, onChanged) =>
+                        PriceColorSettings(config: config, onChanged: onChanged),
+                'appearance.font-preview':
+                    (context, block, config, onChanged) => _fontPreview(config),
+                'appearance.header': (context, block, config, onChanged) =>
+                    _headerOptions(),
+              },
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  /// The font specimen shown under the font pickers.
+  Widget _fontPreview(AppConfig config) => Container(
+    width: double.infinity,
+    margin: const EdgeInsets.only(top: 8),
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      borderRadius: BorderRadius.circular(8),
     ),
-    _anchor(
-      'price-color',
-      _card(PriceColorSettings(config: _draft, onChanged: _preview)),
-    ),
-    _scopeCaption(_surfaceScope),
-    if (_target == DisplayTarget.floating)
-      _anchor(
-        'opacity',
-        _card(
-          _slider(
-            context.l10n.settingOpacity,
-            1 - _draft.opacity,
-            0,
-            0.6,
-            '${((1 - _draft.opacity) * 100).round()}%',
-            (value) => _draft = _draft.copyWith(opacity: 1 - value),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          context.l10n.settingFontPreview,
+          style: TextStyle(
+            fontFamily: SystemFonts.family(config.fontFamily),
+            fontSize: config.fontSize,
           ),
         ),
-      ),
-    _anchor(
-      'themes',
-      _card(SettingsThemePicker(config: _draft, onChanged: _preview)),
-    ),
-    _anchor(
-      'fonts',
-      _card(
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SettingRow(
-              title: context.l10n.settingTextFont,
-              description: _draft.fontFamily,
-              controlWidth: 164,
-              control: FButton(
-                onPressed: () => _pickFont(false),
-                child: Text(context.l10n.settingChooseFont),
-              ),
-            ),
-            const Divider(height: 1),
-            SettingRow(
-              title: context.l10n.settingNumberFont,
-              description: _draft.numberFontFamily,
-              controlWidth: 164,
-              control: FButton(
-                onPressed: () => _pickFont(true),
-                child: Text(context.l10n.settingChooseFont),
-              ),
-            ),
-            Text(
-              context.l10n.settingNumberFontHint,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const Divider(height: 1),
-            _anchor(
-              'font-size',
-              Column(
-                children: [
-                  const SizedBox(height: 12),
-                  _slider(
-                    context.l10n.settingFontSize,
-                    _draft.fontSize,
-                    10,
-                    32,
-                    '${_draft.fontSize.round()} px',
-                    (value) => _preview(_draft.copyWith(fontSize: value)),
-                  ),
-                  _slider(
-                    context.l10n.settingRowSpacing,
-                    _draft.rowSpacing,
-                    0,
-                    24,
-                    '${_draft.rowSpacing.round()} px',
-                    (value) => _preview(_draft.copyWith(rowSpacing: value)),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    context.l10n.settingFontPreview,
-                    style: TextStyle(
-                      fontFamily: SystemFonts.family(_draft.fontFamily),
-                      fontSize: _draft.fontSize,
-                    ),
-                  ),
-                  SizedBox(height: _draft.rowSpacing.clamp(4, 12)),
-                  Text(
-                    'AaBb · BTC / USDT',
-                    style: TextStyle(
-                      fontFamily: SystemFonts.family(_draft.fontFamily),
-                      fontSize: _draft.fontSize,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    '83,342.30  +0.37%  0123456789',
-                    style: TextStyle(
-                      fontFamily: SystemFonts.family(_draft.numberFontFamily),
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                      fontSize: _draft.fontSize,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-          ],
+        SizedBox(height: config.rowSpacing.clamp(4, 12)),
+        Text(
+          'AaBb · BTC / USDT',
+          style: TextStyle(
+            fontFamily: SystemFonts.family(config.fontFamily),
+            fontSize: config.fontSize,
+          ),
         ),
-      ),
+        const SizedBox(height: 6),
+        Text(
+          '83,342.30  +0.37%  0123456789',
+          style: TextStyle(
+            fontFamily: SystemFonts.family(config.numberFontFamily),
+            fontFeatures: const [FontFeature.tabularFigures()],
+            fontSize: config.fontSize,
+          ),
+        ),
+      ],
     ),
-    if (_target == DisplayTarget.floating) _anchor('header', _headerOptions()),
-  ]);
+  );
 
   Widget _window() => _page([
     _intro(context.l10n.settingWindow, context.l10n.settingWindowDescription),
@@ -2817,34 +2754,11 @@ class _SettingsPageState extends State<SettingsPage> {
 
   String _unitKey(String value) => value.trim().toUpperCase();
 
-  Widget _slider(
-    String label,
-    double value,
-    double min,
-    double max,
-    String trailing,
-    void Function(double) change,
-  ) => Column(
-    children: [
-      Row(
-        children: [
-          Expanded(child: Text(label)),
-          Text(
-            trailing,
-            style: TextStyle(color: Theme.of(context).colorScheme.primary),
-          ),
-        ],
-      ),
-      FSlider(
-        value: value.clamp(min, max),
-        min: min,
-        max: max,
-        divisions: max <= 1 ? 60 : 30,
-        onChanged: (value) => setState(() => change(value)),
-      ),
-    ],
-  );
-  Future<void> _pickFont(bool numbers) async {
+  /// Ask for a font and make sure it can be loaded, without applying it.
+  ///
+  /// Split out from [_pickFont] so the declared view can own the write while
+  /// sharing the dialog, the load check and the error handling.
+  Future<String?> _chooseFont(bool numbers) async {
     final font = await showDialog<String>(
       context: context,
       builder: (context) => _FontDialog(
@@ -2854,27 +2768,21 @@ class _SettingsPageState extends State<SettingsPage> {
         highlightMonospace: numbers,
       ),
     );
-    if (font != null && mounted) {
-      setState(() => _loadingDraft = true);
-      try {
-        await SystemFonts.ensureLoaded(font);
-      } catch (_) {
-        if (mounted) {
-          setState(() => _error = context.l10n.settingFontLoadFailed);
-        }
-        return;
-      } finally {
-        if (mounted) setState(() => _loadingDraft = false);
+    if (font == null || !mounted) return null;
+    setState(() => _loadingDraft = true);
+    try {
+      await SystemFonts.ensureLoaded(font);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = context.l10n.settingFontLoadFailed);
       }
-      if (!mounted) return;
-      setState(
-        () => _draft = numbers
-            ? _draft.copyWith(numberFontFamily: font)
-            : _draft.copyWith(fontFamily: font),
-      );
-      widget.controller.previewAppearance(_rootDraft);
+      return null;
+    } finally {
+      if (mounted) setState(() => _loadingDraft = false);
     }
+    return font;
   }
+
 }
 
 class _SettingTag extends StatelessWidget {
