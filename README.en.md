@@ -83,4 +83,4 @@ Report security issues privately as described in the [security policy](SECURITY.
 
 ## 📄 License
 
-[MIT](LICENSE) · Dependency, font, and data-service terms are described in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+[GPL-3.0-only](LICENSE) · Dependency, font, and data-service terms are described in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
