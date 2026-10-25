@@ -94,8 +94,8 @@ TiSettingsCatalog buildAppearanceCatalog(
         section: TiSettingSection.appearance,
         title: t('文字', 'Text'),
         description: t(
-          '字号和行距对所有显示位置生效。',
-          'Size and spacing apply to every display.',
+          '字号和行距只作用于当前选择的显示位置。',
+          'Size and spacing apply to the selected display.',
         ),
         items: [
           TiSettingSpec.range(

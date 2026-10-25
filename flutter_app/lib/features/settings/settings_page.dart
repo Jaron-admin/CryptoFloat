@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_selector/file_selector.dart';
@@ -17,6 +16,7 @@ import 'taskbar_settings.dart';
 import 'panel_layout_settings.dart';
 import 'price_color_settings.dart';
 import '../../data/storage_location.dart';
+import '../../data/config_transfer.dart';
 import '../../domain/refresh_price.dart';
 import '../../l10n/l10n.dart';
 import '../../platform/system_fonts.dart';
@@ -26,6 +26,7 @@ import 'source_editor.dart';
 import 'row_editor.dart';
 import 'template_picker.dart';
 import 'settings_catalog.dart';
+import 'settings_live_preview.dart';
 import 'settings_theme_picker.dart';
 import 'price_format_settings.dart';
 import 'ti_settings_appearance.dart';
@@ -151,7 +152,7 @@ class _SettingsPageState extends State<SettingsPage> {
       unawaited(_requestLeave(exitApp: false));
     });
     _section = widget.initialSection.clamp(0, settingsCategories.length - 1);
-    if (_section == 0) {
+    if (settingsCategories[_section].id == 'display') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _loadCatalog();
@@ -405,6 +406,18 @@ class _SettingsPageState extends State<SettingsPage> {
                     ],
                   ),
                 ),
+              SizedBox(
+                height: MediaQuery.sizeOf(context).height >= 740
+                    ? 190
+                    : _compactHeight
+                    ? 96
+                    : 150,
+                child: SettingsLivePreview(
+                  controller: widget.controller,
+                  config: _draft,
+                  target: _target,
+                ),
+              ),
               Expanded(
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -724,74 +737,145 @@ class _SettingsPageState extends State<SettingsPage> {
     ),
   );
 
-  /// Writes the whole config to a file the user picks. The file is the same
-  /// shape as the one on disk, so it can be read back or hand-edited.
+  /// Exports the shareable part of one stable draft snapshot.
   Future<void> _exportConfig() async {
-    final stamp = DateTime.now().toIso8601String().split('T').first;
-    final location = await getSaveLocation(
-      suggestedName: 'duomonitor-$stamp.json',
-      acceptedTypeGroups: const [
-        XTypeGroup(label: 'JSON', extensions: ['json']),
-      ],
-    );
-    if (location == null || !mounted) return;
+    if (!mounted ||
+        _saving ||
+        _closing ||
+        _loadingDraft ||
+        _pickingImage ||
+        _storageChanging) {
+      return;
+    }
+    setState(() => _loadingDraft = true);
     try {
-      await File(location.path)
-          .writeAsString('${encodeJson(_rootDraft.toJson())}\n');
+      final exported = exportSettings(_rootDraft);
+      final stamp = DateTime.now().toIso8601String().split('T').first;
+      final location = await getSaveLocation(
+        suggestedName: 'duomonitor-$stamp.json',
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'JSON', extensions: ['json']),
+        ],
+      );
+      if (location == null || !mounted) return;
+      await File(location.path).writeAsString('${encodeJson(exported.json)}\n');
+      if (!mounted) return;
+      setState(() => _error = null);
+      if (exported.omitted.isNotEmpty) {
+        await _transferSummary(exported.omitted, importing: false);
+      }
     } catch (error) {
       if (mounted) {
-        setState(
-          () => _error = context.l10n.settingSaveFailed(
-            localizeAppError(context, error),
-          ),
-        );
+        setState(() => _error = _transferError(error, importing: false));
       }
+    } finally {
+      if (mounted) setState(() => _loadingDraft = false);
     }
   }
 
-  /// Reads a config file back. Unknown keys are dropped by [AppConfig.fromJson]
-  /// rather than rejecting the whole file, which is what lets an older export
-  /// still restore on a newer build.
+  /// A failed read or validation leaves the current draft untouched.
   Future<void> _importConfig() async {
-    final file = await openFile(
-      acceptedTypeGroups: const [
-        XTypeGroup(label: 'JSON', extensions: ['json']),
-      ],
-    );
-    if (file == null || !mounted) return;
+    if (!mounted ||
+        _saving ||
+        _closing ||
+        _loadingDraft ||
+        _pickingImage ||
+        _storageChanging) {
+      return;
+    }
+    setState(() => _loadingDraft = true);
     try {
-      final decoded = jsonDecode(await file.readAsString());
-      if (decoded is! Map<String, dynamic>) {
-        throw const FormatException('settings file is not a JSON object');
+      final file = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'JSON', extensions: ['json']),
+        ],
+      );
+      if (file == null || !mounted) return;
+      if (await file.length() > maxSettingsTransferBytes) {
+        throw const SettingsTransferException('fileSize');
       }
-      final imported = AppConfig.fromJson(decoded);
-      _commitRoot(imported);
+      final text = await file.readAsString();
+      if (!mounted) return;
+      final imported = decodeSettings(text, current: _rootDraft);
+      _commitRoot(imported.config);
       setState(() {
         _draftRevision++;
         _target = DisplayTarget.floating;
         _resetCatalogOrder();
+        _assetPage = 0;
         _error = null;
       });
+      if (imported.skipped.isNotEmpty) {
+        await _transferSummary(imported.skipped, importing: true);
+      }
     } catch (error) {
       if (mounted) {
-        setState(
-          () => _error = context.l10n.settingSaveFailed(
-            localizeAppError(context, error),
-          ),
-        );
+        setState(() => _error = _transferError(error, importing: true));
       }
+    } finally {
+      if (mounted) setState(() => _loadingDraft = false);
     }
   }
+
+  String _transferError(Object error, {required bool importing}) {
+    final zh = context.metrics.chinese;
+    final detail = error is SettingsTransferException
+        ? error.unsupportedVersion
+              ? (zh ? '不支持的设置格式版本。' : 'Unsupported settings format version.')
+              : error.field == 'fileSize'
+              ? (zh ? '设置文件不能超过 2 MB。' : 'Settings files must not exceed 2 MB.')
+              : (zh
+                    ? '设置字段无效：${error.field}。'
+                    : 'Invalid settings field: ${error.field}.')
+        : localizeAppError(context, error);
+    return importing
+        ? (zh
+              ? '导入失败。$detail 当前设置已保留。'
+              : 'Import failed. $detail Your current settings have been kept.')
+        : context.l10n.settingSaveFailed(detail);
+  }
+
+  Future<void> _transferSummary(
+    List<String> fields, {
+    required bool importing,
+  }) => showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(
+        importing
+            ? (context.metrics.chinese ? '设置已导入' : 'Settings imported')
+            : (context.metrics.chinese ? '设置已导出' : 'Settings exported'),
+      ),
+      scrollable: true,
+      content: Text(
+        '${importing ? (context.metrics.chinese ? '已跳过未知字段和本机专属设置：' : 'Unknown fields and device settings were skipped:') : (context.metrics.chinese ? '分享文件不包含以下本机设置、带请求头或凭据的数据源及其显示项。需要时请在目标设备重新配置：' : 'The shared file omits these device settings, sources with headers or credentials, and their display items. Configure them again on the destination device:')}\n\n${fields.join('\n')}',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.metrics.chinese ? '知道了' : 'OK'),
+        ),
+      ],
+    ),
+  );
 
   /// Resets the whole config. Destructive and irreversible, so it asks first -
   /// this is the one place the danger colour is allowed.
   Future<void> _resetEverything() async {
+    if (!mounted ||
+        _saving ||
+        _closing ||
+        _loadingDraft ||
+        _pickingImage ||
+        _storageChanging) {
+      return;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(context.metrics.chinese ? '恢复全部默认' : 'Reset everything'),
         content: Text(
-          context.metrics.chinese ? '所有设置都会回到初始值，包括关注列表、数据源和窗口位置。这一步不能撤销。' : 'Every setting returns to its initial value, including the watchlist, sources and window position. This cannot be undone.',
+          context.metrics.chinese ? '所有设置都会回到初始值，包括关注列表和数据源。保存后无法撤销。' : 'Every setting returns to its initial value, including the watchlist and sources. This cannot be undone after saving.',
         ),
         actions: [
           TextButton(
@@ -809,7 +893,19 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
-    if (confirmed == true) _commitRoot(AppConfig.defaults);
+    if (confirmed != true || !mounted) return;
+    _commitRoot(
+      AppConfig.defaults.copyWith(windowBounds: _rootDraft.windowBounds),
+    );
+    setState(() {
+      _draftRevision++;
+      _target = DisplayTarget.floating;
+      _resetCatalogOrder();
+      _assetPage = 0;
+      _assetSearch.clear();
+      _search = '';
+      _error = null;
+    });
   }
 
   Widget _searchField() => FTextField(
@@ -1033,16 +1129,20 @@ class _SettingsPageState extends State<SettingsPage> {
     FocusManager.instance.primaryFocus?.unfocus();
     _settingsSearch.clear();
     setState(() {
-      if (section == 0 && (_section != 0 || _settingsQuery.isNotEmpty)) {
+      if (settingsCategories[section].id == 'display' &&
+          (_section != section || _settingsQuery.isNotEmpty)) {
         _resetCatalogOrder();
         _assetPage = 0;
       }
       _section = section;
+      if (anchor == 'header' || anchor == 'opacity') {
+        _target = DisplayTarget.floating;
+      }
       _settingsQuery = '';
       _highlightedAnchor = anchor;
       if (anchor == 'storage') _storageExpanded = true;
     });
-    if (section == 0) _loadCatalog();
+    if (settingsCategories[section].id == 'display') _loadCatalog();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (_scrollController.hasClients) _scrollController.jumpTo(0);
@@ -2338,8 +2438,10 @@ class _SettingsPageState extends State<SettingsPage> {
               onChanged: _commit,
               // the page header already searches the whole settings tree
               showSearch: false,
+              showActions: false,
               // let the page-wide search scroll to a row inside this section
               anchorKeys: _anchors,
+              scrollController: _scrollController,
               onPickFont: (spec, current) =>
                   _chooseFont(spec.key == 'appearance.numberFontFamily'),
               blockBuilders: {

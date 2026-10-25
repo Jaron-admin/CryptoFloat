@@ -39,7 +39,9 @@ class TiSettingsView extends StatefulWidget {
     this.onPickFont,
     this.trailing,
     this.showSearch = true,
+    this.showActions = true,
     this.anchorKeys,
+    this.scrollController,
   });
 
   final TiSettingsCatalog catalog;
@@ -59,10 +61,14 @@ class TiSettingsView extends StatefulWidget {
   /// so the user does not get two of them.
   final bool showSearch;
 
+  /// Disable when the host owns validated import, export and whole-page reset.
+  final bool showActions;
+
   /// Shared anchor table owned by the host page. When a search result names an
   /// anchor, the page looks it up here to scroll the row into view; the view
   /// registers one key per declared anchor on first build.
   final Map<String, GlobalKey>? anchorKeys;
+  final ScrollController? scrollController;
 
   @override
   State<TiSettingsView> createState() => _TiSettingsViewState();
@@ -114,16 +120,23 @@ class _TiSettingsViewState extends State<TiSettingsView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _toolbar(strings, changed),
+        if (widget.showSearch || widget.showActions || widget.trailing != null)
+          _toolbar(strings, changed),
         if (restart > 0) _restartBanner(strings, restart),
         Expanded(
           child: groups.isEmpty
               ? _empty(strings, _searching)
-              : ListView(
+              : SingleChildScrollView(
+                  controller: widget.scrollController,
                   padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
-                  children: [
-                    for (final group in groups) _groupCard(strings, group),
-                  ],
+                  // There are only a few groups. Keep their anchors mounted so
+                  // page-wide search can reveal controls below the viewport.
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (final group in groups) _groupCard(strings, group),
+                    ],
+                  ),
                 ),
         ),
       ],
@@ -163,7 +176,7 @@ class _TiSettingsViewState extends State<TiSettingsView> {
             ),
           ),
         if (widget.trailing != null) widget.trailing!,
-        _menu(strings, changed),
+        if (widget.showActions) _menu(strings, changed),
       ],
     ),
   );

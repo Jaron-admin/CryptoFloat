@@ -9,6 +9,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/settings_fakes.dart';
+import 'support/settings_navigation.dart';
 
 void main() {
   test('monospace suggestions match common installed families only', () {
@@ -39,12 +40,20 @@ void main() {
           priceColorMode: 'greenUp',
         ),
       );
-      await tester.pumpWidget(_settingsApp(controller, Locale(language), 3));
+      await tester.pumpWidget(_settingsApp(controller, Locale(language), 0));
       await tester.pumpAndSettle();
 
       expect(find.text(_shared(language)), findsWidgets);
-      expect(find.text(_panelOnly(language)), findsWidgets);
-      expect(find.text(_fontHint(language)), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('display-target-selector')),
+        findsNothing,
+      );
+      await tester.tap(find.text(language == 'zh' ? '外观' : 'Appearance').first);
+      await tester.pumpAndSettle();
+      await revealSetting(
+        tester,
+        find.byKey(const ValueKey('price-color-mode')),
+      );
       expect(find.text(_priceHint(language)), findsOneWidget);
       await tester.ensureVisible(
         find.byKey(const ValueKey('price-color-mode')),
@@ -57,16 +66,12 @@ void main() {
 
       await tester.tap(find.text(language == 'zh' ? '任务栏' : 'Taskbar').first);
       await tester.pumpAndSettle();
-      await tester.tap(
-        find.text(language == 'zh' ? '显示布局' : 'Display layout').first,
-      );
+      await tester.tap(find.text(language == 'zh' ? '显示' : 'Display').first);
       await tester.pumpAndSettle();
       expect(find.text(_taskbarOnly(language)), findsWidgets);
       expect(find.text(_panelOnly(language)), findsNothing);
 
-      await tester.tap(
-        find.text(language == 'zh' ? '自定义内容' : 'Custom content'),
-      );
+      await tester.tap(find.text(language == 'zh' ? '通用' : 'General').first);
       await tester.pumpAndSettle();
       expect(find.text(_shared(language)), findsWidgets);
       expect(tester.takeException(), isNull);
@@ -91,13 +96,12 @@ void main() {
           language: 'en',
         ),
       );
-      await tester.pumpWidget(_settingsApp(controller, const Locale('en'), 3));
+      await tester.pumpWidget(_settingsApp(controller, const Locale('en'), 1));
       await tester.pumpAndSettle();
 
-      final choose = find.text('Choose system font');
-      expect(choose, findsNWidgets(2));
-      await tester.ensureVisible(choose.at(1));
-      await tester.tap(choose.at(1));
+      final choose = settingsFontPicker(numbers: true);
+      await revealSetting(tester, choose);
+      await tester.tap(choose);
       await tester.pumpAndSettle();
 
       expect(
@@ -125,11 +129,11 @@ void main() {
       SettingsHost(),
       config: AppConfig.defaults.copyWith(selectedAssetIds: [], language: 'en'),
     );
-    await tester.pumpWidget(_settingsApp(controller, const Locale('en'), 5));
+    await tester.pumpWidget(_settingsApp(controller, const Locale('en'), 3));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Import & data location'));
-    await tester.tap(find.text('Import & data location'));
+    await tester.ensureVisible(find.text('Import & data location').last);
+    await tester.tap(find.text('Import & data location').last);
     await tester.pumpAndSettle();
     expect(find.text('Portable (beside the app)'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('data-storage-mode')));
@@ -177,10 +181,6 @@ String _panelOnly(String language) =>
 
 String _taskbarOnly(String language) =>
     language == 'zh' ? '仅影响任务栏' : 'Taskbar only';
-
-String _fontHint(String language) => language == 'zh'
-    ? '数字更适合使用等宽字体。'
-    : 'Monospace fonts are easier to read for numbers.';
 
 String _plainPrice(String language) =>
     language == 'zh' ? '默认（主题文字）' : 'Default (theme text)';

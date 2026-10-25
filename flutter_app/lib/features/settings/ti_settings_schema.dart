@@ -318,8 +318,12 @@ class TiSettingGroup {
 
   bool get isCollapsible => level != TiSettingLevel.common;
 
-  bool visibleIn(AppConfig config) =>
-      specs.any((spec) => spec.visible?.call(config) ?? true);
+  bool visibleIn(AppConfig config) => items.any(
+    (item) => switch (item) {
+      TiSettingBlock() => true,
+      TiSettingSpec spec => spec.visible?.call(config) ?? true,
+    },
+  );
 }
 
 /// The declared page. Order is the contract: sections come out in

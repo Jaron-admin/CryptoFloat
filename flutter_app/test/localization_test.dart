@@ -57,35 +57,21 @@ void main() {
       await tester.pumpAndSettle();
       addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
 
-      await _openAppearance(tester, 'zh');
+      await _openGeneral(tester, 'zh');
       await _chooseLanguage(tester, 'English');
       expect(controller.appearanceConfig.language, 'en');
       expect(controller.config.language, 'zh');
       expect(store.saved, isNull);
       for (final label in [
-        'Watchlist',
-        'Custom content',
-        'Display layout',
+        'General',
         'Appearance',
-        'Units & conversion',
+        'Display',
+        'Privacy and data',
+        'About',
         'Language',
-        'Panel transparency',
-        'Saves on close',
       ]) {
         expect(find.text(label), findsWidgets, reason: label);
       }
-      final navigation = find
-          .ancestor(
-            of: find.text('Watchlist'),
-            matching: find.byType(Scrollable),
-          )
-          .first;
-      await tester.scrollUntilVisible(
-        find.text('Window & tray'),
-        80,
-        scrollable: navigation,
-      );
-      expect(find.text('Window & tray'), findsWidgets);
       expect(find.text('悬浮窗透明度'), findsNothing);
       expect(
         Localizations.localeOf(tester.element(find.byType(SettingsPage)))
@@ -103,7 +89,7 @@ void main() {
       expect(controller.config.language, 'en');
       expect(controller.appearanceConfig.language, 'en');
       expect(find.byType(SettingsPage), findsNothing);
-      await _openAppearance(tester, 'en');
+      await _openGeneral(tester, 'en');
       expect(find.text('悬浮窗透明度'), findsNothing);
       expect(find.text('Language'), findsOneWidget);
       expect(tester.takeException(), isNull);
@@ -166,7 +152,7 @@ void main() {
       await tester.pumpAndSettle();
       addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
 
-      await _openAppearance(tester, 'zh');
+      await _openGeneral(tester, 'zh');
       await _chooseLanguage(tester, 'English');
       await tester.tap(find.byTooltip('Return to panel'));
       await tester.pumpAndSettle();
@@ -193,7 +179,7 @@ void main() {
       );
       await tester.pumpWidget(CryptoFloatApp(controller: reopened));
       await tester.pumpAndSettle();
-      await _openAppearance(tester, 'en');
+      await _openGeneral(tester, 'en');
       expect(find.text('Language'), findsOneWidget);
       expect(find.text('English'), findsOneWidget);
       expect(reopened.config.customSources.single.fields.single.label, '室外温度');
@@ -217,7 +203,7 @@ void main() {
     await tester.pumpWidget(CryptoFloatApp(controller: controller));
     await tester.pumpAndSettle();
     addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
-    await _openAppearance(tester, 'zh');
+    await _openGeneral(tester, 'zh');
     expect(find.text('跟随系统'), findsWidgets);
 
     tester.binding.platformDispatcher.localesTestValue = const [
@@ -225,7 +211,7 @@ void main() {
     ];
     await tester.pumpAndSettle();
     expect(find.text('Language'), findsOneWidget);
-    expect(find.text('Follow system'), findsWidgets);
+    expect(find.text('System'), findsWidgets);
     expect(controller.config.language, 'system');
     expect(tester.takeException(), isNull);
   });
@@ -369,7 +355,7 @@ AppConfig _baseConfig() => AppConfig.defaults.copyWith(
   proxyEnabled: false,
 );
 
-Future<void> _openAppearance(WidgetTester tester, String language) async {
+Future<void> _openGeneral(WidgetTester tester, String language) async {
   await tester.tap(
     find.byKey(const ValueKey('panel-title')),
     buttons: kSecondaryMouseButton,
@@ -378,7 +364,7 @@ Future<void> _openAppearance(WidgetTester tester, String language) async {
   await tester.pumpAndSettle();
   await tester.tap(find.text(language == 'en' ? 'Settings…' : '设置…'));
   await tester.pumpAndSettle();
-  await tester.tap(find.text(language == 'en' ? 'Appearance' : '外观'));
+  await tester.tap(find.text(language == 'en' ? 'General' : '通用').first);
   await tester.pumpAndSettle();
 }
 

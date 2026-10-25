@@ -89,7 +89,7 @@ class SettingLocation {
 
 const settingsLocations = [
   SettingLocation(
-    'display',
+    'appearance',
     'panel-layout',
     '列数与行情布局',
     '单列 双列 多列 横向 纵向 24h 涨跌幅 columns horizontal vertical orientation price change percent layout',

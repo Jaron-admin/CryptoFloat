@@ -78,7 +78,7 @@ void main() {
             ],
             home: SettingsPage(
               controller: controller,
-              initialSection: 6,
+              initialSection: 2,
               onClose: () => closed = true,
             ),
           ),
@@ -138,13 +138,13 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('设置…'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('显示').first);
+      await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('display-target-selector')),
         findsOneWidget,
       );
       await tester.tap(find.text('任务栏').first);
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('系统监测').first);
       await tester.pumpAndSettle();
       await tester.ensureVisible(
         find.byKey(const ValueKey('metric-select-gpu.usage')),
