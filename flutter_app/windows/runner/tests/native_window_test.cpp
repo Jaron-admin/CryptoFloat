@@ -34,6 +34,10 @@ int checks = 0;
 int layered_attribute_calls = 0;
 std::wstring notification_text;
 bool accept_notifications = true;
+HWND taskbar_window = nullptr;
+HWND taskbar_foreground = nullptr;
+bool taskbar_visible = false;
+std::vector<std::string> taskbar_events;
 
 void Expect(bool condition, const char* message) {
   ++checks;
@@ -57,7 +61,44 @@ BOOL MonitorInfo(HMONITOR, LPMONITORINFO info) {
   }
   return TRUE;
 }
-BOOL Foreground(HWND) { return TRUE; }
+BOOL Foreground(HWND window) {
+  if (window == taskbar_window) {
+    taskbar_events.emplace_back("foreground");
+    taskbar_foreground = window;
+  }
+  return TRUE;
+}
+HWND CurrentForeground() {
+  return taskbar_window ? taskbar_foreground : GetForegroundWindow();
+}
+LONG_PTR WindowLong(HWND window, int index) {
+  const LONG_PTR value = GetWindowLongPtrW(window, index);
+  if (window == taskbar_window && index == GWL_STYLE) {
+    return taskbar_visible ? value | WS_VISIBLE : value & ~WS_VISIBLE;
+  }
+  return value;
+}
+LONG_PTR SetWindowLong(HWND window, int index, LONG_PTR value) {
+  if (window == taskbar_window && index == GWL_EXSTYLE) {
+    taskbar_events.emplace_back("style");
+  }
+  return SetWindowLongPtrW(window, index, value);
+}
+BOOL Show(HWND window, int command) {
+  // Model visibility at the OS boundary; never show an actual test window.
+  Expect(window == taskbar_window, "visibility changes target only the isolated fixture");
+  const BOOL was_visible = taskbar_visible ? TRUE : FALSE;
+  if (command == SW_HIDE) {
+    taskbar_events.emplace_back("hide");
+    taskbar_visible = false;
+    if (taskbar_foreground == window) taskbar_foreground = nullptr;
+  } else {
+    Expect(command == SW_SHOWNA, "taskbar transition shows without activating");
+    taskbar_events.emplace_back("show");
+    taskbar_visible = true;
+  }
+  return was_visible;
+}
 HHOOK InstallHook(int type, HOOKPROC callback, HINSTANCE, DWORD) {
   Expect(type == WH_MOUSE_LL, "settings installs only a mouse hook");
   mouse_hook = callback;
@@ -118,6 +159,10 @@ BOOL TrackMenu(HMENU menu, UINT flags, int, int, HWND, LPTPMPARAMS) {
 #define GetDpiForWindow fixture::WindowDpi
 #define GetMonitorInfoW fixture::MonitorInfo
 #define SetForegroundWindow fixture::Foreground
+#define GetForegroundWindow fixture::CurrentForeground
+#define GetWindowLongPtrW fixture::WindowLong
+#define SetWindowLongPtrW fixture::SetWindowLong
+#define ShowWindow fixture::Show
 #define SetWindowsHookExW fixture::InstallHook
 #define UnhookWindowsHookEx fixture::RemoveHook
 #define CallNextHookEx fixture::NextHook
@@ -129,6 +174,10 @@ BOOL TrackMenu(HMENU menu, UINT flags, int, int, HWND, LPTPMPARAMS) {
 #define Shell_NotifyIconW fixture::NotifyIcon
 #define SetLayeredWindowAttributes fixture::LayeredAttributes
 #include "../win32_window.cpp"
+#undef GetForegroundWindow
+#undef GetWindowLongPtrW
+#undef SetWindowLongPtrW
+#undef ShowWindow
 #include "../context_menu.cpp"
 #include "../notification_tray.cpp"
 #undef FlutterDesktopGetDpiForMonitor
@@ -525,6 +574,66 @@ void TaskbarPresenceAndCloseTest() {
   }
 }
 
+void TaskbarPresenceTransitionTest() {
+  for (const bool settings : {true, false}) {
+    for (const int state : {0, 1, 2}) {
+      // Hidden, visible in the background, and visible in the foreground.
+      HiddenWindow window;
+      window.Create(L"Hidden taskbar transition", Win32Window::Point(100, 100),
+          Win32Window::Size(601, 301));
+      if (!settings) window.SetSettingsMode(true);
+      const HWND handle = window.GetHandle();
+      const LONG_PTR before = GetWindowLongPtrW(handle, GWL_EXSTYLE);
+      fixture::taskbar_window = handle;
+      fixture::taskbar_visible = state != 0;
+      const HWND background = reinterpret_cast<HWND>(1);
+      fixture::taskbar_foreground = state == 2 ? handle : background;
+      fixture::taskbar_events.clear();
+
+      window.SetSettingsMode(settings);
+
+      std::vector<std::string> expected{"style"};
+      if (state != 0) expected = {"hide", "style", "show"};
+      if (state == 2) expected.emplace_back("foreground");
+      fixture::Expect(fixture::taskbar_events == expected,
+          "taskbar transition hides before style changes and restores prior activation");
+      const LONG_PTR wanted = settings ? WS_EX_APPWINDOW : WS_EX_TOOLWINDOW;
+      fixture::Expect(GetWindowLongPtrW(handle, GWL_EXSTYLE) ==
+          ((before & ~(WS_EX_APPWINDOW | WS_EX_TOOLWINDOW)) | wanted),
+          "taskbar transition preserves unrelated extended styles");
+      fixture::Expect(fixture::taskbar_visible == (state != 0),
+          "taskbar transition preserves prior visibility");
+      fixture::Expect(fixture::taskbar_foreground == (state == 2 ? handle : background),
+          "background or hidden taskbar transition never steals focus");
+      fixture::Expect(!IsWindowVisible(handle),
+          "simulated visible transition leaves the real fixture hidden");
+      fixture::taskbar_events.clear();
+      window.SetSettingsMode(settings);
+      fixture::Expect(fixture::taskbar_events.empty(),
+          "repeated settings mode does not hide or rewrite taskbar styles");
+      fixture::taskbar_window = nullptr;
+    }
+  }
+
+  HiddenWindow window;
+  window.Create(L"Hidden unchanged taskbar style", Win32Window::Point(100, 100),
+      Win32Window::Size(601, 301));
+  const HWND handle = window.GetHandle();
+  const LONG_PTR style = GetWindowLongPtrW(handle, GWL_EXSTYLE);
+  SetWindowLongPtrW(handle, GWL_EXSTYLE,
+      (style & ~WS_EX_TOOLWINDOW) | WS_EX_APPWINDOW);
+  fixture::taskbar_window = handle;
+  fixture::taskbar_visible = true;
+  fixture::taskbar_foreground = handle;
+  fixture::taskbar_events.clear();
+  window.SetSettingsMode(true);
+  fixture::Expect(fixture::taskbar_events.empty(),
+      "already matching taskbar styles do not hide the window");
+  fixture::Expect(!IsWindowVisible(handle),
+      "unchanged taskbar style fixture remains physically hidden");
+  fixture::taskbar_window = nullptr;
+}
+
 int main() {
   SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
   DpiGeometryTest();
@@ -534,6 +643,7 @@ int main() {
   OutsideClickTest();
   DpiMinimumDuringTransitionTest();
   TaskbarPresenceAndCloseTest();
+  TaskbarPresenceTransitionTest();
   ProbeCompositionLifetimeTest();
   if (fixture::failures != 0) return 1;
   std::cout << fixture::checks << " native window checks passed.\n";

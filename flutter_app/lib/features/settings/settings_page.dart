@@ -8,6 +8,7 @@ import 'fluent_controls.dart';
 
 import '../../app/app_controller.dart';
 import '../../domain/models.dart';
+import '../../domain/display_order_sync.dart';
 import '../../domain/display_snapshot.dart';
 import '../../l10n/metrics_strings.dart';
 import 'system_monitor_settings.dart';
@@ -15,6 +16,7 @@ import 'taskbar_settings.dart';
 import 'panel_layout_settings.dart';
 import 'price_color_settings.dart';
 import '../../data/storage_location.dart';
+import '../../data/config_transfer.dart';
 import '../../domain/refresh_price.dart';
 import '../../l10n/l10n.dart';
 import '../../platform/system_fonts.dart';
@@ -24,8 +26,8 @@ import 'source_editor.dart';
 import 'row_editor.dart';
 import 'template_picker.dart';
 import 'settings_catalog.dart';
-import 'settings_theme_picker.dart';
 import 'settings_live_preview.dart';
+import 'settings_theme_picker.dart';
 import 'price_format_settings.dart';
 import 'ti_settings_appearance.dart';
 import 'ti_settings_view.dart';
@@ -55,32 +57,17 @@ class _SettingsPageState extends State<SettingsPage> {
   DisplayTarget _target = DisplayTarget.floating;
   AppConfig get _draft => _rootDraft.displayFor(_target);
   bool get _compactHeight => MediaQuery.sizeOf(context).height < 480;
+
+  /// Writes into the current target's slice of [_rootDraft].
+  ///
+  /// The order reconciliation lives in [syncDisplayOrder] rather than here: it
+  /// used to be inlined, so every assignment in this 2.9k-line page could
+  /// silently reorder the panel. Same behaviour, one explicit call site.
   set _draft(AppConfig value) {
-    final before = _draft;
-    var updated = value;
-    if (value.displayOrder.isNotEmpty &&
-        encodeJson(value.displayOrder) == encodeJson(before.displayOrder)) {
-      final groups = <String, (List<String>, List<String>)>{
-        'asset:': (before.selectedAssetIds, value.selectedAssetIds),
-        'metric:': (before.selectedMetricIds, value.selectedMetricIds),
-        'row:': (
-          before.displayRows.map((row) => row.id).toList(),
-          value.displayRows.map((row) => row.id).toList(),
-        ),
-      };
-      for (final entry in groups.entries) {
-        if (encodeJson(entry.value.$1) != encodeJson(entry.value.$2)) {
-          updated = updated.copyWith(
-            displayOrder: reorderDisplayGroup(
-              updated.displayOrder,
-              entry.key,
-              entry.value.$2.map((id) => '${entry.key}$id').toList(),
-            ),
-          );
-        }
-      }
-    }
-    _rootDraft = _rootDraft.withDisplay(_target, updated);
+    _rootDraft = _rootDraft.withDisplay(
+      _target,
+      syncDisplayOrder(_draft, value),
+    );
   }
 
   int _section = 0;
@@ -120,28 +107,38 @@ class _SettingsPageState extends State<SettingsPage> {
   ];
   final Set<String> _createdSecrets = {};
 
-  bool get _dirty {
-    // Memoised: the header/footer ask for this several times per build, and each
-    // miss serialises the whole config twice. Identity is enough - AppConfig is
-    // immutable, so any edit or save produces a new instance.
+  /// How many top-level settings differ from what is saved.
+  ///
+  /// Memoised on identity: AppConfig is immutable, so any edit or save produces
+  /// a new instance. The header and footer both ask for this on every build,
+  /// and each miss serialises the whole config twice.
+  int get _changedCount {
     final saved = widget.controller.config;
-    if (identical(_dirtyMemoDraft, _rootDraft) &&
-        identical(_dirtyMemoSaved, saved)) {
-      return _dirtyMemo;
+    if (identical(_changedMemoDraft, _rootDraft) &&
+        identical(_changedMemoSaved, saved)) {
+      return _changedMemo;
     }
     final draft = Map<String, Object?>.of(_rootDraft.toJson())
       ..remove('windowBounds');
     final savedJson = Map<String, Object?>.of(saved.toJson())
       ..remove('windowBounds');
-    _dirtyMemo = encodeJson(draft) != encodeJson(savedJson);
-    _dirtyMemoDraft = _rootDraft;
-    _dirtyMemoSaved = saved;
-    return _dirtyMemo;
+    var count = 0;
+    for (final key in draft.keys) {
+      final before = draft[key] ?? const <String, Object?>{};
+      final after = savedJson[key] ?? const <String, Object?>{};
+      if (encodeJson(before) != encodeJson(after)) count++;
+    }
+    _changedMemo = count;
+    _changedMemoDraft = _rootDraft;
+    _changedMemoSaved = saved;
+    return count;
   }
 
-  Object? _dirtyMemoDraft;
-  Object? _dirtyMemoSaved;
-  bool _dirtyMemo = false;
+  bool get _dirty => _changedCount > 0;
+
+  Object? _changedMemoDraft;
+  Object? _changedMemoSaved;
+  int _changedMemo = 0;
 
   @override
   void initState() {
@@ -155,7 +152,7 @@ class _SettingsPageState extends State<SettingsPage> {
       unawaited(_requestLeave(exitApp: false));
     });
     _section = widget.initialSection.clamp(0, settingsCategories.length - 1);
-    if (_section == 0) {
+    if (settingsCategories[_section].id == 'display') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _loadCatalog();
@@ -184,11 +181,19 @@ class _SettingsPageState extends State<SettingsPage> {
     super.dispose();
   }
 
-  void _preview(AppConfig value) {
+  void _commit(AppConfig value) {
     setState(() {
       if (_draft.language != value.language) _error = null;
       _draft = value;
     });
+    widget.controller.previewAppearance(_rootDraft);
+  }
+
+  /// Writes a change that belongs to the config as a whole rather than to one
+  /// display target. Everything the user can see goes through this or
+  /// [_commit]; no widget assigns the draft directly any more.
+  void _commitRoot(AppConfig next) {
+    setState(() => _rootDraft = next);
     widget.controller.previewAppearance(_rootDraft);
   }
 
@@ -325,50 +330,51 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Column(
             children: [
               _settingsHeader(),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: SegmentedButton<DisplayTarget>(
-                    key: const ValueKey('display-target-selector'),
-                    showSelectedIcon: false,
-                    segments: [
-                      ButtonSegment(
-                        value: DisplayTarget.floating,
-                        icon: _compactHeight
-                            ? null
-                            : const Icon(
-                                Icons.picture_in_picture_alt,
-                                size: 18,
-                              ),
-                        label: Text(
-                          _compactHeight && !context.metrics.chinese
-                              ? 'Floating'
-                              : context.metrics.floating,
+              if (_showsTargetSelector)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: SegmentedButton<DisplayTarget>(
+                      key: const ValueKey('display-target-selector'),
+                      showSelectedIcon: false,
+                      segments: [
+                        ButtonSegment(
+                          value: DisplayTarget.floating,
+                          icon: _compactHeight
+                              ? null
+                              : const Icon(
+                                  Icons.picture_in_picture_alt,
+                                  size: 18,
+                                ),
+                          label: Text(
+                            _compactHeight && !context.metrics.chinese
+                                ? 'Floating'
+                                : context.metrics.floating,
+                          ),
                         ),
-                      ),
-                      ButtonSegment(
-                        value: DisplayTarget.taskbar,
-                        icon: _compactHeight
-                            ? null
-                            : const Icon(Icons.dock_outlined, size: 18),
-                        label: Text(context.metrics.taskbar),
-                      ),
-                    ],
-                    selected: {_target},
-                    onSelectionChanged: (values) => setState(() {
-                      _target = values.single;
-                      _resetCatalogOrder();
-                      _assetPage = 0;
-                      _assetSearch.clear();
-                      _search = '';
-                      if (_scrollController.hasClients) {
-                        _scrollController.jumpTo(0);
-                      }
-                    }),
+                        ButtonSegment(
+                          value: DisplayTarget.taskbar,
+                          icon: _compactHeight
+                              ? null
+                              : const Icon(Icons.dock_outlined, size: 18),
+                          label: Text(context.metrics.taskbar),
+                        ),
+                      ],
+                      selected: {_target},
+                      onSelectionChanged: (values) => setState(() {
+                        _target = values.single;
+                        _resetCatalogOrder();
+                        _assetPage = 0;
+                        _assetSearch.clear();
+                        _search = '';
+                        if (_scrollController.hasClients) {
+                          _scrollController.jumpTo(0);
+                        }
+                      }),
+                    ),
                   ),
                 ),
-              ),
               if (_error != null)
                 Container(
                   width: double.infinity,
@@ -403,8 +409,8 @@ class _SettingsPageState extends State<SettingsPage> {
               SizedBox(
                 height: MediaQuery.sizeOf(context).height >= 740
                     ? 190
-                    : MediaQuery.sizeOf(context).height < 480
-                    ? 104
+                    : _compactHeight
+                    ? 96
                     : 150,
                 child: SettingsLivePreview(
                   controller: widget.controller,
@@ -675,11 +681,50 @@ class _SettingsPageState extends State<SettingsPage> {
             _saving
                 ? context.l10n.settingSaving
                 : _dirty
-                ? (context.metrics.chinese ? '关闭时自动保存' : 'Saves on close')
+                ? (context.metrics.chinese
+                      ? '已改 $_changedCount 项 · 关闭时自动保存'
+                      : '$_changedCount changed · saves on close')
                 : context.l10n.settingSaved,
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
+        PopupMenuButton<String>(
+          key: const ValueKey('settings-more'),
+          tooltip: context.metrics.chinese ? '更多' : 'More',
+          icon: const Icon(Icons.more_vert_rounded, size: 18),
+          onSelected: (value) {
+            switch (value) {
+              case 'export':
+                unawaited(_exportConfig());
+              case 'import':
+                unawaited(_importConfig());
+              default:
+                unawaited(_resetEverything());
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'export',
+              child: Text(
+                context.metrics.chinese ? '导出配置…' : 'Export settings…',
+              ),
+            ),
+            PopupMenuItem(
+              value: 'import',
+              child: Text(
+                context.metrics.chinese ? '导入配置…' : 'Import settings…',
+              ),
+            ),
+            const PopupMenuDivider(),
+            PopupMenuItem(
+              value: 'reset',
+              child: Text(
+                context.metrics.chinese ? '恢复全部默认…' : 'Reset everything…',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 4),
         FilledButton(
           key: const ValueKey('settings-save'),
           onPressed:
@@ -691,6 +736,177 @@ class _SettingsPageState extends State<SettingsPage> {
       ],
     ),
   );
+
+  /// Exports the shareable part of one stable draft snapshot.
+  Future<void> _exportConfig() async {
+    if (!mounted ||
+        _saving ||
+        _closing ||
+        _loadingDraft ||
+        _pickingImage ||
+        _storageChanging) {
+      return;
+    }
+    setState(() => _loadingDraft = true);
+    try {
+      final exported = exportSettings(_rootDraft);
+      final stamp = DateTime.now().toIso8601String().split('T').first;
+      final location = await getSaveLocation(
+        suggestedName: 'duomonitor-$stamp.json',
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'JSON', extensions: ['json']),
+        ],
+      );
+      if (location == null || !mounted) return;
+      await File(location.path).writeAsString('${encodeJson(exported.json)}\n');
+      if (!mounted) return;
+      setState(() => _error = null);
+      if (exported.omitted.isNotEmpty) {
+        await _transferSummary(exported.omitted, importing: false);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = _transferError(error, importing: false));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingDraft = false);
+    }
+  }
+
+  /// A failed read or validation leaves the current draft untouched.
+  Future<void> _importConfig() async {
+    if (!mounted ||
+        _saving ||
+        _closing ||
+        _loadingDraft ||
+        _pickingImage ||
+        _storageChanging) {
+      return;
+    }
+    setState(() => _loadingDraft = true);
+    try {
+      final file = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(label: 'JSON', extensions: ['json']),
+        ],
+      );
+      if (file == null || !mounted) return;
+      if (await file.length() > maxSettingsTransferBytes) {
+        throw const SettingsTransferException('fileSize');
+      }
+      final text = await file.readAsString();
+      if (!mounted) return;
+      final imported = decodeSettings(text, current: _rootDraft);
+      _commitRoot(imported.config);
+      setState(() {
+        _draftRevision++;
+        _target = DisplayTarget.floating;
+        _resetCatalogOrder();
+        _assetPage = 0;
+        _error = null;
+      });
+      if (imported.skipped.isNotEmpty) {
+        await _transferSummary(imported.skipped, importing: true);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = _transferError(error, importing: true));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingDraft = false);
+    }
+  }
+
+  String _transferError(Object error, {required bool importing}) {
+    final zh = context.metrics.chinese;
+    final detail = error is SettingsTransferException
+        ? error.unsupportedVersion
+              ? (zh ? '不支持的设置格式版本。' : 'Unsupported settings format version.')
+              : error.field == 'fileSize'
+              ? (zh ? '设置文件不能超过 2 MB。' : 'Settings files must not exceed 2 MB.')
+              : (zh
+                    ? '设置字段无效：${error.field}。'
+                    : 'Invalid settings field: ${error.field}.')
+        : localizeAppError(context, error);
+    return importing
+        ? (zh
+              ? '导入失败。$detail 当前设置已保留。'
+              : 'Import failed. $detail Your current settings have been kept.')
+        : context.l10n.settingSaveFailed(detail);
+  }
+
+  Future<void> _transferSummary(
+    List<String> fields, {
+    required bool importing,
+  }) => showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text(
+        importing
+            ? (context.metrics.chinese ? '设置已导入' : 'Settings imported')
+            : (context.metrics.chinese ? '设置已导出' : 'Settings exported'),
+      ),
+      scrollable: true,
+      content: Text(
+        '${importing ? (context.metrics.chinese ? '已跳过未知字段和本机专属设置：' : 'Unknown fields and device settings were skipped:') : (context.metrics.chinese ? '分享文件不包含以下本机设置、带请求头或凭据的数据源及其显示项。需要时请在目标设备重新配置：' : 'The shared file omits these device settings, sources with headers or credentials, and their display items. Configure them again on the destination device:')}\n\n${fields.join('\n')}',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(context.metrics.chinese ? '知道了' : 'OK'),
+        ),
+      ],
+    ),
+  );
+
+  /// Resets the whole config. Destructive and irreversible, so it asks first -
+  /// this is the one place the danger colour is allowed.
+  Future<void> _resetEverything() async {
+    if (!mounted ||
+        _saving ||
+        _closing ||
+        _loadingDraft ||
+        _pickingImage ||
+        _storageChanging) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.metrics.chinese ? '恢复全部默认' : 'Reset everything'),
+        content: Text(
+          context.metrics.chinese ? '所有设置都会回到初始值，包括关注列表和数据源。保存后无法撤销。' : 'Every setting returns to its initial value, including the watchlist and sources. This cannot be undone after saving.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(context.l10n.editCancel),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(context.metrics.chinese ? '恢复' : 'Reset'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    _commitRoot(
+      AppConfig.defaults.copyWith(windowBounds: _rootDraft.windowBounds),
+    );
+    setState(() {
+      _draftRevision++;
+      _target = DisplayTarget.floating;
+      _resetCatalogOrder();
+      _assetPage = 0;
+      _assetSearch.clear();
+      _search = '';
+      _error = null;
+    });
+  }
 
   Widget _searchField() => FTextField(
     controller: _settingsSearch,
@@ -714,46 +930,179 @@ class _SettingsPageState extends State<SettingsPage> {
     onChanged: (value) => setState(() => _settingsQuery = value),
   );
 
+  /// Fixed group order from the shared settings contract:
+  /// general -> appearance -> app groups (at most three) -> notifications ->
+  /// privacy -> advanced -> about.
+  ///
+  /// Groups with nothing in them are absent rather than empty. The two app
+  /// groups below are the only ones this app gets to name.
+  /// The target switch only means something in the groups whose settings are
+  /// per-display. General, privacy and about are shared, so showing the switch
+  /// there would imply they follow it too - which is exactly the confusion that
+  /// made the page feel arbitrary.
+  bool get _showsTargetSelector => _section == 1 || _section == 2;
+
   Widget _sectionBody() => switch (_section) {
-    0 => _assets(),
-    1 => _sources(),
-    2 => _rows(),
-    3 => _appearanceDeclared(),
-    4 => _page([
-      _intro(
-        context.l10n.settingUnitsTitle,
-        context.l10n.settingUnitsDescription,
-      ),
-      _scopeCaption(_surfaceScope),
-      _anchor('units', _unitOptions()),
-    ]),
-    5 =>
-      _target == DisplayTarget.taskbar
-          ? _page([
-              _scopeCaption(context.l10n.settingScopeTaskbar),
-              TaskbarSettingsView(
-                config: _draft,
-                snapshot: widget.controller.metrics.snapshot,
-                quotes: widget.controller.displayQuotes,
-                rates: widget.controller.data.exchangeRates,
-                priceTicks: _priceTicks,
-                status: widget.controller.taskbar.state,
-                onChanged: _preview,
-              ),
-            ])
-          : _window(),
-    _ => _page([
-      _anchor(
-        'metrics',
-        SystemMonitorSettingsView(
-          config: _draft,
-          snapshot: widget.controller.metrics.snapshot,
-          scopeCaption: _surfaceScope,
-          onChanged: _preview,
+    0 => _general(),
+    1 => _appearanceDeclared(),
+    2 => _display(),
+    3 => _privacy(),
+    _ => _about(),
+  };
+
+  /// Settings that change both displays, so they sit outside the target switch:
+  /// language, whether the panel exists at all, and how it pins or hides.
+  ///
+  /// These used to form a "window" group of their own. That name sat too close
+  /// to "display" to be useful, so the group is gone and its contents live here.
+  Widget _general() => _page([
+    _intro(
+      context.metrics.chinese ? '通用' : 'General',
+      context.metrics.chinese
+          ? '语言和窗口行为，两个显示位置共用。'
+          : 'Language and window behaviour, shared by both displays.',
+    ),
+    _scopeCaption(context.l10n.settingScopeShared),
+    _card(
+      SettingRow(
+        title: context.l10n.settingLanguage,
+        description: context.metrics.chinese
+            ? '两个显示位置共用同一个语言。'
+            : 'Both displays share one language.',
+        controlWidth: 164,
+        control: FDropdown<String>(
+          key: ValueKey('language-${_draft.language}'),
+          initialValue: _draft.language,
+          isExpanded: true,
+          decoration: const InputDecoration(isDense: true),
+          items: [
+            FDropdownItem(
+              value: 'system',
+              child: Text(context.metrics.chinese ? '跟随系统' : 'System'),
+            ),
+            FDropdownItem(value: 'zh', child: const Text('简体中文')),
+            FDropdownItem(value: 'en', child: const Text('English')),
+          ],
+          onChanged: (value) {
+            if (value != null) {
+              _commit(_draft.copyWith(language: value));
+            }
+          },
         ),
       ),
-    ]),
-  };
+    ),
+    const SizedBox(height: 18),
+    ..._windowChildren(),
+  ], includeStorage: false);
+
+  /// App group: what is shown and how. The watchlist, its sources, the rows and
+  /// the units all answer the same question - "what appears on the panel" - so
+  /// they are one group. Arrangement lives in the appearance group instead.
+  /// The taskbar is the second display target, so its own editor belongs here.
+  Widget _display() => _page([
+    if (_target == DisplayTarget.taskbar) ...[
+      _scopeCaption(context.l10n.settingScopeTaskbar),
+      TaskbarSettingsView(
+        config: _draft,
+        snapshot: widget.controller.metrics.snapshot,
+        quotes: widget.controller.displayQuotes,
+        rates: widget.controller.data.exchangeRates,
+        priceTicks: _priceTicks,
+        status: widget.controller.taskbar.state,
+        onChanged: _commit,
+      ),
+      const SizedBox(height: 24),
+    ],
+    ..._assetsChildren(),
+    const SizedBox(height: 24),
+    ..._sourcesChildren(),
+    const SizedBox(height: 24),
+    ..._rowsChildren(),
+    const SizedBox(height: 24),
+    ..._unitsChildren(),
+    const SizedBox(height: 24),
+    ..._metricsChildren(),
+  ], includeStorage: false);
+
+  /// Storage used to be appended to every section. It is one thing, in one
+  /// place, under the group the contract reserves for it.
+  Widget _privacy() => _page([
+    _intro(
+      context.l10n.settingStorage,
+      context.metrics.chinese ? '设置文件、行情目录和旧版导入都在这里。' : 'The settings file, the market catalogue and the legacy import all live here.',
+    ),
+    _anchor('storage', _storage()),
+  ], includeStorage: false);
+
+  Widget _about() => _page([
+    _intro(
+      context.metrics.chinese ? '关于' : 'About',
+      context.metrics.chinese ? 'DuoMonitor 把行情、接口数据和系统指标放在一块面板上。' : 'DuoMonitor keeps market data, API values and system metrics on one panel.',
+    ),
+    _card(
+      Column(
+        children: [
+          SettingRow(
+            title: context.metrics.chinese ? '版本' : 'Version',
+            controlWidth: 120,
+            control: Text(
+              '1.6.0',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          SettingRow(
+            title: context.metrics.chinese ? '许可' : 'Licence',
+            controlWidth: 120,
+            control: Text(
+              'MIT',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          SettingRow(
+            title: context.metrics.chinese ? '源码' : 'Source',
+            controlWidth: 220,
+            control: Text(
+              'github.com/Jaron-admin/DuoMonitor',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ], includeStorage: false);
+
+  List<Widget> _unitsChildren() => [
+    _intro(
+      context.l10n.settingUnitsTitle,
+      context.l10n.settingUnitsDescription,
+    ),
+    _scopeCaption(_surfaceScope),
+    _anchor('units', _unitOptions()),
+  ];
+
+  List<Widget> _metricsChildren() => [
+    _anchor(
+      'metrics',
+      SystemMonitorSettingsView(
+        config: _draft,
+        snapshot: widget.controller.metrics.snapshot,
+        scopeCaption: _surfaceScope,
+        onChanged: _commit,
+      ),
+    ),
+  ];
 
   String get _surfaceScope => _target == DisplayTarget.taskbar
       ? context.l10n.settingScopeTaskbar
@@ -780,16 +1129,20 @@ class _SettingsPageState extends State<SettingsPage> {
     FocusManager.instance.primaryFocus?.unfocus();
     _settingsSearch.clear();
     setState(() {
-      if (section == 0 && (_section != 0 || _settingsQuery.isNotEmpty)) {
+      if (settingsCategories[section].id == 'display' &&
+          (_section != section || _settingsQuery.isNotEmpty)) {
         _resetCatalogOrder();
         _assetPage = 0;
       }
       _section = section;
+      if (anchor == 'header' || anchor == 'opacity') {
+        _target = DisplayTarget.floating;
+      }
       _settingsQuery = '';
       _highlightedAnchor = anchor;
       if (anchor == 'storage') _storageExpanded = true;
     });
-    if (section == 0) _loadCatalog();
+    if (settingsCategories[section].id == 'display') _loadCatalog();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (_scrollController.hasClients) _scrollController.jumpTo(0);
@@ -1037,7 +1390,7 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     ),
   );
-  Widget _assets() {
+  List<Widget> _assetsChildren() {
     final directory = widget.controller.catalog;
     final catalog = _catalogSnapshot;
     final terms = _search.toLowerCase().trim().split(RegExp(r'\s+'));
@@ -1063,7 +1416,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
     final currentPage = _assetPage.clamp(0, pageCount - 1);
     final page = filtered.skip(currentPage * pageSize).take(pageSize);
-    return _page([
+    return [
       _intro(
         context.l10n.settingWatchlist,
         context.l10n.settingWatchlistDescription,
@@ -1265,7 +1618,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
           ),
         ),
-    ]);
+    ];
   }
 
   Widget _watchlistOrder() {
@@ -1422,7 +1775,7 @@ class _SettingsPageState extends State<SettingsPage> {
       for (final id in _draft.selectedAssetIds)
         visibleIds.contains(id) ? visible[index++] : id,
     ];
-    setState(() => _draft = _draft.copyWith(selectedAssetIds: ordered));
+    _commit(_draft.copyWith(selectedAssetIds: ordered));
   }
 
   Map<String, Asset> _availableCatalog() => {
@@ -1505,8 +1858,8 @@ class _SettingsPageState extends State<SettingsPage> {
     final previousOffset = _scrollController.hasClients
         ? _scrollController.offset
         : null;
-    setState(
-      () => _draft = _draft.copyWith(
+    _commit(
+      _draft.copyWith(
         customAssets: selected
             ? [
                 ..._draft.customAssets.where((item) => item.id != asset.id),
@@ -1551,7 +1904,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final other = ids.indexOf(otherId);
     ids[actual] = otherId;
     ids[other] = id;
-    setState(() => _draft = _draft.copyWith(selectedAssetIds: ids));
+    _commit(_draft.copyWith(selectedAssetIds: ids));
   }
 
   Future<void> _addAsset() async {
@@ -1560,16 +1913,16 @@ class _SettingsPageState extends State<SettingsPage> {
       builder: (context) => const _AssetDialog(),
     );
     if (asset == null || !mounted) return;
-    setState(() {
-      _draft = _draft.copyWith(
+    _appendCatalogUpdates();
+    _commit(
+      _draft.copyWith(
         customAssets: [
           ..._draft.customAssets.where((item) => item.id != asset.id),
           asset,
         ],
         selectedAssetIds: {..._draft.selectedAssetIds, asset.id}.toList(),
-      );
-      _appendCatalogUpdates();
-    });
+      ),
+    );
   }
 
   Future<void> _importLegacy() async {
@@ -1635,7 +1988,7 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Widget _sources() => _page([
+  List<Widget> _sourcesChildren() => [
     _scopeCaption(context.l10n.settingScopeShared),
     _anchor(
       'sources',
@@ -1717,17 +2070,19 @@ class _SettingsPageState extends State<SettingsPage> {
                     selected: _draft.selectedCustomFieldIds.contains(
                       customFieldKey(source.id, field.id),
                     ),
-                    onSelected: (selected) => setState(() {
+                    onSelected: (selected) {
                       final key = customFieldKey(source.id, field.id);
-                      _draft = _draft.copyWith(
-                        selectedCustomFieldIds: [
-                          ..._draft.selectedCustomFieldIds.where(
-                            (value) => value != key,
-                          ),
-                          if (selected) key,
-                        ],
+                      _commit(
+                        _draft.copyWith(
+                          selectedCustomFieldIds: [
+                            ..._draft.selectedCustomFieldIds.where(
+                              (value) => value != key,
+                            ),
+                            if (selected) key,
+                          ],
+                        ),
                       );
-                    }),
+                    },
                     label: Text(
                       '${field.label}${field.unit.isEmpty ? '' : ' · ${field.unit}'}',
                     ),
@@ -1751,7 +2106,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ),
       ),
-  ]);
+  ];
 
   Future<void> _editSource(CustomApiSource? source) async {
     final result = await showDialog<SourceEditResult>(
@@ -1783,8 +2138,8 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _error = context.metrics.removeSourceBody);
       return;
     }
-    setState(
-      () => _draft = _draft.copyWith(
+    _commit(
+      _draft.copyWith(
         customSources: [
           ..._draft.customSources.where((item) => item.id != result.source.id),
           result.source,
@@ -1808,8 +2163,8 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _error = context.metrics.removeSourceBody);
       return;
     }
-    setState(
-      () => _draft = _draft.copyWith(
+    _commit(
+      _draft.copyWith(
         customSources: _draft.customSources
             .where((item) => item.id != source.id)
             .toList(),
@@ -1817,24 +2172,14 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _rows() => _page([
-    _intro(context.l10n.settingLayout, context.l10n.settingLayoutDescription),
-    _scopeCaption(_surfaceScope),
-    _anchor(
-      'panel-layout',
-      _card(
-        PanelLayoutSettings(
-          config: _draft,
-          target: _target,
-          onChanged: _preview,
-        ),
-      ),
-    ),
+  /// What is shown, in what order. Arrangement moved to the appearance group:
+  /// columns and gaps change how the same content looks, not what it is.
+  List<Widget> _rowsChildren() => [
     _displayOrder(),
     _card(
       PriceFormatSettings(
         config: _draft,
-        onChanged: _preview,
+        onChanged: _commit,
         quotes: widget.controller.displayQuotes,
         rates: widget.controller.data.exchangeRates,
       ),
@@ -1849,7 +2194,7 @@ class _SettingsPageState extends State<SettingsPage> {
           subtitle: Text(context.l10n.settingDefaultRowsDescription),
           value: _draft.showDefaultRows,
           onChanged: (value) =>
-              setState(() => _draft = _draft.copyWith(showDefaultRows: value)),
+              _commit(_draft.copyWith(showDefaultRows: value)),
         ),
       ),
     ),
@@ -1921,8 +2266,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 FIconButton(
                   tooltip: context.l10n.settingDelete,
-                  onPressed: () => setState(
-                    () => _draft = _draft.copyWith(
+                  onPressed: () => _commit(
+                    _draft.copyWith(
                       displayRows: _draft.displayRows
                           .where((row) => row.id != _draft.displayRows[i].id)
                           .toList(),
@@ -1970,13 +2315,13 @@ class _SettingsPageState extends State<SettingsPage> {
           ],
         ),
       ),
-  ]);
+  ];
 
   void _moveRow(int index, int direction) {
     final rows = [..._draft.displayRows];
     final row = rows.removeAt(index);
     rows.insert(index + direction, row);
-    setState(() => _draft = _draft.copyWith(displayRows: rows));
+    _commit(_draft.copyWith(displayRows: rows));
   }
 
   Widget _displayOrder() {
@@ -1989,7 +2334,7 @@ class _SettingsPageState extends State<SettingsPage> {
     void move(int oldIndex, int newIndex) {
       final order = items.map((item) => item.id).toList();
       order.insert(newIndex, order.removeAt(oldIndex));
-      setState(() => _draft = _draft.copyWith(displayOrder: order));
+      _commit(_draft.copyWith(displayOrder: order));
     }
 
     return _card(
@@ -2061,12 +2406,12 @@ class _SettingsPageState extends State<SettingsPage> {
     } else {
       rows[index] = result;
     }
-    setState(() => _draft = _draft.copyWith(displayRows: rows));
+    _commit(_draft.copyWith(displayRows: rows));
   }
 
   Future<void> _addTemplate() async {
     final result = await showTemplatePicker(context, config: _draft);
-    if (result != null && mounted) _preview(result);
+    if (result != null && mounted) _commit(result);
   }
 
   /// Appearance section, rendered from the declared catalog.
@@ -2090,22 +2435,40 @@ class _SettingsPageState extends State<SettingsPage> {
             child: TiSettingsView(
               catalog: catalog,
               config: _draft,
-              onChanged: _preview,
+              onChanged: _commit,
               // the page header already searches the whole settings tree
               showSearch: false,
+              showActions: false,
               // let the page-wide search scroll to a row inside this section
               anchorKeys: _anchors,
+              scrollController: _scrollController,
               onPickFont: (spec, current) =>
                   _chooseFont(spec.key == 'appearance.numberFontFamily'),
               blockBuilders: {
-                'appearance.theme-picker':
-                    (context, block, config, onChanged) =>
-                        SettingsThemePicker(config: config, onChanged: onChanged),
-                'appearance.price-colors':
-                    (context, block, config, onChanged) =>
-                        PriceColorSettings(config: config, onChanged: onChanged),
-                'appearance.font-preview':
-                    (context, block, config, onChanged) => _fontPreview(config),
+                'appearance.theme-picker': (
+                  context,
+                  block,
+                  config,
+                  onChanged,
+                ) => SettingsThemePicker(config: config, onChanged: onChanged),
+                'appearance.layout': (context, block, config, onChanged) =>
+                    PanelLayoutSettings(
+                      config: config,
+                      target: _target,
+                      onChanged: onChanged,
+                    ),
+                'appearance.price-colors': (
+                  context,
+                  block,
+                  config,
+                  onChanged,
+                ) => PriceColorSettings(config: config, onChanged: onChanged),
+                'appearance.font-preview': (
+                  context,
+                  block,
+                  config,
+                  onChanged,
+                ) => _fontPreview(config),
                 'appearance.header': (context, block, config, onChanged) =>
                     _headerOptions(),
               },
@@ -2156,17 +2519,17 @@ class _SettingsPageState extends State<SettingsPage> {
     ),
   );
 
-  Widget _window() => _page([
-    _intro(context.l10n.settingWindow, context.l10n.settingWindowDescription),
-    _scopeCaption(context.l10n.settingScopePanel),
+  /// Window behaviour: whether the panel exists, whether it stays on top, and
+  /// how it hides. All three answer "how does the window exist", so they moved
+  /// into the general group when the window group was retired.
+  List<Widget> _windowChildren() => [
     _card(
       SwitchListTile(
         contentPadding: EdgeInsets.zero,
         title: Text(context.metrics.showFloating),
         value: _rootDraft.floatingEnabled,
-        onChanged: (value) => setState(
-          () => _rootDraft = _rootDraft.copyWith(floatingEnabled: value),
-        ),
+        onChanged: (value) =>
+            _commitRoot(_rootDraft.copyWith(floatingEnabled: value)),
       ),
     ),
     _anchor(
@@ -2179,9 +2542,8 @@ class _SettingsPageState extends State<SettingsPage> {
               controlWidth: 52,
               control: FSwitch(
                 value: _draft.alwaysOnTop,
-                onChanged: (value) => setState(
-                  () => _draft = _draft.copyWith(alwaysOnTop: value),
-                ),
+                onChanged: (value) =>
+                    _commit(_draft.copyWith(alwaysOnTop: value)),
               ),
             ),
           ],
@@ -2211,7 +2573,8 @@ class _SettingsPageState extends State<SettingsPage> {
         ),
       ),
     ),
-  ]);
+    const SizedBox(height: 18),
+  ];
   Map<String, String> get _headerIcons => {
     'chart': context.l10n.settingIconChart,
     'bitcoin': context.l10n.settingIconBitcoin,
@@ -2287,7 +2650,7 @@ class _SettingsPageState extends State<SettingsPage> {
           control: FSwitch(
             value: _draft.showHeaderName,
             onChanged: (value) =>
-                _preview(_draft.copyWith(showHeaderName: value)),
+                _commit(_draft.copyWith(showHeaderName: value)),
           ),
         ),
         SettingRow(
@@ -2298,7 +2661,7 @@ class _SettingsPageState extends State<SettingsPage> {
             initialValue: _draft.headerName,
             maxLength: 80,
             decoration: const InputDecoration(isDense: true, counterText: ''),
-            onChanged: (value) => _preview(_draft.copyWith(headerName: value)),
+            onChanged: (value) => _commit(_draft.copyWith(headerName: value)),
           ),
         ),
         const Divider(height: 1),
@@ -2308,7 +2671,7 @@ class _SettingsPageState extends State<SettingsPage> {
           control: FSwitch(
             value: _draft.showHeaderIcon,
             onChanged: (value) =>
-                _preview(_draft.copyWith(showHeaderIcon: value)),
+                _commit(_draft.copyWith(showHeaderIcon: value)),
           ),
         ),
         SettingRow(
@@ -2346,7 +2709,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
             onChanged: (value) {
               if (value == null) return;
-              _preview(
+              _commit(
                 _draft.copyWith(
                   headerIcon: value == 'emoji' ? '⭐' : value,
                   headerImagePath: '',
@@ -2365,7 +2728,7 @@ class _SettingsPageState extends State<SettingsPage> {
               hintText: context.l10n.settingEmojiHint,
             ),
             onChanged: (value) =>
-                _preview(_draft.copyWith(headerIcon: value.trim())),
+                _commit(_draft.copyWith(headerIcon: value.trim())),
           ),
         ],
         const SizedBox(height: 10),
@@ -2403,7 +2766,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             if (_draft.headerImagePath.isNotEmpty)
               FTextButton(
-                onPressed: () => _preview(_draft.copyWith(headerImagePath: '')),
+                onPressed: () => _commit(_draft.copyWith(headerImagePath: '')),
                 child: Text(context.l10n.settingClearImage),
               ),
           ],
@@ -2434,7 +2797,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (file == null || !mounted) return;
       final path = await HeaderImageStore(store: widget.controller.store)
           .importFile(file);
-      if (mounted) _preview(_draft.copyWith(headerImagePath: path));
+      if (mounted) _commit(_draft.copyWith(headerImagePath: path));
     } catch (error) {
       if (!mounted) return;
       final message = error is FormatException
@@ -2474,7 +2837,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
             onChanged: (value) {
               if (value != null) {
-                setState(() => _draft = _draft.copyWith(unitLabelMode: value));
+                _commit(_draft.copyWith(unitLabelMode: value));
               }
             },
           ),
@@ -2508,9 +2871,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ],
             onChanged: (value) {
               if (value != null) {
-                setState(
-                  () => _draft = _draft.copyWith(displayCurrency: value),
-                );
+                _commit(_draft.copyWith(displayCurrency: value));
               }
             },
           ),
@@ -2532,11 +2893,11 @@ class _SettingsPageState extends State<SettingsPage> {
               trailing: FIconButton(
                 tooltip: context.l10n.settingDeleteUnitLabel,
                 icon: const Icon(Icons.close),
-                onPressed: () => setState(() {
+                onPressed: () {
                   final labels = Map<String, String>.of(_draft.unitLabels)
                     ..remove(entry.key);
-                  _draft = _draft.copyWith(unitLabels: labels);
-                }),
+                  _commit(_draft.copyWith(unitLabels: labels));
+                },
               ),
             ),
           FButton.icon(
@@ -2560,8 +2921,8 @@ class _SettingsPageState extends State<SettingsPage> {
             trailing: FIconButton(
               tooltip: context.l10n.settingDeleteUnitRule,
               icon: const Icon(Icons.close),
-              onPressed: () => setState(
-                () => _draft = _draft.copyWith(
+              onPressed: () => _commit(
+                _draft.copyWith(
                   unitRules: [
                     for (var j = 0; j < _draft.unitRules.length; j++)
                       if (j != i) _draft.unitRules[j],
@@ -2641,8 +3002,8 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
     if (result != null && mounted) {
-      setState(
-        () => _draft = _draft.copyWith(
+      _commit(
+        _draft.copyWith(
           unitLabels: {
             for (final entry in _draft.unitLabels.entries)
               if (_unitKey(entry.key) != _unitKey(result.key))
@@ -2740,8 +3101,8 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
     if (result != null && mounted) {
-      setState(
-        () => _draft = _draft.copyWith(
+      _commit(
+        _draft.copyWith(
           unitRules: [
             ..._draft.unitRules.where(
               (rule) =>
@@ -2784,7 +3145,6 @@ class _SettingsPageState extends State<SettingsPage> {
     }
     return font;
   }
-
 }
 
 class _SettingTag extends StatelessWidget {

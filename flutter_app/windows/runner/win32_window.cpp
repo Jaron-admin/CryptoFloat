@@ -650,15 +650,17 @@ void Win32Window::SetSettingsMode(bool enabled) {
 
 void Win32Window::UpdateTaskbarPresence() {
   if (!window_handle_) return;
-  // Windows requires hiding a visible window before changing its taskbar
-  // style. Preserve hidden state and focus for tray and settings transitions.
+  LONG_PTR style = GetWindowLongPtrW(window_handle_, GWL_EXSTYLE);
+  const LONG_PTR wanted = settings_mode_ ? WS_EX_APPWINDOW : WS_EX_TOOLWINDOW;
+  if ((style & (WS_EX_TOOLWINDOW | WS_EX_APPWINDOW)) == wanted) return;
+  // The Shell requires hiding a visible window before changing taskbar styles.
+  // Preserve tray-hidden state and avoid activating a background window.
   const bool visible =
       (GetWindowLongPtrW(window_handle_, GWL_STYLE) & WS_VISIBLE) != 0;
-  const bool foreground = GetForegroundWindow() == window_handle_;
+  const bool foreground = visible && GetForegroundWindow() == window_handle_;
   if (visible) ShowWindow(window_handle_, SW_HIDE);
-  LONG_PTR style = GetWindowLongPtrW(window_handle_, GWL_EXSTYLE);
   style &= ~(WS_EX_TOOLWINDOW | WS_EX_APPWINDOW);
-  style |= settings_mode_ ? WS_EX_APPWINDOW : WS_EX_TOOLWINDOW;
+  style |= wanted;
   SetWindowLongPtrW(window_handle_, GWL_EXSTYLE, style);
   SetWindowPos(window_handle_, nullptr, 0, 0, 0, 0,
       SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);

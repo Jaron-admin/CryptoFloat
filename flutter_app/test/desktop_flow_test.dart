@@ -11,6 +11,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/settings_fakes.dart' show SettingsCatalog;
+import 'support/settings_navigation.dart';
 
 void main() {
   AppController createController(_MemoryConfigStore store, _WindowHost host) =>
@@ -64,8 +65,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('外观'));
       await tester.pumpAndSettle();
-      await tester.ensureVisible(find.text('选择系统字体').last);
-      await tester.tap(find.text('选择系统字体').last);
+      await revealSetting(tester, settingsFontPicker(numbers: true));
+      await tester.tap(settingsFontPicker(numbers: true));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Consolas'));
       await tester.pumpAndSettle();
@@ -231,6 +232,8 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('设置…'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('显示').first);
       await tester.pumpAndSettle();
       await tester.ensureVisible(find.text('添加代码'));
       await tester.tap(find.text('添加代码'));

@@ -56,7 +56,7 @@ void main() {
 
       await tester.tap(find.text('Appearance').first);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Watchlist').first);
+      await tester.tap(find.text('Display').first);
       await tester.pumpAndSettle();
       expect(_catalogOrder(tester).first, 'OKX:TST010-USDT');
 
@@ -120,14 +120,8 @@ void main() {
           size: size,
         );
         final sections = language == 'en'
-            ? [
-                'Custom content',
-                'Display layout',
-                'Appearance',
-                'Units & conversion',
-                'Window & tray',
-              ]
-            : ['自定义内容', '显示布局', '外观', '单位与换算', '窗口与托盘'];
+            ? ['General', 'Appearance', 'Display', 'Privacy and data', 'About']
+            : ['通用', '外观', '显示', '隐私与数据', '关于'];
         for (final title in sections) {
           final category = size.width < 560
               ? find.widgetWithText(ChoiceChip, title)
@@ -228,6 +222,13 @@ Future<void> _openSettings(
   await tester.tap(find.text(language == 'en' ? 'Settings…' : '设置…'));
   await tester.pumpAndSettle();
   expect(find.byType(SettingsPage), findsOneWidget);
+  final display = language == 'en' ? 'Display' : '显示';
+  await tester.tap(
+    size.width >= 560 && size.width < 760
+        ? find.byTooltip(display)
+        : find.text(display).first,
+  );
+  await tester.pumpAndSettle();
 }
 
 Finder _catalogRow(String id) => find.byKey(ValueKey('catalog-$id'));

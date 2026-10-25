@@ -8,8 +8,12 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final l10n = lookupAppLocalizations(const Locale('zh'));
 
-  TiSettingsCatalog catalog({bool floating = true}) =>
-      buildAppearanceCatalog(l10n, floating: floating);
+  TiSettingsCatalog catalog({bool floating = true}) => TiSettingsCatalog(
+    groups: [
+      ...buildGeneralCatalog(l10n).groups,
+      ...buildAppearanceCatalog(l10n, floating: floating).groups,
+    ],
+  );
 
   group('declaration', () {
     test('every declared default matches AppConfig.defaults', () {
@@ -21,7 +25,8 @@ void main() {
         expect(
           spec.read(config),
           spec.defaultValue,
-          reason: '${spec.key} declares ${spec.defaultValue} but the model '
+          reason:
+              '${spec.key} declares ${spec.defaultValue} but the model '
               'defaults to ${spec.read(config)}',
         );
       }
@@ -73,9 +78,7 @@ void main() {
       TiSettingType typeFor(int count) => TiSettingSpec.choice(
         key: 'k',
         label: 'l',
-        options: [
-          for (var i = 0; i < count; i++) TiSettingOption('$i', '$i'),
-        ],
+        options: [for (var i = 0; i < count; i++) TiSettingOption('$i', '$i')],
         defaultValue: '0',
         read: (config) => config.language,
         write: (config, value) => config.copyWith(language: value),
@@ -186,8 +189,10 @@ void main() {
   group('search', () {
     test('finds a setting by its label', () {
       final hits = catalog().search('字号');
-      expect(hits.expand((group) => group.specs).map((spec) => spec.key),
-          contains('appearance.fontSize'));
+      expect(
+        hits.expand((group) => group.specs).map((spec) => spec.key),
+        contains('appearance.fontSize'),
+      );
     });
 
     test('finds a setting by its key', () {
@@ -209,6 +214,21 @@ void main() {
   });
 
   group('visibility', () {
+    test('custom setting blocks keep their group visible', () {
+      final visible = catalog().orderedGroups(
+        where: (group) => group.visibleIn(AppConfig.defaults),
+      );
+      expect(
+        visible.map((group) => group.id),
+        containsAll([
+          'appearance.theme',
+          'appearance.layout',
+          'appearance.colors',
+          'appearance.header',
+        ]),
+      );
+    });
+
     test('the panel-only groups disappear for the taskbar surface', () {
       final floating = catalog(floating: true);
       final taskbar = catalog(floating: false);

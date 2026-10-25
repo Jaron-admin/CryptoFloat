@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/settings_fakes.dart';
+import 'support/settings_navigation.dart';
 
 Future<void> openSettings(WidgetTester tester) async {
   await tester.tap(
@@ -62,25 +63,7 @@ Future<void> reveal(
   Finder finder, {
   double delta = 250,
 }) async {
-  if (finder.evaluate().isEmpty) {
-    try {
-      await tester.scrollUntilVisible(
-        finder,
-        delta,
-        maxScrolls: 20,
-        scrollable: find
-            .descendant(
-              of: find.byType(Scrollbar).first,
-              matching: find.byType(Scrollable),
-            )
-            .first,
-      );
-    } on StateError {
-      expect(finder, findsOneWidget, reason: '设置控件应能通过滚动访问。');
-    }
-  }
-  await tester.ensureVisible(finder);
-  await tester.pumpAndSettle();
+  await revealSetting(tester, finder);
 }
 
 void main() {
@@ -101,7 +84,7 @@ void main() {
     await tester.pumpWidget(CryptoFloatApp(controller: controller));
     await tester.pumpAndSettle();
     await openSettings(tester);
-    await category(tester, '单位与换算');
+    await category(tester, '显示');
     await reveal(tester, find.text('添加单位标签'));
     await tester.tap(find.text('添加单位标签'));
     await tester.pumpAndSettle();
@@ -144,7 +127,7 @@ void main() {
       await tester.pumpWidget(CryptoFloatApp(controller: controller));
       await tester.pumpAndSettle();
       await openSettings(tester);
-      await category(tester, '单位与换算');
+      await category(tester, '显示');
       await reveal(tester, find.text('添加倍率规则'));
       await tester.tap(find.text('添加倍率规则'));
       await tester.pumpAndSettle();
@@ -187,7 +170,7 @@ void main() {
       await tester.pumpWidget(CryptoFloatApp(controller: controller));
       await tester.pumpAndSettle();
       await openSettings(tester);
-      await category(tester, '显示布局');
+      await category(tester, '显示');
       await reveal(tester, find.text('添加实用模板'));
       await tester.tap(find.text('添加实用模板'));
       await tester.pumpAndSettle();
@@ -233,7 +216,7 @@ void main() {
     await tester.pumpWidget(CryptoFloatApp(controller: controller));
     await tester.pumpAndSettle();
     await openSettings(tester);
-    await category(tester, '显示布局');
+    await category(tester, '显示');
     await reveal(tester, find.text('显示默认行情'));
     expect(find.text('显示默认行情'), findsOneWidget);
     await tester.tap(find.text('显示默认行情'));
@@ -307,7 +290,7 @@ void main() {
       await tester.pumpWidget(CryptoFloatApp(controller: controller));
       await tester.pumpAndSettle();
       await openSettings(tester);
-      await category(tester, '单位与换算');
+      await category(tester, '显示');
       await reveal(tester, find.byKey(const ValueKey('unit-label-mode')));
       await tester.tap(find.byKey(const ValueKey('unit-label-mode')));
       await tester.pumpAndSettle();
@@ -392,8 +375,8 @@ void main() {
       await tester.pumpAndSettle();
       await openSettings(tester);
       await appearance(tester);
-      await reveal(tester, find.text('选择系统字体').first);
-      await tester.tap(find.text('选择系统字体').first);
+      await reveal(tester, settingsFontPicker());
+      await tester.tap(settingsFontPicker());
       await tester.pumpAndSettle();
       expect(find.text('字体无法加载，请选择其他字体'), findsOneWidget);
       await tester.tap(find.text('取消'));
@@ -452,9 +435,9 @@ void main() {
         theme.inputDecorationTheme.fillColor,
         isNot(const Color(0xFF10161F)),
       );
-      await reveal(tester, find.text('文字字体'), delta: -250);
-      await reveal(tester, find.text('选择系统字体').first);
-      await tester.tap(find.text('选择系统字体').first);
+      await reveal(tester, find.text('正文字体'), delta: -250);
+      await reveal(tester, settingsFontPicker());
+      await tester.tap(settingsFontPicker());
       await tester.pumpAndSettle();
       expect(
         Theme.of(tester.element(find.byType(AlertDialog)))
@@ -482,8 +465,8 @@ void main() {
     await tester.pumpAndSettle();
     await openSettings(tester);
     await appearance(tester);
-    await reveal(tester, find.text('选择系统字体').first);
-    await tester.tap(find.text('选择系统字体').first);
+    await reveal(tester, settingsFontPicker());
+    await tester.tap(settingsFontPicker());
     await tester.pumpAndSettle();
     await tester.tap(find.text('Consolas'));
     await tester.pumpAndSettle();
@@ -520,6 +503,7 @@ void main() {
       ),
       findsWidgets,
     );
+    await category(tester, '显示');
     await tester.ensureVisible(find.text('股票 / ETF'));
     await tester.tap(find.text('股票 / ETF'));
     await tester.pumpAndSettle();
@@ -550,10 +534,10 @@ void main() {
     await openSettings(tester);
     await appearance(tester);
     expect(tester.takeException(), isNull);
-    await tester.ensureVisible(find.text('选择系统字体').first);
+    await revealSetting(tester, settingsFontPicker());
     await tester.pumpAndSettle();
-    await reveal(tester, find.text('选择系统字体').first);
-    await tester.tap(find.text('选择系统字体').first);
+    await reveal(tester, settingsFontPicker());
+    await tester.tap(settingsFontPicker());
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Consolas'));

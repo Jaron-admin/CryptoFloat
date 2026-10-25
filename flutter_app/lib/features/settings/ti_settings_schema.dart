@@ -258,10 +258,8 @@ final class TiSettingSpec extends TiSettingItem {
     needsRestart: needsRestart,
     visible: visible,
     read: read,
-    write: (config, value) => write(
-      config,
-      value is num ? value.toDouble() : defaultValue,
-    ),
+    write: (config, value) =>
+        write(config, value is num ? value.toDouble() : defaultValue),
   );
 
   /// Declare a free-text setting.
@@ -320,8 +318,12 @@ class TiSettingGroup {
 
   bool get isCollapsible => level != TiSettingLevel.common;
 
-  bool visibleIn(AppConfig config) =>
-      specs.any((spec) => spec.visible?.call(config) ?? true);
+  bool visibleIn(AppConfig config) => items.any(
+    (item) => switch (item) {
+      TiSettingBlock() => true,
+      TiSettingSpec spec => spec.visible?.call(config) ?? true,
+    },
+  );
 }
 
 /// The declared page. Order is the contract: sections come out in
@@ -345,8 +347,12 @@ class TiSettingsCatalog {
 
   /// Groups in render order: section order first, declaration order second.
   List<TiSettingGroup> orderedGroups({bool Function(TiSettingGroup)? where}) {
-    final index = {for (final section in TiSettingSection.values) section: section.index};
-    final visible = groups.where((group) => where?.call(group) ?? true).toList();
+    final index = {
+      for (final section in TiSettingSection.values) section: section.index,
+    };
+    final visible = groups
+        .where((group) => where?.call(group) ?? true)
+        .toList();
     visible.sort((a, b) {
       final bySection = index[a.section]!.compareTo(index[b.section]!);
       if (bySection != 0) return bySection;
@@ -364,8 +370,9 @@ class TiSettingsCatalog {
       final hits = group.items.where((item) {
         return switch (item) {
           TiSettingSpec spec => spec.matches(query),
-          TiSettingBlock block =>
-            block.title.toLowerCase().contains(query.toLowerCase().trim()),
+          TiSettingBlock block => block.title.toLowerCase().contains(
+            query.toLowerCase().trim(),
+          ),
         };
       }).toList();
       if (hits.isEmpty) continue;

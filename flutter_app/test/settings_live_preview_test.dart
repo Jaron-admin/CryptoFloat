@@ -6,6 +6,7 @@ import 'package:cryptofloat/app/theme.dart';
 import 'package:cryptofloat/domain/models.dart';
 import 'package:cryptofloat/features/panel/panel_page.dart';
 import 'package:cryptofloat/features/settings/settings_page.dart';
+import 'package:cryptofloat/features/settings/ti_settings_view.dart';
 import 'package:cryptofloat/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
@@ -87,7 +88,7 @@ void main() {
           child: SettingsPage(
             controller: controller,
             onClose: () {},
-            initialSection: 2,
+            initialSection: 1,
           ),
         ),
         config,
@@ -107,7 +108,13 @@ void main() {
     );
     final originalWidth = tester.getSize(row).width;
     final gap = find.byKey(const ValueKey('panel-label-value-gap'));
-    await tester.ensureVisible(gap);
+    final scrollable = find
+        .descendant(
+          of: find.byType(TiSettingsView),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(gap, 200, scrollable: scrollable);
     tester.widget<Slider>(gap).onChanged!(32);
     await tester.pumpAndSettle();
     expect(tester.getSize(row).width, closeTo(originalWidth + 24, .1));
@@ -117,12 +124,6 @@ void main() {
       find.descendant(of: preview, matching: find.text('104,000.00')),
       findsOneWidget,
     );
-    final scrollable = find
-        .descendant(
-          of: find.byType(Scrollbar).first,
-          matching: find.byType(Scrollable),
-        )
-        .first;
     await tester.drag(scrollable, const Offset(0, -300));
     await tester.pumpAndSettle();
     expect(tester.getRect(preview), before);
@@ -261,7 +262,7 @@ void main() {
             SettingsPage(
               controller: controller,
               onClose: () {},
-              initialSection: 5,
+              initialSection: 2,
             ),
             config,
           ),
@@ -363,7 +364,7 @@ void main() {
         await tester.pumpAndSettle();
         final scrollable = find
             .descendant(
-              of: find.byType(Scrollbar).first,
+              of: find.byType(TiSettingsView),
               matching: find.byType(Scrollable),
             )
             .first;
@@ -435,6 +436,94 @@ void main() {
       }
     },
   );
+
+  for (final target in DisplayTarget.values) {
+    testWidgets('${target.name} preview follows an unsaved display reorder', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(1100, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      const rows = [
+        DisplayRow(id: 'alpha', segments: [DisplaySegment.literal('Alpha')]),
+        DisplayRow(id: 'beta', segments: [DisplaySegment.literal('Beta')]),
+      ];
+      final config = AppConfig.defaults.copyWith(
+        selectedAssetIds: [],
+        selectedMetricIds: [],
+        showDefaultRows: false,
+        displayRows: rows,
+        displayOrder: ['row:alpha', 'row:beta'],
+        language: 'en',
+        proxyEnabled: false,
+        taskbar: const TaskbarConfig(
+          lineCount: 1,
+          overflowMode: 'manual',
+          profile: DisplayProfile(
+            showDefaultRows: false,
+            displayRows: rows,
+            displayOrder: ['row:alpha', 'row:beta'],
+          ),
+        ),
+      );
+      final store = SettingsStore();
+      final controller = PreviewController(config, store);
+      try {
+        await tester.pumpWidget(
+          app(
+            SettingsPage(
+              controller: controller,
+              onClose: () {},
+              initialSection: 2,
+            ),
+            config,
+          ),
+        );
+        await tester.pumpAndSettle();
+        if (target == DisplayTarget.taskbar) {
+          await tester.tap(find.text('Taskbar').first);
+          await tester.pumpAndSettle();
+        }
+        final preview = find.byKey(const ValueKey('settings-live-preview'));
+        expect(preview, findsOneWidget);
+        double previewPosition(String id) {
+          final key = target == DisplayTarget.floating
+              ? 'panel-row:$id'
+              : 'taskbar-preview-cell-row:$id';
+          final rect = tester.getRect(
+            find.descendant(of: preview, matching: find.byKey(ValueKey(key))),
+          );
+          return target == DisplayTarget.floating ? rect.top : rect.left;
+        }
+
+        expect(previewPosition('alpha'), lessThan(previewPosition('beta')));
+        final moveUp = find.descendant(
+          of: find.byKey(const ValueKey('display-order-row:beta')),
+          matching: find.widgetWithIcon(IconButton, Icons.arrow_upward),
+        );
+        await tester.ensureVisible(moveUp);
+        await tester.tap(moveUp);
+        await tester.pumpAndSettle();
+        expect(previewPosition('beta'), lessThan(previewPosition('alpha')));
+        expect(controller.appearanceConfig.displayFor(target).displayOrder, [
+          'row:beta',
+          'row:alpha',
+        ]);
+        expect(controller.config.displayFor(target).displayOrder, [
+          'row:alpha',
+          'row:beta',
+        ]);
+        expect(
+          store.saved,
+          isNull,
+          reason: 'A preview edit never saves the draft',
+        );
+        expect(tester.takeException(), isNull);
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        controller.dispose();
+      }
+    });
+  }
 
   testWidgets('vertical floating entries honor name/value spacing', (
     tester,

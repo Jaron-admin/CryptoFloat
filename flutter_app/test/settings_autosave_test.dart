@@ -15,6 +15,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/settings_fakes.dart';
+import 'support/settings_navigation.dart';
 
 class _Store extends SettingsStore {
   bool fail = false;
@@ -46,8 +47,8 @@ Future<void> changeFont(
 ]) async {
   await tester.tap(find.text('外观').first);
   await tester.pumpAndSettle();
-  final choose = find.text('选择系统字体').last;
-  await tester.ensureVisible(choose);
+  final choose = settingsFontPicker(numbers: true);
+  await revealSetting(tester, choose);
   await tester.tap(choose);
   await tester.pumpAndSettle();
   await tester.tap(
@@ -95,7 +96,7 @@ void main() {
           await openSettings(tester);
           await tester.tap(find.text('外观').first);
           await tester.pumpAndSettle();
-          await tester.ensureVisible(name);
+          await revealSetting(tester, name);
           await tester.enterText(name, 'Committed name');
           await tester.pump();
           await tester.tap(find.byKey(const ValueKey('settings-save')));
@@ -206,7 +207,7 @@ void main() {
           ],
           home: SettingsPage(
             controller: controller,
-            initialSection: 3,
+            initialSection: 1,
             outsideClicks: outside.stream,
             onClose: () => closes++,
           ),
@@ -336,7 +337,7 @@ void main() {
       await tester.pumpWidget(CryptoFloatApp(controller: controller));
       await tester.pumpAndSettle();
       await openSettings(tester);
-      await tester.tap(find.text('自定义内容').first);
+      await tester.tap(find.text('显示').first);
       await tester.pumpAndSettle();
       final edit = find.byTooltip('编辑').first;
       await tester.ensureVisible(edit);
@@ -407,15 +408,15 @@ void main() {
           ],
           home: SettingsPage(
             controller: controller,
-            initialSection: 3,
+            initialSection: 1,
             outsideClicks: outside.stream,
             onClose: () => closed = true,
           ),
         ),
       );
       await tester.pumpAndSettle();
-      final choose = find.text('选择系统字体').last;
-      await tester.ensureVisible(choose);
+      final choose = settingsFontPicker(numbers: true);
+      await revealSetting(tester, choose);
       await tester.tap(choose);
       await tester.pumpAndSettle();
       outside.add(null);
